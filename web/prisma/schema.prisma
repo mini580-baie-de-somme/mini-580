@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum Hull {
+  HULL_268
+  HULL_269
+  HULL_270
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  createdAt    DateTime @default(now())
+  posts        Post[]
+}
+
+model Post {
+  id            String          @id @default(cuid())
+  slug          String          @unique
+  titleFr       String
+  titleEn       String
+  excerptFr     String          @default("")
+  excerptEn     String          @default("")
+  bodyFr        String          @default("") @db.Text
+  bodyEn        String          @default("") @db.Text
+  status        PostStatus      @default(DRAFT)
+  authorId      String
+  author        User            @relation(fields: [authorId], references: [id])
+  coverImageUrl String?
+  publishedAt   DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  hulls         PostHull[]
+  tags          PostTag[]
+  themes        PostTheme[]
+  milestones    PostMilestone[]
+  images        PostImage[]
+}
+
+model PostHull {
+  postId String
+  hull   Hull
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([postId, hull])
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  labelFr   String
+  labelEn   String
+  createdAt DateTime  @default(now())
+  posts     PostTag[]
+}
+
+model PostTag {
+  postId String
+  tagId  String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+}
+
+model Theme {
+  id     String      @id @default(cuid())
+  slug   String      @unique
+  labelFr String
+  labelEn String
+  posts  PostTheme[]
+}
+
+model PostTheme {
+  postId  String
+  themeId String
+  post    Post  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  theme   Theme @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  @@id([postId, themeId])
+}
+
+model Milestone {
+  id            String          @id @default(cuid())
+  slug          String          @unique
+  titleFr       String
+  titleEn       String
+  descriptionFr String          @default("") @db.Text
+  descriptionEn String          @default("") @db.Text
+  milestoneDate DateTime
+  sortOrder     Int             @default(0)
+  createdAt     DateTime        @default(now())
+  posts         PostMilestone[]
+}
+
+model PostMilestone {
+  postId      String
+  milestoneId String
+  post        Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  milestone   Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+
+  @@id([postId, milestoneId])
+}
+
+model PostImage {
+  id        String @id @default(cuid())
+  postId    String
+  post      Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  url       String
+  captionFr String @default("")
+  captionEn String @default("")
+  sortOrder Int    @default(0)
+}

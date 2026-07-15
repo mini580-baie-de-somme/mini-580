@@ -2,7 +2,7 @@
 
 Plateforme de documentation, publication et communication autour de la construction de **trois Class Globe 5.80** sur la Baie de Somme.
 
-**Stack :** site statique + **OpenClaw** (control plane) + **Telegram** / **Google Drive** (canaux équipe zero-tech).
+**Stack :** Next.js 15 + PostgreSQL + **OpenClaw** (control plane, VM dédiée Phase 2) + **Telegram** / **Google Drive** (canaux équipe zero-tech).
 
 ## Le projet
 
@@ -26,6 +26,17 @@ Ce dépôt part de zéro pour reconstruire le site web, la documentation et la c
 | [Blog existant](docs/03-blog-existant.md) | Inventaire du contenu à migrer |
 | [Objectifs & vision](docs/04-objectifs-vision.md) | Vision validée, décisions, prochaines étapes |
 | [Architecture OpenClaw](docs/05-architecture-openclaw.md) | Schéma technique, pipeline publication, skills |
+| [Spec technique site](docs/06-spec-technique.md) | Décisions validées, modèle DB, phasage |
+
+## Application web (`web/`)
+
+```bash
+cp web/.env.example web/.env
+./scripts/dev.sh    # PostgreSQL + migrate + seed + Next.js :3001
+```
+
+- **Login dev :** `admin@cnbs.local` / `changeme123`
+- **Pages :** `/` · `/blog` · `/timeline` · `/connexion` · `/editeur`
 
 ## Liens utiles
 
@@ -38,8 +49,10 @@ Ce dépôt part de zéro pour reconstruire le site web, la documentation et la c
 
 ## Prochaines étapes
 
-1. Valider l'architecture OpenClaw (`docs/05-architecture-openclaw.md`)
-2. Installer OpenClaw + créer le bot et le groupe Telegram CNBS
-3. Lancer le squelette du site web (Astro/Next.js)
-4. Développer le skill `cnbs-ingest` (Telegram → brouillon article)
-5. Migrer les 3 articles Blogger et tester le premier flux équipe → site
+1. ~~Valider l'architecture OpenClaw~~ → spec validée (`docs/06-spec-technique.md`)
+2. ~~Lancer le squelette du site web~~ → Phase 1a/1b en place (`web/`)
+3. Tester édition + autosave + preview en local
+4. Provisionner VM Hostinger + nom de domaine (prod)
+5. Installer OpenClaw sur VM dédiée + bot Telegram CNBS
+6. Développer le skill `cnbs-ingest` (Telegram → API posts)
+7. Migrer photos Blogger + enrichir contenu équipe
