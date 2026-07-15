@@ -1,0 +1,59 @@
+{
+  "$schema": "https://docs.openclaw.ai/schemas/openclaw.schema.json",
+  "_comment": "Configuration conceptuelle CNBS — à adapter avec vos vrais IDs Telegram",
+
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "botToken": "${TELEGRAM_BOT_TOKEN}",
+      "dmPolicy": "allowlist",
+      "allowFrom": ["<ADMIN_TELEGRAM_USER_ID>"],
+      "groups": {
+        "<CNBS_CHANTIER_GROUP_ID>": {
+          "requireMention": false,
+          "groupPolicy": "allowlist",
+          "groupAllowFrom": [
+            "<LAURENT_TELEGRAM_USER_ID>",
+            "<MARCO_TELEGRAM_USER_ID>",
+            "<RODOLPHE_TELEGRAM_USER_ID>",
+            "<ADMIN_TELEGRAM_USER_ID>"
+          ]
+        }
+      }
+    }
+  },
+
+  "agents": {
+    "list": [
+      {
+        "id": "cnbs-admin",
+        "name": "CNBS Admin",
+        "workspace": "./workspace/admin",
+        "skills": ["cnbs-publish", "cnbs-migrate", "cnbs-deploy"]
+      },
+      {
+        "id": "cnbs-publisher",
+        "name": "CNBS Publisher",
+        "workspace": "./workspace/publisher",
+        "skills": ["cnbs-ingest", "cnbs-draft", "cnbs-class-checklist"]
+      }
+    ]
+  },
+
+  "skills": {
+    "load": {
+      "extraDirs": ["./openclaw/skills"]
+    }
+  },
+
+  "cron": {
+    "jobs": [
+      {
+        "name": "cnbs-drive-watch",
+        "schedule": "*/15 * * * *",
+        "agent": "cnbs-publisher",
+        "message": "Vérifie le dossier Google Drive CNBS/À publier pour de nouveaux fichiers"
+      }
+    ]
+  }
+}
