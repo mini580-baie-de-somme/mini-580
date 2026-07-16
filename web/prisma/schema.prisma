@@ -119,27 +119,32 @@ model PostMilestone {
 }
 
 model PostImage {
-  id        String    @id @default(cuid())
-  postId    String
-  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
-  url       String
-  titleFr   String    @default("")
-  titleEn   String    @default("")
-  captionFr String    @default("")
-  captionEn String    @default("")
-  takenAt   DateTime?
-  sortOrder Int       @default(0)
+  id            String    @id @default(cuid())
+  postId        String
+  post          Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  /// Original uploaded file (image_origine)
+  urlOrigin     String
+  urlPicto      String?
+  urlPetite     String?
+  urlMoyenne    String?
+  urlGrande     String?
+  titleFr       String    @default("")
+  titleEn       String    @default("")
+  descriptionFr String    @default("")
+  descriptionEn String    @default("")
+  takenAt       DateTime?
+  sortOrder     Int       @default(0)
   /// Focus point 0–1 (object-position)
-  focusX    Float     @default(0.5)
-  focusY    Float     @default(0.5)
-  zoom      Float     @default(1)
+  focusX        Float     @default(0.5)
+  focusY        Float     @default(0.5)
+  zoom          Float     @default(1)
   /// Degrees: 0, 90, 180, 270
-  rotation  Int       @default(0)
+  rotation      Int       @default(0)
   /// Crop rectangle relative 0–1
-  cropX     Float     @default(0)
-  cropY     Float     @default(0)
-  cropW     Float     @default(1)
-  cropH     Float     @default(1)
+  cropX         Float     @default(0)
+  cropY         Float     @default(0)
+  cropW         Float     @default(1)
+  cropH         Float     @default(1)
 }
 
 enum TelegramSessionStep {

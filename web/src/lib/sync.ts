@@ -50,11 +50,15 @@ export type SyncPostPayload = {
   }[];
   images: {
     id: string;
-    url: string;
+    urlOrigin: string;
+    urlPicto: string | null;
+    urlPetite: string | null;
+    urlMoyenne: string | null;
+    urlGrande: string | null;
     titleFr: string;
     titleEn: string;
-    captionFr: string;
-    captionEn: string;
+    descriptionFr: string;
+    descriptionEn: string;
     takenAt: string | null;
     sortOrder: number;
     focusX: number;
@@ -119,11 +123,15 @@ function serializePost(post: PostWithRelations): SyncPostPayload {
     })),
     images: post.images.map((img) => ({
       id: img.id,
-      url: img.url,
+      urlOrigin: img.urlOrigin,
+      urlPicto: img.urlPicto,
+      urlPetite: img.urlPetite,
+      urlMoyenne: img.urlMoyenne,
+      urlGrande: img.urlGrande,
       titleFr: img.titleFr,
       titleEn: img.titleEn,
-      captionFr: img.captionFr,
-      captionEn: img.captionEn,
+      descriptionFr: img.descriptionFr,
+      descriptionEn: img.descriptionEn,
       takenAt: img.takenAt?.toISOString() ?? null,
       sortOrder: img.sortOrder,
       focusX: img.focusX,
@@ -417,11 +425,15 @@ export async function upsertPostFromSync(payload: SyncPostPayload) {
       data: payload.images.map((img) => ({
         id: img.id,
         postId: payload.id,
-        url: img.url,
+        urlOrigin: img.urlOrigin,
+        urlPicto: img.urlPicto,
+        urlPetite: img.urlPetite,
+        urlMoyenne: img.urlMoyenne ?? img.urlOrigin,
+        urlGrande: img.urlGrande,
         titleFr: img.titleFr ?? "",
         titleEn: img.titleEn ?? "",
-        captionFr: img.captionFr,
-        captionEn: img.captionEn,
+        descriptionFr: img.descriptionFr,
+        descriptionEn: img.descriptionEn,
         takenAt: img.takenAt ? new Date(img.takenAt) : null,
         sortOrder: img.sortOrder,
         focusX: img.focusX ?? 0.5,

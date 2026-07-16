@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getMediaBucket } from "@/lib/media-bucket";
+import { storeOriginAndVariants, type MediaVariantUrls } from "@/lib/media-variants";
 import { isTelegramUserAllowed } from "@/lib/service-auth";
 import {
   answerCallbackQuery,
@@ -39,12 +39,9 @@ export type TelegramUpdate = {
   callback_query?: TelegramCallbackQuery;
 };
 
-async function storeTelegramPhoto(fileId: string): Promise<string> {
+async function storeTelegramPhoto(fileId: string): Promise<MediaVariantUrls> {
   const { buffer, filename, contentType } = await downloadTelegramFile(fileId);
-  const bucket = getMediaBucket();
-  const key = bucket.createObjectKey(filename);
-  const stored = await bucket.putObject(key, buffer, contentType);
-  return stored.url;
+  return storeOriginAndVariants(buffer, contentType, filename);
 }
 
 function largestPhoto(photos: TelegramPhotoSize[]): TelegramPhotoSize {
@@ -168,13 +165,14 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<voi
   }
 
   if (session.step === "AWAITING_CONTENT") {
-    let mediaUrl: string | undefined;
+    let mediaItem: Awaited<ReturnType<typeof storeTelegramPhoto>> | undefined;
     if (message.photo?.length) {
-      mediaUrl = await storeTelegramPhoto(largestPhoto(message.photo).file_id);
+      mediaItem = await storeTelegramPhoto(largestPhoto(message.photo).file_id);
     }
     const reply = await appendContent(session.id, {
       text: text || undefined,
-      mediaUrl,
+      mediaItem,
+      mediaUrl: mediaItem?.urlOrigin,
     });
     await sendTelegramReply(message.chat.id, reply, {
       replyToMessageId: message.message_id,

@@ -7,6 +7,7 @@ import type { HullId } from "@/lib/types";
 
 const HULL_OPTIONS: HullId[] = ["HULL_268", "HULL_269", "HULL_270"];
 import { LangToggle } from "./LangToggle";
+import { PostGalleryEditor, type GalleryEditorImage } from "./PostGalleryEditor";
 
 type Tag = { id: string; name: string; labelFr: string; labelEn: string };
 type Theme = { id: string; slug: string; labelFr: string; labelEn: string };
@@ -27,6 +28,7 @@ export type EditorPost = {
   tags: { tag: Tag }[];
   themes: { theme: Theme }[];
   milestones: { milestone: Milestone }[];
+  images: GalleryEditorImage[];
 };
 
 type Props = {
@@ -279,6 +281,19 @@ export function PostEditor({ post, tags, themes, milestones }: Props) {
             />
           ) : null}
         </div>
+
+        <PostGalleryEditor
+          postId={post.id}
+          lang={lang}
+          initialImages={post.images.map((img) => ({
+            ...img,
+            takenAt: img.takenAt
+              ? typeof img.takenAt === "string"
+                ? img.takenAt
+                : new Date(img.takenAt).toISOString()
+              : null,
+          }))}
+        />
       </div>
 
       <fieldset className="rounded-lg border border-[#d4dde6] p-4">

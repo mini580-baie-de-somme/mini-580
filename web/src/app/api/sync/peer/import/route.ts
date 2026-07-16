@@ -51,11 +51,18 @@ const postSchema = z.object({
   images: z.array(
     z.object({
       id: z.string(),
-      url: z.string(),
+      urlOrigin: z.string().optional(),
+      url: z.string().optional(),
+      urlPicto: z.string().nullable().optional(),
+      urlPetite: z.string().nullable().optional(),
+      urlMoyenne: z.string().nullable().optional(),
+      urlGrande: z.string().nullable().optional(),
       titleFr: z.string().optional().default(""),
       titleEn: z.string().optional().default(""),
-      captionFr: z.string(),
-      captionEn: z.string(),
+      descriptionFr: z.string().optional(),
+      descriptionEn: z.string().optional(),
+      captionFr: z.string().optional(),
+      captionEn: z.string().optional(),
       takenAt: z.string().nullable().optional(),
       sortOrder: z.number(),
       focusX: z.number().optional(),
@@ -66,6 +73,18 @@ const postSchema = z.object({
       cropY: z.number().optional(),
       cropW: z.number().optional(),
       cropH: z.number().optional(),
+    }).transform((img) => {
+      const urlOrigin = img.urlOrigin ?? img.url ?? "";
+      return {
+        ...img,
+        urlOrigin,
+        urlPicto: img.urlPicto ?? null,
+        urlPetite: img.urlPetite ?? null,
+        urlMoyenne: img.urlMoyenne ?? urlOrigin,
+        urlGrande: img.urlGrande ?? null,
+        descriptionFr: img.descriptionFr ?? img.captionFr ?? "",
+        descriptionEn: img.descriptionEn ?? img.captionEn ?? "",
+      };
     })
   ),
 });

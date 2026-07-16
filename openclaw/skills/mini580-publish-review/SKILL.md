@@ -50,10 +50,15 @@ rotation: 90
 crop: 0.05,0.1,0.9,0.8
 ```
 
-## APIs sous-jacentes
+## APIs sous-jacentes (tools IA)
 
-- `POST /api/media` — upload (Bearer `INGEST_API_KEY` ou session)
-- `POST /api/posts` · `PATCH /api/posts/:id`
-- `PUT /api/posts/:id/images` · `PATCH .../images/:imageId`
-- `POST /api/translate` — `{ kind: "article" | "images", ... }`
+Auth : session cookie **ou** `Authorization: Bearer $INGEST_API_KEY`.
+
+- `POST /api/posts/:id/images` — multipart upload (+ variants picto/petite/moyenne/grande)
+- `PATCH /api/posts/:id/images/:imageId` — meta + transforms
+- `POST /api/posts/:id/images/:imageId/replace` — nouvel origin
+- `PUT /api/posts/:id/images/reorder` — `{ imageIds }`
+- `DELETE /api/posts/:id/images/:imageId`
+- `PUT /api/posts/:id/images` — replace-all
+- `POST /api/translate` — `{ kind: "article" | "images", ... }` (`CURSOR_API_KEY`)
 - Preview token → `/apercu/t/:token` (sans login)

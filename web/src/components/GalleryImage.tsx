@@ -1,9 +1,16 @@
 type GalleryImageData = {
-  url: string;
+  urlOrigin?: string;
+  url?: string;
+  urlPicto?: string | null;
+  urlPetite?: string | null;
+  urlMoyenne?: string | null;
+  urlGrande?: string | null;
   titleFr?: string;
   titleEn?: string;
-  captionFr: string;
-  captionEn: string;
+  descriptionFr?: string;
+  descriptionEn?: string;
+  captionFr?: string;
+  captionEn?: string;
   focusX?: number;
   focusY?: number;
   zoom?: number;
@@ -14,9 +21,20 @@ type GalleryImageData = {
   cropH?: number;
 };
 
+function srcOf(image: GalleryImageData): string {
+  return (
+    image.urlMoyenne ||
+    image.urlGrande ||
+    image.urlPetite ||
+    image.urlOrigin ||
+    image.url ||
+    ""
+  );
+}
+
 /**
  * Renders a post image with crop / zoom / rotation / focus stored as metadata.
- * Transform is CSS-only (source file unchanged).
+ * Transform is CSS-only (source file unchanged); variants are resolution ladders.
  */
 export function GalleryImage({
   image,
@@ -28,7 +46,10 @@ export function GalleryImage({
   alt?: string;
 }) {
   const title = locale === "fr" ? image.titleFr : image.titleEn;
-  const caption = locale === "fr" ? image.captionFr : image.captionEn;
+  const description =
+    locale === "fr"
+      ? image.descriptionFr ?? image.captionFr
+      : image.descriptionEn ?? image.captionEn;
   const focusX = image.focusX ?? 0.5;
   const focusY = image.focusY ?? 0.5;
   const zoom = image.zoom ?? 1;
@@ -38,7 +59,8 @@ export function GalleryImage({
   const cropW = image.cropW ?? 1;
   const cropH = image.cropH ?? 1;
 
-  const label = alt || title || caption || "";
+  const label = alt || title || description || "";
+  const src = srcOf(image);
 
   return (
     <figure className="overflow-hidden rounded-lg border border-[#d4dde6] bg-white">
@@ -48,7 +70,7 @@ export function GalleryImage({
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={image.url}
+          src={src}
           alt={label}
           className="absolute max-w-none origin-center"
           style={{
@@ -62,10 +84,10 @@ export function GalleryImage({
           }}
         />
       </div>
-      {(title || caption) && (
+      {(title || description) && (
         <figcaption className="px-4 py-3 text-sm text-[#495867]">
           {title && <div className="font-medium text-[#0D131A]">{title}</div>}
-          {caption && <div className={title ? "mt-1" : ""}>{caption}</div>}
+          {description && <div className={title ? "mt-1" : ""}>{description}</div>}
         </figcaption>
       )}
     </figure>

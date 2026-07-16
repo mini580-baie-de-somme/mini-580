@@ -20,11 +20,18 @@ type ArticlePost = {
   hulls: { hull: HullId }[];
   tags: { tag: { labelFr: string; labelEn: string } }[];
   images: {
-    url: string;
+    urlOrigin?: string;
+    url?: string;
+    urlMoyenne?: string | null;
+    urlGrande?: string | null;
+    urlPetite?: string | null;
+    urlPicto?: string | null;
     titleFr?: string;
     titleEn?: string;
-    captionFr: string;
-    captionEn: string;
+    descriptionFr?: string;
+    descriptionEn?: string;
+    captionFr?: string;
+    captionEn?: string;
     focusX?: number;
     focusY?: number;
     zoom?: number;

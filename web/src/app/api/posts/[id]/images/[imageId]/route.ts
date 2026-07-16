@@ -2,13 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
+import {
+  contentTypeFromFilename,
+  isAllowedContentType,
+  normalizeContentType,
+} from "@/lib/media-bucket";
+import { deleteMediaUrls, storeOriginAndVariants } from "@/lib/media-variants";
 
 type RouteContext = { params: Promise<{ id: string; imageId: string }> };
 
 const patchSchema = z.object({
+  urlOrigin: z.string().optional(),
+  urlPicto: z.string().nullable().optional(),
+  urlPetite: z.string().nullable().optional(),
+  urlMoyenne: z.string().nullable().optional(),
+  urlGrande: z.string().nullable().optional(),
   url: z.string().optional(),
   titleFr: z.string().optional(),
   titleEn: z.string().optional(),
+  descriptionFr: z.string().optional(),
+  descriptionEn: z.string().optional(),
   captionFr: z.string().optional(),
   captionEn: z.string().optional(),
   takenAt: z.string().datetime().nullable().optional(),
@@ -43,11 +56,22 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const image = await prisma.postImage.update({
       where: { id: imageId },
       data: {
-        ...(data.url !== undefined && { url: data.url }),
+        ...(data.urlOrigin !== undefined && { urlOrigin: data.urlOrigin }),
+        ...(data.url !== undefined && { urlOrigin: data.url }),
+        ...(data.urlPicto !== undefined && { urlPicto: data.urlPicto }),
+        ...(data.urlPetite !== undefined && { urlPetite: data.urlPetite }),
+        ...(data.urlMoyenne !== undefined && { urlMoyenne: data.urlMoyenne }),
+        ...(data.urlGrande !== undefined && { urlGrande: data.urlGrande }),
         ...(data.titleFr !== undefined && { titleFr: data.titleFr }),
         ...(data.titleEn !== undefined && { titleEn: data.titleEn }),
-        ...(data.captionFr !== undefined && { captionFr: data.captionFr }),
-        ...(data.captionEn !== undefined && { captionEn: data.captionEn }),
+        ...(data.descriptionFr !== undefined && {
+          descriptionFr: data.descriptionFr,
+        }),
+        ...(data.descriptionEn !== undefined && {
+          descriptionEn: data.descriptionEn,
+        }),
+        ...(data.captionFr !== undefined && { descriptionFr: data.captionFr }),
+        ...(data.captionEn !== undefined && { descriptionEn: data.captionEn }),
         ...(data.takenAt !== undefined && {
           takenAt: data.takenAt ? new Date(data.takenAt) : null,
         }),
@@ -71,8 +95,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   }
 }
 
-export async function DELETE(_request: NextRequest, context: RouteContext) {
-  const editor = await getEditorOrService(_request);
+export async function DELETE(request: NextRequest, context: RouteContext) {
+  const editor = await getEditorOrService(request);
   if (!editor) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -85,6 +109,13 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  await deleteMediaUrls([
+    existing.urlOrigin,
+    existing.urlPicto,
+    existing.urlPetite,
+    existing.urlMoyenne,
+    existing.urlGrande,
+  ]);
   await prisma.postImage.delete({ where: { id: imageId } });
-  return NextResponse.json({ ok: true });
+  return new NextResponse(null, { status: 204 });
 }
