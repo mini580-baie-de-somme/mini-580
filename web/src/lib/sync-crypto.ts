@@ -36,6 +36,12 @@ type ImportedKey = Awaited<ReturnType<typeof importPKCS8>>;
 let privateKeyCache: ImportedKey | null = null;
 let peerPublicKeyCache: ImportedKey | null = null;
 
+/** Test helper — clear cached keys after swapping SYNC_* env. */
+export function resetSyncKeyCaches() {
+  privateKeyCache = null;
+  peerPublicKeyCache = null;
+}
+
 async function getPrivateKey(): Promise<ImportedKey> {
   if (!privateKeyCache) {
     privateKeyCache = await importPKCS8(getPrivateKeyPem(), "EdDSA");
@@ -112,14 +118,16 @@ export async function peerFetch(
 ): Promise<Response> {
   const otp = await createSyncOtp(action);
   const url = `${getSyncPeerUrl()}${path.startsWith("/") ? path : `/${path}`}`;
+  const headers = new Headers(init?.headers);
+  headers.set("Authorization", `Bearer ${otp}`);
+  headers.set("X-Sync-Action", action);
+  // Let the runtime set multipart boundary; only default JSON when appropriate
+  if (!(init?.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
   return fetch(url, {
     ...init,
-    headers: {
-      ...(init?.headers ?? {}),
-      Authorization: `Bearer ${otp}`,
-      "Content-Type": "application/json",
-      "X-Sync-Action": action,
-    },
+    headers,
   });
 }
 

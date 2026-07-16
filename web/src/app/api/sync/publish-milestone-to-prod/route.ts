@@ -2,14 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getSyncEnv, isSyncConfigured, peerFetch } from "@/lib/sync-crypto";
-import { exportCatalog } from "@/lib/sync";
+import { getSyncEnv, isSyncConfigured } from "@/lib/sync-crypto";
+import {
+  enqueueSyncJob,
+  serializeSyncJob,
+  SyncBusyError,
+} from "@/lib/sync-jobs";
 
 const bodySchema = z.object({
   milestoneId: z.string().min(1),
 });
 
-/** Publish a single milestone from TEST → PROD (same id). */
+/** Publish a single milestone TEST → PROD (async). */
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session) {
@@ -27,36 +31,33 @@ export async function POST(request: NextRequest) {
 
   try {
     const { milestoneId } = bodySchema.parse(await request.json());
-    const milestone = await prisma.milestone.findUnique({ where: { id: milestoneId } });
+    const milestone = await prisma.milestone.findUnique({
+      where: { id: milestoneId },
+    });
     if (!milestone) {
       return NextResponse.json({ error: "Milestone not found" }, { status: 404 });
     }
 
-    const catalog = await exportCatalog();
-    const payload = {
-      tags: [] as typeof catalog.tags,
-      themes: [] as typeof catalog.themes,
-      milestones: catalog.milestones.filter((m) => m.id === milestoneId),
-    };
-
-    if (payload.milestones.length === 0) {
-      return NextResponse.json({ error: "Milestone missing from export" }, { status: 404 });
-    }
-
-    const res = await peerFetch("/api/sync/peer/import", "import", {
-      method: "PUT",
-      body: JSON.stringify({ type: "catalog", payload }),
+    const job = await enqueueSyncJob({
+      type: "PUBLISH_MILESTONE",
+      params: { milestoneId },
+      createdBy: session.id,
     });
-    if (!res.ok) {
-      throw new Error(`Peer import failed: ${await res.text()}`);
-    }
-
-    return NextResponse.json({ ok: true, id: milestoneId });
+    return NextResponse.json(
+      { ok: true, async: true, job: serializeSyncJob(job) },
+      { status: 202 }
+    );
   } catch (error) {
+    if (error instanceof SyncBusyError) {
+      return NextResponse.json(
+        { error: error.message, jobId: error.activeJobId },
+        { status: 409 }
+      );
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.flatten() }, { status: 400 });
     }
-    const message = error instanceof Error ? error.message : "Publish failed";
-    return NextResponse.json({ error: message }, { status: 502 });
+    const message = error instanceof Error ? error.message : "Enqueue failed";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

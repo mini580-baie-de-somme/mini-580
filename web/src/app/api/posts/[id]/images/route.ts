@@ -8,7 +8,7 @@ import {
   isAllowedContentType,
   normalizeContentType,
 } from "@/lib/media-bucket";
-import { storeOriginAndVariants } from "@/lib/media-variants";
+import { deleteMediaUrls, storeOriginAndVariants } from "@/lib/media-variants";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -79,6 +79,17 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   try {
     const body = await request.json();
     const data = replaceAllSchema.parse(body);
+
+    const previous = await prisma.postImage.findMany({ where: { postId } });
+    for (const img of previous) {
+      await deleteMediaUrls([
+        img.urlOrigin,
+        img.urlPicto,
+        img.urlPetite,
+        img.urlMoyenne,
+        img.urlGrande,
+      ]);
+    }
 
     await prisma.postImage.deleteMany({ where: { postId } });
     if (data.images.length) {

@@ -1,18 +1,15 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { getSyncEnv, isSyncConfigured, peerFetch } from "@/lib/sync-crypto";
+import { getSyncEnv, isSyncConfigured } from "@/lib/sync-crypto";
 import {
-  applyProdPostsToTest,
-  upsertCatalog,
-  type SyncCatalogPayload,
-  type SyncPostPayload,
-} from "@/lib/sync";
+  enqueueSyncJob,
+  serializeSyncJob,
+  SyncBusyError,
+} from "@/lib/sync-jobs";
 
 /**
- * Pull PROD → TEST:
- * - overwrite matching post IDs from PROD
- * - keep TEST-only posts
- * Also pulls catalog (tags, themes, milestones).
+ * Pull PROD → TEST (async job): catalogue + posts + médias.
+ * Returns 202 { job } — poll GET /api/sync/jobs/:id
  */
 export async function POST() {
   const session = await getSession();
@@ -30,34 +27,22 @@ export async function POST() {
   }
 
   try {
-    const catalogRes = await peerFetch(
-      "/api/sync/peer/export?resource=catalog",
-      "export"
-    );
-    if (!catalogRes.ok) {
-      throw new Error(`Catalog export failed: ${await catalogRes.text()}`);
-    }
-    const catalog = (await catalogRes.json()) as SyncCatalogPayload;
-    await upsertCatalog(catalog);
-
-    const postsRes = await peerFetch("/api/sync/peer/export?resource=posts", "export");
-    if (!postsRes.ok) {
-      throw new Error(`Posts export failed: ${await postsRes.text()}`);
-    }
-    const posts = (await postsRes.json()) as SyncPostPayload[];
-    const result = await applyProdPostsToTest(posts);
-
-    return NextResponse.json({
-      ok: true,
-      catalog: {
-        tags: catalog.tags.length,
-        themes: catalog.themes.length,
-        milestones: catalog.milestones.length,
-      },
-      posts: result,
+    const job = await enqueueSyncJob({
+      type: "PULL_FROM_PROD",
+      createdBy: session.id,
     });
+    return NextResponse.json(
+      { ok: true, async: true, job: serializeSyncJob(job) },
+      { status: 202 }
+    );
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Pull failed";
-    return NextResponse.json({ error: message }, { status: 502 });
+    if (error instanceof SyncBusyError) {
+      return NextResponse.json(
+        { error: error.message, jobId: error.activeJobId },
+        { status: 409 }
+      );
+    }
+    const message = error instanceof Error ? error.message : "Enqueue failed";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

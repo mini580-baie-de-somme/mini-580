@@ -7,7 +7,11 @@ import {
   isAllowedContentType,
   normalizeContentType,
 } from "@/lib/media-bucket";
-import { deleteMediaUrls, storeOriginAndVariants } from "@/lib/media-variants";
+import {
+  bakeVariantsFromOrigin,
+  deleteMediaUrls,
+  storeOriginAndVariants,
+} from "@/lib/media-variants";
 
 type RouteContext = { params: Promise<{ id: string; imageId: string }> };
 
@@ -36,6 +40,17 @@ const patchSchema = z.object({
   cropH: z.number().min(0).max(1).optional(),
 });
 
+const TRANSFORM_KEYS = [
+  "focusX",
+  "focusY",
+  "zoom",
+  "rotation",
+  "cropX",
+  "cropY",
+  "cropW",
+  "cropH",
+] as const;
+
 export async function PATCH(request: NextRequest, context: RouteContext) {
   const editor = await getEditorOrService(request);
   if (!editor) {
@@ -53,15 +68,52 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
     const body = await request.json();
     const data = patchSchema.parse(body);
+
+    const transformChanged = TRANSFORM_KEYS.some((k) => data[k] !== undefined);
+    let bakedUrls: {
+      urlPicto: string;
+      urlPetite: string;
+      urlMoyenne: string;
+      urlGrande: string;
+    } | null = null;
+
+    if (transformChanged) {
+      bakedUrls = await bakeVariantsFromOrigin(
+        existing.urlOrigin,
+        {
+          focusX: data.focusX ?? existing.focusX,
+          focusY: data.focusY ?? existing.focusY,
+          zoom: data.zoom ?? existing.zoom,
+          rotation: data.rotation ?? existing.rotation,
+          cropX: data.cropX ?? existing.cropX,
+          cropY: data.cropY ?? existing.cropY,
+          cropW: data.cropW ?? existing.cropW,
+          cropH: data.cropH ?? existing.cropH,
+        },
+        [
+          existing.urlPicto,
+          existing.urlPetite,
+          existing.urlMoyenne,
+          existing.urlGrande,
+        ]
+      );
+    }
+
     const image = await prisma.postImage.update({
       where: { id: imageId },
       data: {
         ...(data.urlOrigin !== undefined && { urlOrigin: data.urlOrigin }),
         ...(data.url !== undefined && { urlOrigin: data.url }),
-        ...(data.urlPicto !== undefined && { urlPicto: data.urlPicto }),
-        ...(data.urlPetite !== undefined && { urlPetite: data.urlPetite }),
-        ...(data.urlMoyenne !== undefined && { urlMoyenne: data.urlMoyenne }),
-        ...(data.urlGrande !== undefined && { urlGrande: data.urlGrande }),
+        ...(bakedUrls
+          ? bakedUrls
+          : {
+              ...(data.urlPicto !== undefined && { urlPicto: data.urlPicto }),
+              ...(data.urlPetite !== undefined && { urlPetite: data.urlPetite }),
+              ...(data.urlMoyenne !== undefined && {
+                urlMoyenne: data.urlMoyenne,
+              }),
+              ...(data.urlGrande !== undefined && { urlGrande: data.urlGrande }),
+            }),
         ...(data.titleFr !== undefined && { titleFr: data.titleFr }),
         ...(data.titleEn !== undefined && { titleEn: data.titleEn }),
         ...(data.descriptionFr !== undefined && {
@@ -91,6 +143,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.flatten() }, { status: 400 });
     }
+    console.error("image patch failed", error);
     return NextResponse.json({ error: "Update failed" }, { status: 500 });
   }
 }

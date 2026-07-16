@@ -1,0 +1,21 @@
+# Dedicated Postgres for API integration tests (host port 5434)
+services:
+  postgres-it:
+    image: postgres:16-alpine
+    container_name: mini580-postgres-it
+    environment:
+      POSTGRES_USER: mini580
+      POSTGRES_PASSWORD: mini580_it
+      POSTGRES_DB: mini580_it
+    ports:
+      - "127.0.0.1:5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mini580 -d mini580_it"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - mini580_it_pg:/var/lib/postgresql/data
+
+volumes:
+  mini580_it_pg:

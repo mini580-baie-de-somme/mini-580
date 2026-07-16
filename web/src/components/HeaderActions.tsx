@@ -13,6 +13,7 @@ type HeaderUser = {
 const publicNav = [
   { href: "/", key: "nav.home" as const },
   { href: "/blog", key: "nav.blog" as const },
+  { href: "/galerie", key: "nav.gallery" as const },
   { href: "/timeline", key: "nav.timeline" as const },
 ];
 

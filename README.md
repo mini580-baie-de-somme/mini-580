@@ -30,6 +30,7 @@ Ce dépôt part de zéro pour reconstruire le site web, la documentation et la c
 | [Déploiement & CI/CD](docs/07-deploy-cicd.md) | VPS Hostinger, Docker, TEST/PROD, GitHub Actions |
 | [Sync TEST ↔ PROD](docs/08-sync-test-prod.md) | OTP Ed25519, pull/publish, archive |
 | [Publication Telegram + IA](docs/09-telegram-publish.md) | Bot allowlist, review FR/EN, photos, preview |
+| [Tests d'intégration API](docs/10-api-integration-tests.md) | Vitest CRUD / photos / sync / tools IA |
 
 ## Application web (`web/`)
 
@@ -39,10 +40,12 @@ cp web/.env.example web/.env
 ```
 
 - **Login dev :** `admin@classmini580.blog` / `changeme123`
-- **Pages :** `/` · `/blog` · `/timeline` · `/connexion` · `/editeur`
+- Pages : `/` · `/blog` · `/galerie` · `/timeline` · `/connexion` · `/editeur`
 - Médias : bucket local + galerie 0–N (`urlOrigin` + formats picto/petite/moyenne/grande) — éditeur drag-drop/paste
+- **Galerie publique :** `/galerie` — filtres date/jalon/tags/thèmes + diaporama
 - **Prod :** [classmini580.blog](https://classmini580.blog) · **Test :** [test.classmini580.blog](https://test.classmini580.blog)
 - **CI/CD :** push `main` → TEST · Deploy PROD manuel (voir `docs/07-deploy-cicd.md`)
+- **Tests :** locaux handlers `npm run test:local` · HTTP réel TEST `npm run test:http` · Telegram sim `npm run test:telegram` (`docs/10-api-integration-tests.md`)
 - **Secrets CI/CD :** `CURSOR_*`, `TELEGRAM_*`, SSH deploy, sync/DB — GitHub Environments `test`/`prod` → `.env` VPS à chaque deploy (`docs/07-deploy-cicd.md`)
 
 ## Liens utiles

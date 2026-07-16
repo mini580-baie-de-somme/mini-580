@@ -303,7 +303,7 @@ export function PostGalleryEditor({ postId, lang, initialImages }: Props) {
 
       {selected && (
         <div className="grid gap-4 lg:grid-cols-2">
-          <GalleryImage image={selected} locale={lang} />
+          <GalleryImage image={selected} locale={lang} mode="edit" />
 
           <div className="space-y-3 text-sm">
             <div className="grid gap-2 sm:grid-cols-2">

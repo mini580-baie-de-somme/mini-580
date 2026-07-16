@@ -11,11 +11,21 @@ type Summary = {
   updatedAt: string;
 };
 
+type SyncJobView = {
+  id: string;
+  type: string;
+  status: string;
+  progress?: { step?: string; message?: string; current?: number; total?: number } | null;
+  result?: unknown;
+  error?: string | null;
+};
+
 type StatusPayload = {
   configured: boolean;
   env?: string;
   message?: string;
   error?: string;
+  activeJob?: SyncJobView | null;
   onlyLocal?: Summary[];
   onlyPeer?: Summary[];
   both?: { local: Summary; peer: Summary; diverged: boolean }[];
@@ -51,6 +61,8 @@ export function SyncPanel() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [job, setJob] = useState<SyncJobView | null>(null);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -59,6 +71,7 @@ export function SyncPanel() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Status failed");
       setStatus(data);
+      if (data.activeJob) setJob(data.activeJob);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
     } finally {
@@ -70,18 +83,54 @@ export function SyncPanel() {
     void refresh();
   }, [refresh]);
 
-  async function run(
-    label: string,
-    fn: () => Promise<Response>
-  ) {
+  async function pollJob(jobId: string) {
+    for (;;) {
+      await new Promise((r) => setTimeout(r, 1000));
+      const res = await fetch(`/api/sync/jobs/${jobId}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Job poll failed");
+      const j = data.job as SyncJobView;
+      setJob(j);
+      const prog = j.progress;
+      if (prog?.message) {
+        setMessage(
+          `${j.status} — ${prog.message}` +
+            (prog.total
+              ? ` (${prog.current ?? 0}/${prog.total})`
+              : "")
+        );
+      }
+      if (j.status === "COMPLETED" || j.status === "FAILED") {
+        return j;
+      }
+    }
+  }
+
+  async function run(label: string, fn: () => Promise<Response>) {
     setBusy(label);
     setMessage(null);
     setError(null);
     try {
       const res = await fn();
       const data = await res.json();
+      if (res.status === 409) {
+        throw new Error(
+          data.error ?? "Une synchronisation est déjà en cours"
+        );
+      }
       if (!res.ok) throw new Error(data.error ?? label);
-      setMessage(JSON.stringify(data, null, 2));
+
+      if (data.async && data.job?.id) {
+        setJob(data.job);
+        setMessage(`Job ${data.job.id} démarré…`);
+        const final = await pollJob(data.job.id);
+        if (final.status === "FAILED") {
+          throw new Error(final.error ?? "Sync échouée");
+        }
+        setMessage(JSON.stringify(final.result ?? final, null, 2));
+      } else {
+        setMessage(JSON.stringify(data, null, 2));
+      }
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
@@ -91,6 +140,7 @@ export function SyncPanel() {
   }
 
   const isTest = status?.env === "test";
+  const syncLocked = !!(busy || status?.activeJob || (job && (job.status === "PENDING" || job.status === "RUNNING")));
 
   return (
     <div className="space-y-8">
@@ -103,6 +153,16 @@ export function SyncPanel() {
             Environnement actuel :{" "}
             <strong>{status?.env ?? "…"}</strong>
             {status?.configured === false && " — sync non configuré"}
+            {(status?.activeJob || job) && (
+              <>
+                {" "}
+                · Job{" "}
+                <strong>
+                  {(status?.activeJob ?? job)?.status} —{" "}
+                  {(status?.activeJob ?? job)?.type}
+                </strong>
+              </>
+            )}
           </p>
         </div>
         <Link
@@ -129,7 +189,7 @@ export function SyncPanel() {
             {isTest && (
               <button
                 type="button"
-                disabled={!!busy}
+                disabled={syncLocked}
                 onClick={() =>
                   run("pull-posts", () =>
                     fetch("/api/sync/pull-from-prod", { method: "POST" })
@@ -145,7 +205,7 @@ export function SyncPanel() {
             )}
             <button
               type="button"
-              disabled={!!busy}
+              disabled={syncLocked}
               onClick={() =>
                 run("pull-catalog", () =>
                   fetch("/api/sync/catalog", {
@@ -164,7 +224,7 @@ export function SyncPanel() {
             </button>
             <button
               type="button"
-              disabled={!!busy}
+              disabled={syncLocked}
               onClick={() =>
                 run("push-catalog", () =>
                   fetch("/api/sync/catalog", {
@@ -183,7 +243,7 @@ export function SyncPanel() {
             </button>
             <button
               type="button"
-              disabled={!!busy}
+              disabled={syncLocked}
               onClick={() => void refresh()}
               className="rounded-md border border-[#d4dde6] bg-white px-4 py-3 text-left text-sm hover:bg-[#f4f7fa] disabled:opacity-50"
             >
@@ -239,7 +299,7 @@ export function SyncPanel() {
                     </div>
                     <button
                       type="button"
-                      disabled={!!busy}
+                      disabled={syncLocked}
                       onClick={() =>
                         run(`publish-${p.id}`, () =>
                           fetch("/api/sync/publish-to-prod", {
@@ -276,7 +336,7 @@ export function SyncPanel() {
                     </div>
                     <button
                       type="button"
-                      disabled={!!busy}
+                      disabled={syncLocked}
                       onClick={() =>
                         run(`publish-milestone-${m.id}`, () =>
                           fetch("/api/sync/publish-milestone-to-prod", {

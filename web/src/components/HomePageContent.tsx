@@ -61,6 +61,12 @@ export function HomePageContent({ latestPosts }: { latestPosts: LatestPost[] }) 
               {t("home.readBlog")}
             </Link>
             <Link
+              href="/galerie"
+              className="rounded-md border border-[#495867] px-5 py-2.5 text-sm font-medium text-[#495867] hover:bg-white/60"
+            >
+              {t("home.galleryCta")}
+            </Link>
+            <Link
               href="/timeline"
               className="rounded-md border border-[#495867] px-5 py-2.5 text-sm font-medium text-[#495867] hover:bg-white/60"
             >

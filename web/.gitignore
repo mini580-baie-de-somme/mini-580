@@ -34,15 +34,13 @@ yarn-error.log*
 .env
 .env.*
 !.env.example
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-/src/generated/prisma
+!.env.test
 
 # Local media bucket (Plan A — persisted outside containers on VPS)
 /data/media
+/data/media-it
+/coverage
+
+# Prisma client (generated at build / migrate)
+/src/generated/
+*.tsbuildinfo

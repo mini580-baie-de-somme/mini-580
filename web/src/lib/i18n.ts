@@ -3,6 +3,7 @@ import type { Locale } from "./locale";
 const messages = {
   "nav.home": { fr: "Accueil", en: "Home" },
   "nav.blog": { fr: "Blog", en: "Blog" },
+  "nav.gallery": { fr: "Galerie", en: "Gallery" },
   "nav.timeline": { fr: "Timeline", en: "Timeline" },
   "nav.editor": { fr: "Articles", en: "Posts" },
   "nav.milestones": { fr: "Jalons", en: "Milestones" },
@@ -31,6 +32,7 @@ const messages = {
     en: "Les vieux fourneaux document the build of three ocean-racing plywood-epoxy sailboats from the Baie de Somme. Bilingual FR/EN blog — transparent, with a touch of swing manouche.",
   },
   "home.readBlog": { fr: "Lire le blog", en: "Read the blog" },
+  "home.galleryCta": { fr: "Galerie photos", en: "Photo gallery" },
   "home.timelineCta": { fr: "Timeline chantier", en: "Build timeline" },
   "home.teamTitle": { fr: "L'équipe", en: "The crew" },
   "home.teamIntro": {
@@ -92,6 +94,30 @@ const messages = {
   "blog.theme": { fr: "Thème:", en: "Theme:" },
   "blog.tag": { fr: "Tag:", en: "Tag:" },
   "blog.readMore": { fr: "Lire l'article →", en: "Read article →" },
+
+  "gallery.title": { fr: "Galerie chantier", en: "Yard gallery" },
+  "gallery.subtitle": {
+    fr: "Toutes les photos des articles publiés — tri par date ou jalon, filtres coque / thème / tag.",
+    en: "All photos from published posts — sort by date or milestone, filter by hull / theme / tag.",
+  },
+  "gallery.search": { fr: "Rechercher une photo…", en: "Search photos…" },
+  "gallery.filter": { fr: "Filtrer", en: "Filter" },
+  "gallery.sort": { fr: "Tri:", en: "Sort:" },
+  "gallery.sortDate": { fr: "Date", en: "Date" },
+  "gallery.sortMilestone": { fr: "Jalon", en: "Milestone" },
+  "gallery.milestone": { fr: "Jalon:", en: "Milestone:" },
+  "gallery.count": { fr: "{n} photo(s)", en: "{n} photo(s)" },
+  "gallery.empty": {
+    fr: "Aucune photo pour ces filtres.",
+    en: "No photos match these filters.",
+  },
+  "gallery.untitled": { fr: "Sans titre", en: "Untitled" },
+  "gallery.slideshow": { fr: "Diaporama", en: "Slideshow" },
+  "gallery.prev": { fr: "Précédente", en: "Previous" },
+  "gallery.next": { fr: "Suivante", en: "Next" },
+  "gallery.play": { fr: "Auto (5 s)", en: "Auto (5 s)" },
+  "gallery.pause": { fr: "Pause", en: "Pause" },
+  "gallery.close": { fr: "Fermer", en: "Close" },
 
   "timeline.title": { fr: "Timeline du chantier", en: "Build timeline" },
   "timeline.subtitle": {

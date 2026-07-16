@@ -11,6 +11,8 @@ out/
 .env
 .env.*
 !.env.example
+!.env.test
+!web/.env.test
 
 # OS
 .DS_Store

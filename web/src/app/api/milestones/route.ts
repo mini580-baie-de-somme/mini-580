@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { getEditorOrService } from "@/lib/service-auth";
 import { slugify } from "@/lib/utils";
 
 export async function GET() {
@@ -38,8 +38,8 @@ const createSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  const session = await getSession();
-  if (!session) {
+  const editor = await getEditorOrService(request);
+  if (!editor) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

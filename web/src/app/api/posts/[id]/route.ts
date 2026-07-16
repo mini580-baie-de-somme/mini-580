@@ -2,18 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { Hull } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/auth";
 import { getEditorOrService } from "@/lib/service-auth";
 import { postInclude, uniqueSlug, syncPostRelations } from "@/lib/posts";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-export async function GET(_request: NextRequest, context: RouteContext) {
+export async function GET(request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
-  const session = await getSession();
+  const editor = await getEditorOrService(request);
 
   const post = await prisma.post.findFirst({
-    where: session ? { id } : { id, status: "PUBLISHED" },
+    where: editor ? { id } : { id, status: "PUBLISHED" },
     include: postInclude,
   });
 

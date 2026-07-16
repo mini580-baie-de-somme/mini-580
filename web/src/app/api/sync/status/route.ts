@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getSyncEnv, isSyncConfigured, peerFetch } from "@/lib/sync-crypto";
 import { exportPostSummaries, type SyncPostSummary } from "@/lib/sync";
+import { getActiveSyncJob, serializeSyncJob } from "@/lib/sync-jobs";
 
 type MilestoneSummary = {
   id: string;
@@ -55,8 +56,11 @@ export async function GET() {
       configured: false,
       env: getSyncEnv(),
       message: "SYNC_* env vars not configured",
+      activeJob: null,
     });
   }
+
+  const activeJobRow = await getActiveSyncJob();
 
   const localPosts = await exportPostSummaries();
   const localMilestones: MilestoneSummary[] = (
@@ -110,6 +114,7 @@ export async function GET() {
   return NextResponse.json({
     configured: true,
     env: getSyncEnv(),
+    activeJob: activeJobRow ? serializeSyncJob(activeJobRow) : null,
     ...posts,
     counts: posts.counts,
     milestones: {
