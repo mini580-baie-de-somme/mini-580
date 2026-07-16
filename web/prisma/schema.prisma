@@ -29,26 +29,28 @@ model User {
 }
 
 model Post {
-  id            String          @id @default(cuid())
-  slug          String          @unique
+  id            String                   @id @default(cuid())
+  slug          String                   @unique
   titleFr       String
   titleEn       String
-  excerptFr     String          @default("")
-  excerptEn     String          @default("")
-  bodyFr        String          @default("") @db.Text
-  bodyEn        String          @default("") @db.Text
-  status        PostStatus      @default(DRAFT)
+  excerptFr     String                   @default("")
+  excerptEn     String                   @default("")
+  bodyFr        String                   @default("") @db.Text
+  bodyEn        String                   @default("") @db.Text
+  status        PostStatus               @default(DRAFT)
   authorId      String
-  author        User            @relation(fields: [authorId], references: [id])
+  author        User                     @relation(fields: [authorId], references: [id])
   coverImageUrl String?
   publishedAt   DateTime?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
   hulls         PostHull[]
   tags          PostTag[]
   themes        PostTheme[]
   milestones    PostMilestone[]
   images        PostImage[]
+  telegramSessions TelegramPublishSession[]
+  previewTokens PreviewToken[]
 }
 
 model PostHull {
@@ -117,11 +119,69 @@ model PostMilestone {
 }
 
 model PostImage {
-  id        String @id @default(cuid())
+  id        String    @id @default(cuid())
   postId    String
-  post      Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
   url       String
-  captionFr String @default("")
-  captionEn String @default("")
-  sortOrder Int    @default(0)
+  titleFr   String    @default("")
+  titleEn   String    @default("")
+  captionFr String    @default("")
+  captionEn String    @default("")
+  takenAt   DateTime?
+  sortOrder Int       @default(0)
+  /// Focus point 0–1 (object-position)
+  focusX    Float     @default(0.5)
+  focusY    Float     @default(0.5)
+  zoom      Float     @default(1)
+  /// Degrees: 0, 90, 180, 270
+  rotation  Int       @default(0)
+  /// Crop rectangle relative 0–1
+  cropX     Float     @default(0)
+  cropY     Float     @default(0)
+  cropW     Float     @default(1)
+  cropH     Float     @default(1)
+}
+
+enum TelegramSessionStep {
+  AWAITING_CONTENT
+  REVIEW_FR
+  REVIEW_EN
+  REVIEW_PREVIEW
+  REVIEW_PHOTO_ORDER
+  REVIEW_PHOTO_META_FR
+  REVIEW_PHOTO_META_EN
+  READY
+  CANCELLED
+  COMPLETED
+}
+
+/// Conversation state for Telegram-assisted publishing (authorized user IDs).
+model TelegramPublishSession {
+  id             String              @id @default(cuid())
+  telegramUserId String
+  telegramChatId String
+  step           TelegramSessionStep @default(AWAITING_CONTENT)
+  postId         String?
+  post           Post?               @relation(fields: [postId], references: [id], onDelete: SetNull)
+  /// Index into post.images during per-photo review
+  photoIndex     Int                 @default(0)
+  /// Pending media URLs + raw text before draft is created
+  draftPayload   Json?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([telegramUserId, telegramChatId])
+  @@index([step])
+}
+
+/// Shareable draft preview link for Telegram (no login cookie).
+model PreviewToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([postId])
 }

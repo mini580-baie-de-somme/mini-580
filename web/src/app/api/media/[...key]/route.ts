@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getEditorOrService } from "@/lib/service-auth";
 import {
   MediaBucketError,
   getMediaBucket,
@@ -19,8 +19,8 @@ function keyFromParams(parts: string[]): string {
  * PUT /api/media/{key} — S3 PutObject (raw body + Content-Type).
  */
 export async function PUT(request: NextRequest, context: RouteContext) {
-  const session = await getSession();
-  if (!session) {
+  const editor = await getEditorOrService(request);
+  if (!editor) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -52,9 +52,9 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 /**
  * DELETE /api/media/{key} — S3 DeleteObject.
  */
-export async function DELETE(_request: NextRequest, context: RouteContext) {
-  const session = await getSession();
-  if (!session) {
+export async function DELETE(request: NextRequest, context: RouteContext) {
+  const editor = await getEditorOrService(request);
+  if (!editor) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

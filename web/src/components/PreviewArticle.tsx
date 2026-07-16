@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { HullId } from "@/lib/types";
+import { GalleryImage } from "./GalleryImage";
 import { LangToggle, ArticleBody } from "./LangToggle";
 import { HullBadgeList } from "./HullBadge";
 
@@ -19,10 +20,30 @@ type PreviewPost = {
   coverImageUrl: string | null;
   publishedAt: string | null;
   hulls: { hull: HullId }[];
-  images: { url: string; captionFr: string; captionEn: string }[];
+  images: {
+    url: string;
+    titleFr?: string;
+    titleEn?: string;
+    captionFr: string;
+    captionEn: string;
+    focusX?: number;
+    focusY?: number;
+    zoom?: number;
+    rotation?: number;
+    cropX?: number;
+    cropY?: number;
+    cropW?: number;
+    cropH?: number;
+  }[];
 };
 
-export function PreviewArticle({ post }: { post: PreviewPost }) {
+export function PreviewArticle({
+  post,
+  showEditorLink = true,
+}: {
+  post: PreviewPost;
+  showEditorLink?: boolean;
+}) {
   const [lang, setLang] = useState<"fr" | "en">("fr");
   const title = lang === "fr" ? post.titleFr : post.titleEn;
   const excerpt = lang === "fr" ? post.excerptFr : post.excerptEn;
@@ -60,25 +81,19 @@ export function PreviewArticle({ post }: { post: PreviewPost }) {
           <h2 className="mb-4 text-xl font-semibold">Galerie</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             {post.images.map((img, i) => (
-              <figure key={i} className="overflow-hidden rounded-lg border border-[#d4dde6]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={img.url} alt="" className="w-full" />
-                {(lang === "fr" ? img.captionFr : img.captionEn) && (
-                  <figcaption className="px-3 py-2 text-sm text-[#495867]">
-                    {lang === "fr" ? img.captionFr : img.captionEn}
-                  </figcaption>
-                )}
-              </figure>
+              <GalleryImage key={i} image={img} locale={lang} />
             ))}
           </div>
         </section>
       )}
 
-      <div className="mt-8">
-        <Link href={`/editeur/${post.id}`} className="text-sm text-[#495867] hover:underline">
-          ← Retour à l&apos;éditeur
-        </Link>
-      </div>
+      {showEditorLink && (
+        <div className="mt-8">
+          <Link href={`/editeur/${post.id}`} className="text-sm text-[#495867] hover:underline">
+            ← Retour à l&apos;éditeur
+          </Link>
+        </div>
+      )}
     </article>
   );
 }

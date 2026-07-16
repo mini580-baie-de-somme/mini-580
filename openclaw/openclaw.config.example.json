@@ -35,7 +35,7 @@
         "id": "mini580-publisher",
         "name": "Class Mini 5.80 Publisher",
         "workspace": "./workspace/publisher",
-        "skills": ["mini580-ingest", "mini580-draft", "mini580-class-checklist"]
+        "skills": ["mini580-ingest", "mini580-publish-review", "mini580-draft", "mini580-class-checklist"]
       }
     ]
   },

@@ -34,12 +34,25 @@ services:
       NODE_ENV: production
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
+      SITE_URL: ${SITE_URL:-https://classmini580.blog}
+      MEDIA_ROOT: /data/media
+      MEDIA_PUBLIC_BASE: /media
+      INGEST_API_KEY: ${INGEST_API_KEY:-}
+      TELEGRAM_SERVICE_USER_EMAIL: ${TELEGRAM_SERVICE_USER_EMAIL:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      TELEGRAM_ALLOWED_USER_IDS: ${TELEGRAM_ALLOWED_USER_IDS:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
       SYNC_ENV: ${SYNC_ENV:-prod}
       SYNC_PEER_URL: ${SYNC_PEER_URL:-https://test.classmini580.blog}
       SYNC_PRIVATE_KEY: ${SYNC_PRIVATE_KEY:-}
       SYNC_PEER_PUBLIC_KEY: ${SYNC_PEER_PUBLIC_KEY:-}
     ports:
       - "127.0.0.1:3000:3000"
+    volumes:
+      - ./media:/data/media
     networks:
       - mini580_prod
 

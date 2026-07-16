@@ -29,6 +29,7 @@ Ce dépôt part de zéro pour reconstruire le site web, la documentation et la c
 | [Spec technique site](docs/06-spec-technique.md) | Décisions validées, modèle DB, phasage |
 | [Déploiement & CI/CD](docs/07-deploy-cicd.md) | VPS Hostinger, Docker, TEST/PROD, GitHub Actions |
 | [Sync TEST ↔ PROD](docs/08-sync-test-prod.md) | OTP Ed25519, pull/publish, archive |
+| [Publication Telegram + IA](docs/09-telegram-publish.md) | Bot allowlist, review FR/EN, photos, preview |
 
 ## Application web (`web/`)
 
@@ -60,5 +61,6 @@ cp web/.env.example web/.env
 4. Valider édition + autosave + i18n en local (Simohra dev :8002)
 5. Valider DNS + TLS + premier deploy TEST
 6. Installer OpenClaw sur VM dédiée + bot Telegram Class Mini 5.80 Baie de Somme
-7. Développer le skill `mini580-ingest` (Telegram → API posts)
+7. ~~Développer le skill `mini580-ingest`~~ → webhook + FSM review (`docs/09-telegram-publish.md`)
 8. Migrer photos Blogger + enrichir contenu équipe
+9. Brancher `TELEGRAM_*` + `OPENAI_API_KEY` sur TEST et valider un post bout-en-bout

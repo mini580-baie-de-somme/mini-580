@@ -52,9 +52,20 @@ const postSchema = z.object({
     z.object({
       id: z.string(),
       url: z.string(),
+      titleFr: z.string().optional().default(""),
+      titleEn: z.string().optional().default(""),
       captionFr: z.string(),
       captionEn: z.string(),
+      takenAt: z.string().nullable().optional(),
       sortOrder: z.number(),
+      focusX: z.number().optional(),
+      focusY: z.number().optional(),
+      zoom: z.number().optional(),
+      rotation: z.number().optional(),
+      cropX: z.number().optional(),
+      cropY: z.number().optional(),
+      cropW: z.number().optional(),
+      cropH: z.number().optional(),
     })
   ),
 });

@@ -19,7 +19,7 @@
 | Langues | FR + EN par article |
 | Autosave | Oui (~500 ms debounce) |
 | Prévisualisation | Oui (`/apercu/[id]`) |
-| Telegram | Channel dédié Class Mini 5.80 Baie de Somme — VM OpenClaw séparée (Phase 2) |
+| Telegram | Channel dédié Class Mini 5.80 Baie de Somme — webhook Next.js + allowlist IDs (`docs/09-telegram-publish.md`) |
 
 ## Architecture
 

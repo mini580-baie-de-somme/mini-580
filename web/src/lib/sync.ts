@@ -51,9 +51,20 @@ export type SyncPostPayload = {
   images: {
     id: string;
     url: string;
+    titleFr: string;
+    titleEn: string;
     captionFr: string;
     captionEn: string;
+    takenAt: string | null;
     sortOrder: number;
+    focusX: number;
+    focusY: number;
+    zoom: number;
+    rotation: number;
+    cropX: number;
+    cropY: number;
+    cropW: number;
+    cropH: number;
   }[];
 };
 
@@ -109,9 +120,20 @@ function serializePost(post: PostWithRelations): SyncPostPayload {
     images: post.images.map((img) => ({
       id: img.id,
       url: img.url,
+      titleFr: img.titleFr,
+      titleEn: img.titleEn,
       captionFr: img.captionFr,
       captionEn: img.captionEn,
+      takenAt: img.takenAt?.toISOString() ?? null,
       sortOrder: img.sortOrder,
+      focusX: img.focusX,
+      focusY: img.focusY,
+      zoom: img.zoom,
+      rotation: img.rotation,
+      cropX: img.cropX,
+      cropY: img.cropY,
+      cropW: img.cropW,
+      cropH: img.cropH,
     })),
   };
 }
@@ -396,9 +418,20 @@ export async function upsertPostFromSync(payload: SyncPostPayload) {
         id: img.id,
         postId: payload.id,
         url: img.url,
+        titleFr: img.titleFr ?? "",
+        titleEn: img.titleEn ?? "",
         captionFr: img.captionFr,
         captionEn: img.captionEn,
+        takenAt: img.takenAt ? new Date(img.takenAt) : null,
         sortOrder: img.sortOrder,
+        focusX: img.focusX ?? 0.5,
+        focusY: img.focusY ?? 0.5,
+        zoom: img.zoom ?? 1,
+        rotation: img.rotation ?? 0,
+        cropX: img.cropX ?? 0,
+        cropY: img.cropY ?? 0,
+        cropW: img.cropW ?? 1,
+        cropH: img.cropH ?? 1,
       })),
     });
   }

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { PostStatus, Hull } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { getEditorOrService } from "@/lib/service-auth";
 import {
   postInclude,
   publicPostWhere,
@@ -19,6 +20,7 @@ const createPostSchema = z.object({
   bodyEn: z.string().optional(),
   slug: z.string().optional(),
   coverImageUrl: z.string().nullable().optional(),
+  publishedAt: z.string().datetime().nullable().optional(),
   hulls: z.array(z.nativeEnum(Hull)).optional(),
   tagIds: z.array(z.string()).optional(),
   themeIds: z.array(z.string()).optional(),
@@ -50,8 +52,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getSession();
-  if (!session) {
+  const editor = await getEditorOrService(request);
+  if (!editor) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -72,7 +74,8 @@ export async function POST(request: NextRequest) {
         bodyFr: data.bodyFr ?? "",
         bodyEn: data.bodyEn ?? "",
         coverImageUrl: data.coverImageUrl ?? null,
-        authorId: session.id,
+        publishedAt: data.publishedAt ? new Date(data.publishedAt) : null,
+        authorId: editor.id,
         status: PostStatus.DRAFT,
       },
       include: postInclude,

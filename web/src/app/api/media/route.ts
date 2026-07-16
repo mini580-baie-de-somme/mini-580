@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getEditorOrService } from "@/lib/service-auth";
 import {
   MediaBucketError,
   contentTypeFromFilename,
@@ -14,11 +14,12 @@ export const runtime = "nodejs";
 /**
  * POST /api/media — multipart upload (S3 PutObject convenience).
  * Form fields: `file` (required), optional `key`.
+ * Auth: session cookie OR Bearer INGEST_API_KEY.
  * Returns { key, url, contentType, contentLength, etag }.
  */
 export async function POST(request: NextRequest) {
-  const session = await getSession();
-  if (!session) {
+  const editor = await getEditorOrService(request);
+  if (!editor) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { HullId } from "@/lib/types";
 import { ArticleBody } from "./LangToggle";
+import { GalleryImage } from "./GalleryImage";
 import { HullBadgeList } from "./HullBadge";
 import { useLocale } from "./LocaleProvider";
 
@@ -18,7 +19,21 @@ type ArticlePost = {
   publishedAt: Date | string | null;
   hulls: { hull: HullId }[];
   tags: { tag: { labelFr: string; labelEn: string } }[];
-  images: { url: string; captionFr: string; captionEn: string }[];
+  images: {
+    url: string;
+    titleFr?: string;
+    titleEn?: string;
+    captionFr: string;
+    captionEn: string;
+    focusX?: number;
+    focusY?: number;
+    zoom?: number;
+    rotation?: number;
+    cropX?: number;
+    cropY?: number;
+    cropW?: number;
+    cropH?: number;
+  }[];
   author: { name: string | null };
 };
 
@@ -73,15 +88,7 @@ export function ArticleView({ post }: { post: ArticlePost }) {
           <h2 className="mb-6 text-xl font-semibold text-[#0D131A]">{t("article.gallery")}</h2>
           <div className="grid gap-6 sm:grid-cols-2">
             {post.images.map((img, i) => (
-              <figure key={i} className="overflow-hidden rounded-lg border border-[#d4dde6] bg-white">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={img.url} alt="" className="w-full" />
-                {(locale === "fr" ? img.captionFr : img.captionEn) && (
-                  <figcaption className="px-4 py-3 text-sm text-[#495867]">
-                    {locale === "fr" ? img.captionFr : img.captionEn}
-                  </figcaption>
-                )}
-              </figure>
+              <GalleryImage key={i} image={img} locale={locale} />
             ))}
           </div>
         </section>

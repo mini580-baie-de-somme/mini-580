@@ -1,38 +1,49 @@
 ---
 name: mini580-ingest
 description: >-
-  Reçoit les messages Telegram et fichiers Google Drive de l'équipe Class Mini 5.80 Baie de Somme,
-  extrait métadonnées (coque, auteur, étape) et déclenche la rédaction bilingue.
+  Reçoit les messages Telegram des comptes autorisés (liste d'IDs), stocke les
+  médias, extrait métadonnées et déclenche le flux de validation bilingue.
 ---
 
-# Class Mini 5.80 Ingest — Réception contenu équipe
+# Class Mini 5.80 Ingest — Réception contenu Telegram
+
+## Auth
+
+Seuls les `TELEGRAM_ALLOWED_USER_IDS` peuvent démarrer `/nouveau`.
+
+Le webhook Next.js (`POST /api/telegram/webhook`) porte la machine à états.
+OpenClaw peut aussi appeler l'API avec `Authorization: Bearer $INGEST_API_KEY`.
 
 ## Déclencheurs
 
-- Message reçu dans le groupe Telegram `#Mini580-Chantier`
-- Nouveau fichier détecté dans Google Drive `Class Mini 5.80 Baie de Somme/À publier/`
-
-## Entrées attendues
-
-| Source | Format | Métadonnées à extraire |
-|--------|--------|------------------------|
-| Telegram | Photo(s) + texte libre | coque (#268/269/270), étape, auteur |
-| Drive | PDF, images, plans | nom fichier, dossier, date |
+- DM Telegram (ou groupe allowlist) — commande `/nouveau`
+- Photos + texte libre / structuré
+- (Futur) Google Drive `À publier/`
 
 ## Pipeline
 
-1. **Réception** — message Telegram ou webhook Drive
-2. **Extraction** — parser texte pour coque, étape, auteur
-3. **Validation** — vérifier allowlist expéditeur
-4. **Stockage** — sauver médias via bucket local (`POST /api/media` → `/media/{key}`, disque VPS `/opt/mini580/*/media`)
-5. Sinon → déclencher le skill `mini580-draft`
+1. **Réception** — message Telegram
+2. **Allowlist** — vérifier l'ID expéditeur
+3. **Stockage médias** — download Telegram → `LocalDiskBucket` (`/media/{key}`)
+4. **Collecte** — accumuler textes + photos jusqu'à « Terminer la saisie »
+5. **Draft** — parsing IA (ou heuristique) → `Post` DRAFT + `PostImage[]`
+6. → skill `mini580-publish-review` (validation FR → EN → preview → photos)
 
-## Notification équipe
+## Format structuré suggéré
 
 ```
-🔔 Nouveau contenu Class Mini 5.80 Baie de Somme
-Coque : #268
-Étape : couples
-Auteur : Laurent
-→ Brouillon en cours de génération
+Titre: Pose des couples #268
+Date: 2026-07-16
+Thèmes: chantier
+Tags: époxy, couples
+Jalon: pose-couples
+---
+Aujourd'hui sur la coque 268…
+```
+
+## Notification
+
+```
+Reçu — N photo(s), M message(s) texte.
+→ Appuyer sur Terminer la saisie
 ```

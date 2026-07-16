@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Hull } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { getEditorOrService } from "@/lib/service-auth";
 import { postInclude, uniqueSlug, syncPostRelations } from "@/lib/posts";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -32,6 +33,7 @@ const updateSchema = z.object({
   bodyEn: z.string().optional(),
   slug: z.string().optional(),
   coverImageUrl: z.string().nullable().optional(),
+  publishedAt: z.string().datetime().nullable().optional(),
   hulls: z.array(z.nativeEnum(Hull)).optional(),
   tagIds: z.array(z.string()).optional(),
   themeIds: z.array(z.string()).optional(),
@@ -39,8 +41,8 @@ const updateSchema = z.object({
 });
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
-  const session = await getSession();
-  if (!session) {
+  const editor = await getEditorOrService(request);
+  if (!editor) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -71,6 +73,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         ...(data.bodyFr !== undefined && { bodyFr: data.bodyFr }),
         ...(data.bodyEn !== undefined && { bodyEn: data.bodyEn }),
         ...(data.coverImageUrl !== undefined && { coverImageUrl: data.coverImageUrl }),
+        ...(data.publishedAt !== undefined && {
+          publishedAt: data.publishedAt ? new Date(data.publishedAt) : null,
+        }),
         slug,
       },
     });
@@ -96,9 +101,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   }
 }
 
-export async function DELETE(_request: NextRequest, context: RouteContext) {
-  const session = await getSession();
-  if (!session) {
+export async function DELETE(request: NextRequest, context: RouteContext) {
+  const editor = await getEditorOrService(request);
+  if (!editor) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
