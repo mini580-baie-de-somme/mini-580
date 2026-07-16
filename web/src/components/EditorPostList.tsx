@@ -139,18 +139,6 @@ export function EditorPostList({ filterOptions }: { filterOptions: FilterOptions
         <h1 className="text-2xl font-semibold text-[#0D131A]">{t("editor.title")}</h1>
         <div className="flex flex-wrap gap-2">
           <Link
-            href="/editeur/jalons"
-            className="rounded-md border border-[#d4dde6] px-4 py-2 text-sm text-[#495867] hover:bg-[#f4f7fa]"
-          >
-            {t("nav.milestones")}
-          </Link>
-          <Link
-            href="/editeur/sync"
-            className="rounded-md border border-[#d4dde6] px-4 py-2 text-sm text-[#495867] hover:bg-[#f4f7fa]"
-          >
-            {t("nav.sync")}
-          </Link>
-          <Link
             href="/editeur/nouveau"
             className="rounded-md bg-[#495867] px-4 py-2 text-sm text-white hover:bg-[#3a4654]"
           >
@@ -185,37 +173,44 @@ export function EditorPostList({ filterOptions }: { filterOptions: FilterOptions
             </tr>
           </thead>
           <tbody>
-            {posts.map((post) => (
-              <tr
-                key={post.id}
-                onClick={() => router.push(`/editeur/${post.id}`)}
-                className="cursor-pointer border-b border-[#eef3f7] last:border-0 hover:bg-[#f8fafc]"
-              >
-                <td className="px-4 py-3">
-                  <span className="font-medium text-[#0D131A]">
-                    {locale === "fr" ? post.titleFr : post.titleEn || post.titleFr}
-                  </span>
-                  {post.onProd === false && (
-                    <span className="ml-2 rounded bg-orange-100 px-1.5 py-0.5 text-[10px] text-orange-800">
-                      {t("editor.notOnProd")}
-                    </span>
-                  )}
-                </td>
-                <td className="hidden px-4 py-3 sm:table-cell">
-                  <HullBadgeList hulls={post.hulls} />
-                </td>
-                <td className="px-4 py-3">
-                  <span className={`rounded px-2 py-0.5 text-xs ${statusClass(post.status)}`}>
-                    {statusLabel(post.status)}
-                  </span>
-                </td>
-                <td className="hidden px-4 py-3 text-[#495867] md:table-cell">
-                  {new Date(post.updatedAt).toLocaleDateString(
-                    locale === "fr" ? "fr-FR" : "en-GB"
-                  )}
-                </td>
-              </tr>
-            ))}
+            {posts.map((post) => {
+              const title =
+                locale === "fr" ? post.titleFr : post.titleEn || post.titleFr;
+              const href = `/editeur/${post.id}`;
+
+              return (
+                <tr key={post.id} className="border-b border-[#eef3f7] last:border-0">
+                  <td colSpan={4} className="p-0">
+                    <Link
+                      href={href}
+                      className="grid cursor-pointer grid-cols-1 gap-1 px-4 py-3 hover:bg-[#f8fafc] sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto_auto]"
+                    >
+                      <span className="font-medium text-[#0D131A]">
+                        {title}
+                        {post.onProd === false && (
+                          <span className="ml-2 rounded bg-orange-100 px-1.5 py-0.5 text-[10px] text-orange-800">
+                            {t("editor.notOnProd")}
+                          </span>
+                        )}
+                      </span>
+                      <span className="hidden sm:block">
+                        <HullBadgeList hulls={post.hulls} />
+                      </span>
+                      <span>
+                        <span className={`rounded px-2 py-0.5 text-xs ${statusClass(post.status)}`}>
+                          {statusLabel(post.status)}
+                        </span>
+                      </span>
+                      <span className="hidden text-[#495867] md:block">
+                        {new Date(post.updatedAt).toLocaleDateString(
+                          locale === "fr" ? "fr-FR" : "en-GB"
+                        )}
+                      </span>
+                    </Link>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 

@@ -17,8 +17,12 @@ export const publicNav: NavItem[] = [
 export const editorNav: NavItem[] = [
   { href: "/editeur", key: "nav.editor", primary: true },
   { href: "/editeur/jalons", key: "nav.milestones" },
+  { href: "/editeur/themes", key: "nav.themes" },
+  { href: "/editeur/tags", key: "nav.tags" },
   { href: "/editeur/sync", key: "nav.sync" },
 ];
+
+const editorSubRoutes = new Set(["jalons", "sync", "themes", "tags"]);
 
 /** Active state for sidebar links (handles /editeur vs sub-routes). */
 export function isNavActive(pathname: string, href: string): boolean {
@@ -28,7 +32,7 @@ export function isNavActive(pathname: string, href: string): boolean {
     if (pathname === "/editeur" || pathname === "/editeur/nouveau") return true;
     if (/^\/editeur\/[^/]+$/.test(pathname)) {
       const rest = pathname.slice("/editeur/".length);
-      return rest !== "jalons" && rest !== "sync";
+      return !editorSubRoutes.has(rest);
     }
     return false;
   }
