@@ -63,6 +63,8 @@ ssh mini580-test 'cd /chemin/vers/repo && sudo bash deploy/scripts/bootstrap-vps
 gh secret set DEPLOY_HOST --body "2.24.13.70" --repo mini580-baie-de-somme/mini-580
 gh secret set DEPLOY_USER --body "deploy" --repo mini580-baie-de-somme/mini-580
 gh secret set DEPLOY_SSH_KEY < ~/.ssh/id_ed25519_mini580_ci --repo mini580-baie-de-somme/mini-580
+gh secret set CURSOR_API_KEY --repo mini580-baie-de-somme/mini-580   # clé modèle IA (jamais dans git)
+# Optionnel : INGEST_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, TELEGRAM_ALLOWED_USER_IDS
 ```
 
 ## Déploiements
