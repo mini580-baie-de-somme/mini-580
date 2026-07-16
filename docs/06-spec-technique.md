@@ -8,8 +8,8 @@
 |-------|----------|
 | Base de données | **PostgreSQL** — source de vérité unique |
 | Dev local | PostgreSQL local + Node (port 3001) derrière nginx |
-| Prod | VM Hostinger (pas encore allouée) |
-| Domaine | À déposer (pas encore choisi) |
+| Prod | VPS Hostinger `2.24.13.70` — Docker Compose (TEST + PROD isolés) |
+| Domaine | **classmini580.blog** (PROD) · **test.classmini580.blog** (TEST) |
 | Tags | Table enrichissable — ajout libre à la volée |
 | Jalons | Gestion libre, positionnables par date |
 | Statuts article | `draft` · `published` |
@@ -107,13 +107,15 @@ nginx (optionnel) :
 sudo ln -sf .../nginx/mini-580.local.conf /etc/nginx/sites-enabled/
 ```
 
-## Prod (à faire)
+## Prod / TEST (CI/CD)
 
-1. VM Hostinger + PostgreSQL
-2. Nom de domaine dédié
-3. `npm run build` + process manager (pm2/systemd)
-4. nginx reverse proxy + TLS (Let's Encrypt)
-5. VM OpenClaw séparée + bot Telegram CNBS → API posts
+Voir **[Déploiement & CI/CD](07-deploy-cicd.md)** :
+
+1. ~~VM Hostinger + domaine~~ → `2.24.13.70` / `classmini580.blog`
+2. Docker Compose (stacks isolées) + nginx + Certbot
+3. GitHub Actions : push `main` → TEST · `workflow_dispatch` → PROD
+4. Images GHCR `ghcr.io/mini580-baie-de-somme/mini-580`
+5. Phase 2 : VM OpenClaw séparée + bot Telegram CNBS → API posts
 
 ## Phasage
 

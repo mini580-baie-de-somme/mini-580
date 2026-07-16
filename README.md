@@ -27,6 +27,7 @@ Ce dépôt part de zéro pour reconstruire le site web, la documentation et la c
 | [Objectifs & vision](docs/04-objectifs-vision.md) | Vision validée, décisions, prochaines étapes |
 | [Architecture OpenClaw](docs/05-architecture-openclaw.md) | Schéma technique, pipeline publication, skills |
 | [Spec technique site](docs/06-spec-technique.md) | Décisions validées, modèle DB, phasage |
+| [Déploiement & CI/CD](docs/07-deploy-cicd.md) | VPS Hostinger, Docker, TEST/PROD, GitHub Actions |
 
 ## Application web (`web/`)
 
@@ -37,6 +38,8 @@ cp web/.env.example web/.env
 
 - **Login dev :** `admin@cnbs.local` / `changeme123`
 - **Pages :** `/` · `/blog` · `/timeline` · `/connexion` · `/editeur`
+- **Prod :** [classmini580.blog](https://classmini580.blog) · **Test :** [test.classmini580.blog](https://test.classmini580.blog)
+- **CI/CD :** push `main` → TEST · Deploy PROD manuel (voir `docs/07-deploy-cicd.md`)
 
 ## Liens utiles
 
@@ -51,8 +54,8 @@ cp web/.env.example web/.env
 
 1. ~~Valider l'architecture OpenClaw~~ → spec validée (`docs/06-spec-technique.md`)
 2. ~~Lancer le squelette du site web~~ → Phase 1a/1b en place (`web/`)
-3. Tester édition + autosave + preview en local
-4. Provisionner VM Hostinger + nom de domaine (prod)
+3. ~~Provisionner VPS Hostinger + domaine~~ → `classmini580.blog` + CI/CD Docker (`docs/07-deploy-cicd.md`)
+4. Valider DNS + TLS + premier deploy TEST
 5. Installer OpenClaw sur VM dédiée + bot Telegram CNBS
 6. Développer le skill `cnbs-ingest` (Telegram → API posts)
 7. Migrer photos Blogger + enrichir contenu équipe
