@@ -4,9 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { GalleryImage } from "./GalleryImage";
 import {
   type GalleryEditorImage,
-  emptyEditorImage,
   toEditorImage,
-} from "./PostGalleryEditor";
+} from "@/lib/gallery-editor";
 
 type Props = {
   postId: string;
@@ -454,9 +453,4 @@ export function PhotoEditModal({
       </div>
     </div>
   );
-}
-
-/** Placeholder used only for typing; real images always come from the API. */
-export function unusedEmptyImage(): GalleryEditorImage {
-  return emptyEditorImage();
 }

@@ -106,11 +106,23 @@ export async function startSession(
     });
   }
 
+  const authorId = await resolveServiceAuthorId();
+  const post = await prisma.post.create({
+    data: {
+      slug: await uniqueSlug("brouillon-telegram"),
+      titleFr: "Brouillon Telegram",
+      titleEn: "Telegram draft",
+      authorId,
+      status: "DRAFT",
+    },
+  });
+
   await prisma.telegramPublishSession.create({
     data: {
       telegramUserId,
       telegramChatId,
       step: "AWAITING_CONTENT",
+      postId: post.id,
       draftPayload: { textParts: [], mediaUrls: [], mediaItems: [] } satisfies DraftPayload,
     },
   });
@@ -118,6 +130,8 @@ export async function startSession(
   return {
     text: [
       "📝 *Nouveau post Telegram*",
+      "",
+      `Brouillon créé (\`${post.id}\`) — les photos et le texte seront liés tout de suite.`,
       "",
       "Envoie (dans n'importe quel ordre) :",
       "• photos (album ou une par une)",
@@ -190,18 +204,45 @@ export async function appendContent(
 
   const draft = asDraftPayload(session.draftPayload);
   if (patch.text?.trim()) draft.textParts.push(patch.text.trim());
-  if (patch.mediaItem) {
-    draft.mediaItems.push(patch.mediaItem);
-    draft.mediaUrls.push(patch.mediaItem.urlOrigin);
-  } else if (patch.mediaUrl) {
-    draft.mediaUrls.push(patch.mediaUrl);
-    draft.mediaItems.push({
+
+  let mediaItem = patch.mediaItem;
+  if (!mediaItem && patch.mediaUrl) {
+    mediaItem = {
       urlOrigin: patch.mediaUrl,
       urlPicto: "",
       urlPetite: "",
       urlMoyenne: patch.mediaUrl,
       urlGrande: "",
-    });
+    };
+  }
+
+  if (mediaItem) {
+    draft.mediaItems.push(mediaItem);
+    draft.mediaUrls.push(mediaItem.urlOrigin);
+
+    if (session.postId) {
+      const max = await prisma.postImage.aggregate({
+        where: { postId: session.postId },
+        _max: { sortOrder: true },
+      });
+      await prisma.postImage.create({
+        data: {
+          postId: session.postId,
+          urlOrigin: mediaItem.urlOrigin,
+          urlPicto: mediaItem.urlPicto || null,
+          urlPetite: mediaItem.urlPetite || null,
+          urlMoyenne: mediaItem.urlMoyenne || mediaItem.urlOrigin,
+          urlGrande: mediaItem.urlGrande || null,
+          sortOrder: (max._max.sortOrder ?? -1) + 1,
+        },
+      });
+      if (draft.mediaItems.length === 1) {
+        await prisma.post.update({
+          where: { id: session.postId },
+          data: { coverImageUrl: mediaItem.urlOrigin },
+        });
+      }
+    }
   }
 
   await prisma.telegramPublishSession.update({
@@ -323,8 +364,7 @@ export async function finalizeContentCollection(
   }
 
   const { tagIds, tags: tagMeta } = await ensureTags(parsed.tagLabelsFr);
-  const authorId = await resolveServiceAuthorId();
-  const slug = await uniqueSlug(parsed.titleFr);
+  const slug = await uniqueSlug(parsed.titleFr, session.postId ?? undefined);
 
   let publishedAt: Date | null = null;
   if (parsed.publishedAt) {
@@ -332,33 +372,60 @@ export async function finalizeContentCollection(
     if (!Number.isNaN(d.getTime())) publishedAt = d;
   }
 
-  const post = await prisma.post.create({
-    data: {
-      slug,
-      titleFr: parsed.titleFr,
-      titleEn: parsed.titleFr,
-      excerptFr: parsed.excerptFr,
-      excerptEn: "",
-      bodyFr: parsed.bodyFr,
-      bodyEn: "",
-      coverImageUrl: draft.mediaUrls[0] ?? null,
-      publishedAt,
-      authorId,
-      status: "DRAFT",
-    },
-  });
+  let postId = session.postId;
+  if (!postId) {
+    const authorId = await resolveServiceAuthorId();
+    const created = await prisma.post.create({
+      data: {
+        slug,
+        titleFr: parsed.titleFr,
+        titleEn: parsed.titleFr,
+        excerptFr: parsed.excerptFr,
+        excerptEn: "",
+        bodyFr: parsed.bodyFr,
+        bodyEn: "",
+        coverImageUrl: draft.mediaUrls[0] ?? null,
+        publishedAt,
+        authorId,
+        status: "DRAFT",
+      },
+    });
+    postId = created.id;
+  } else {
+    await prisma.post.update({
+      where: { id: postId },
+      data: {
+        slug,
+        titleFr: parsed.titleFr,
+        titleEn: parsed.titleFr,
+        excerptFr: parsed.excerptFr,
+        excerptEn: "",
+        bodyFr: parsed.bodyFr,
+        bodyEn: "",
+        coverImageUrl: draft.mediaUrls[0] ?? null,
+        publishedAt,
+      },
+    });
+  }
 
-  await syncPostRelations(post.id, {
+  await syncPostRelations(postId, {
     hulls: parsed.hulls as Hull[],
     tagIds,
     themeIds,
     milestoneIds,
   });
 
-  if (draft.mediaItems.length) {
+  // Images are already linked during appendContent when postId exists.
+  // Backfill titles/captions from AI parse onto existing rows.
+  const existingImages = await prisma.postImage.findMany({
+    where: { postId },
+    orderBy: { sortOrder: "asc" },
+  });
+
+  if (existingImages.length === 0 && draft.mediaItems.length) {
     await prisma.postImage.createMany({
       data: draft.mediaItems.map((item, i) => ({
-        postId: post.id,
+        postId,
         urlOrigin: item.urlOrigin,
         urlPicto: item.urlPicto || null,
         urlPetite: item.urlPetite || null,
@@ -372,19 +439,31 @@ export async function finalizeContentCollection(
         takenAt: publishedAt,
       })),
     });
+  } else {
+    for (let i = 0; i < existingImages.length; i++) {
+      await prisma.postImage.update({
+        where: { id: existingImages[i].id },
+        data: {
+          titleFr: parsed.imageTitlesFr[i] ?? existingImages[i].titleFr,
+          descriptionFr:
+            parsed.imageCaptionsFr[i] ?? existingImages[i].descriptionFr,
+          takenAt: publishedAt ?? existingImages[i].takenAt,
+        },
+      });
+    }
   }
 
   await prisma.telegramPublishSession.update({
     where: { id: sessionId },
     data: {
-      postId: post.id,
+      postId,
       step: "REVIEW_FR",
       photoIndex: 0,
       draftPayload: { ...draft, tagMeta } as unknown as Prisma.InputJsonValue,
     },
   });
 
-  return formatFrReview(post.id);
+  return formatFrReview(postId);
 }
 
 async function loadPost(postId: string) {

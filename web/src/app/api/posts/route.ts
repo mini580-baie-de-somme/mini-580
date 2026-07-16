@@ -11,8 +11,8 @@ import {
 } from "@/lib/posts";
 
 const createPostSchema = z.object({
-  titleFr: z.string().min(1),
-  titleEn: z.string().min(1),
+  titleFr: z.string().optional(),
+  titleEn: z.string().optional(),
   excerptFr: z.string().optional(),
   excerptEn: z.string().optional(),
   bodyFr: z.string().optional(),
@@ -57,17 +57,19 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json();
-    const data = createPostSchema.parse(body);
+    const raw = await request.json().catch(() => ({}));
+    const data = createPostSchema.parse(raw ?? {});
+    const titleFr = data.titleFr?.trim() || "Nouvel article";
+    const titleEn = data.titleEn?.trim() || "New article";
     const slug = data.slug
       ? await uniqueSlug(data.slug)
-      : await uniqueSlug(data.titleFr);
+      : await uniqueSlug(titleFr);
 
     const post = await prisma.post.create({
       data: {
         slug,
-        titleFr: data.titleFr,
-        titleEn: data.titleEn,
+        titleFr,
+        titleEn,
         excerptFr: data.excerptFr ?? "",
         excerptEn: data.excerptEn ?? "",
         bodyFr: data.bodyFr ?? "",

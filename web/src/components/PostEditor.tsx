@@ -7,7 +7,8 @@ import type { HullId } from "@/lib/types";
 
 const HULL_OPTIONS: HullId[] = ["HULL_268", "HULL_269", "HULL_270"];
 import { LangToggle } from "./LangToggle";
-import { PostGalleryEditor, type GalleryEditorImage } from "./PostGalleryEditor";
+import { PostGalleryEditor } from "./PostGalleryEditor";
+import type { GalleryEditorImage } from "@/lib/gallery-editor";
 
 type Tag = { id: string; name: string; labelFr: string; labelEn: string };
 type Theme = { id: string; slug: string; labelFr: string; labelEn: string };
@@ -63,6 +64,7 @@ export function PostEditor({ post, tags, themes, milestones }: Props) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef(form);
+  const skipInitialAutosave = useRef(true);
   formRef.current = form;
 
   const save = useCallback(async () => {
@@ -78,16 +80,19 @@ export function PostEditor({ post, tags, themes, milestones }: Props) {
       });
       if (!res.ok) throw new Error("Save failed");
       setSaveState("saved");
-      router.refresh();
     } catch {
       setSaveState("error");
     }
-  }, [post.id, router]);
+  }, [post.id]);
 
   useEffect(() => {
+    if (skipInitialAutosave.current) {
+      skipInitialAutosave.current = false;
+      return;
+    }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      save();
+      void save();
     }, 500);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -285,14 +290,7 @@ export function PostEditor({ post, tags, themes, milestones }: Props) {
         <PostGalleryEditor
           postId={post.id}
           lang={lang}
-          initialImages={post.images.map((img) => ({
-            ...img,
-            takenAt: img.takenAt
-              ? typeof img.takenAt === "string"
-                ? img.takenAt
-                : new Date(img.takenAt).toISOString()
-              : null,
-          }))}
+          initialImages={post.images}
         />
       </div>
 

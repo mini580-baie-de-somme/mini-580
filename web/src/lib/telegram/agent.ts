@@ -39,7 +39,68 @@ function asStringRecord(value: unknown): Record<string, string> | undefined {
   return out;
 }
 
-function buildPlatformCustomTools(): Record<string, SDKCustomTool> {
+function idFromData(data: unknown): string | null {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  const id = (data as Record<string, unknown>).id;
+  return typeof id === "string" && id.length > 0 ? id : null;
+}
+
+/** Persist which post/photo the agent is currently working on. */
+async function rememberActiveIds(
+  threadId: string,
+  toolName: string,
+  params: Record<string, string> | undefined,
+  data: unknown
+): Promise<void> {
+  const patch: { activePostId?: string | null; activeImageId?: string | null } =
+    {};
+
+  if (toolName === "posts.create") {
+    const postId = idFromData(data);
+    if (postId) {
+      patch.activePostId = postId;
+      patch.activeImageId = null;
+    }
+  } else if (
+    toolName === "posts.get" ||
+    toolName === "posts.patch" ||
+    toolName === "posts.publish" ||
+    toolName === "posts.archive"
+  ) {
+    if (params?.id) patch.activePostId = params.id;
+  } else if (toolName === "photos.upload") {
+    if (params?.id) patch.activePostId = params.id;
+    const imageId = idFromData(data);
+    if (imageId) patch.activeImageId = imageId;
+  } else if (
+    toolName === "photos.patch" ||
+    toolName === "photos.replace_file" ||
+    toolName === "photos.delete"
+  ) {
+    if (params?.id) patch.activePostId = params.id;
+    if (params?.imageId) {
+      patch.activeImageId =
+        toolName === "photos.delete" ? null : params.imageId;
+    }
+  } else if (toolName === "photos.list" || toolName === "photos.reorder") {
+    if (params?.id) patch.activePostId = params.id;
+  } else if (toolName === "photos.replace_all") {
+    if (params?.id) {
+      patch.activePostId = params.id;
+      patch.activeImageId = null;
+    }
+  }
+
+  if (Object.keys(patch).length === 0) return;
+  await prisma.telegramAgentThread.update({
+    where: { id: threadId },
+    data: patch,
+  });
+}
+
+function buildPlatformCustomTools(
+  threadId: string
+): Record<string, SDKCustomTool> {
   const tools: Record<string, SDKCustomTool> = {};
 
   for (const def of agentCallableTools()) {
@@ -72,6 +133,14 @@ function buildPlatformCustomTools(): Record<string, SDKCustomTool> {
           body: args.body,
         };
         const result = await executeAiTool(def.name, callArgs);
+        if (result.ok) {
+          await rememberActiveIds(
+            threadId,
+            def.name,
+            callArgs.params,
+            result.data
+          );
+        }
         return {
           content: [
             {
@@ -105,10 +174,29 @@ Règles :
 - Utilise les tools HTTP de la plateforme (posts_*, photos_*, tags_*, themes_*, milestones_*, gallery_list, translate, preview_create, media_put).
 - Réponds en français, concis, adapté à Telegram (Markdown simple).
 - Avant de publier, confirme clairement avec l'utilisateur.
+- Pour créer un article : appelle posts_create immédiatement (brouillon vide OK) puis réutilise son id pour les patchs et photos.
 - Pour les photos Telegram déjà uploadées, tu recevras des URLs /media/... — rattache-les via photos_upload (JSON) ou photos_replace_all.
-- Ne invente pas d'IDs : liste d'abord puis sélectionne.
+- Ne invente pas d'IDs : utilise le contexte actif ci-dessous, ou liste d'abord puis sélectionne.
 - SITE_URL est dans le contexte ; les aperçus sont /apercu/t/{token}.
 `;
+
+function formatActiveContext(thread: {
+  activePostId: string | null;
+  activeImageId: string | null;
+}): string {
+  const lines = ["Contexte actif (à réutiliser sauf changement de sujet) :"];
+  lines.push(
+    thread.activePostId
+      ? `- postId: ${thread.activePostId}`
+      : "- postId: (aucun — crée un brouillon avec posts_create si besoin)"
+  );
+  lines.push(
+    thread.activeImageId
+      ? `- imageId: ${thread.activeImageId}`
+      : "- imageId: (aucune)"
+  );
+  return lines.join("\n");
+}
 
 async function getOrCreateThread(telegramUserId: string, telegramChatId: string) {
   return prisma.telegramAgentThread.upsert({
@@ -150,7 +238,7 @@ export async function runTelegramAgentTurn(input: {
     input.telegramUserId,
     input.telegramChatId
   );
-  const customTools = buildPlatformCustomTools();
+  const customTools = buildPlatformCustomTools(thread.id);
   const cwd = getCursorCwd();
   const model = { id: getCursorModelId() };
 
@@ -159,7 +247,7 @@ export async function runTelegramAgentTurn(input: {
       ? `\n\nMédias Telegram déjà stockés (URLs publiques):\n${input.mediaUrls.map((u, i) => `${i + 1}. ${u}`).join("\n")}`
       : "";
 
-  const message = `${SYSTEM_BRIEF}\n\n---\nMessage utilisateur:\n${input.userMessage}${mediaBlock}`;
+  const message = `${SYSTEM_BRIEF}\n\n${formatActiveContext(thread)}\n\n---\nMessage utilisateur:\n${input.userMessage}${mediaBlock}`;
 
   let agentId = thread.cursorAgentId;
   let resultText = "";
