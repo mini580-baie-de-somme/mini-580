@@ -1,6 +1,6 @@
 import "server-only";
 
-import { SignJWT, jwtVerify, importPKCS8, importSPKI, type KeyLike } from "jose";
+import { SignJWT, jwtVerify, importPKCS8, importSPKI } from "jose";
 import { randomUUID } from "crypto";
 
 export type SyncEnv = "test" | "prod";
@@ -31,17 +31,19 @@ function getPeerPublicKeyPem(): string {
   return pem;
 }
 
-let privateKeyCache: KeyLike | null = null;
-let peerPublicKeyCache: KeyLike | null = null;
+type ImportedKey = Awaited<ReturnType<typeof importPKCS8>>;
 
-async function getPrivateKey(): Promise<KeyLike> {
+let privateKeyCache: ImportedKey | null = null;
+let peerPublicKeyCache: ImportedKey | null = null;
+
+async function getPrivateKey(): Promise<ImportedKey> {
   if (!privateKeyCache) {
     privateKeyCache = await importPKCS8(getPrivateKeyPem(), "EdDSA");
   }
   return privateKeyCache;
 }
 
-async function getPeerPublicKey(): Promise<KeyLike> {
+async function getPeerPublicKey(): Promise<ImportedKey> {
   if (!peerPublicKeyCache) {
     peerPublicKeyCache = await importSPKI(getPeerPublicKeyPem(), "EdDSA");
   }
