@@ -57,7 +57,7 @@ export function PhotoEditModal({
     setBusy(true);
     setError(null);
     try {
-      if (draft?.id && mode === "edit") {
+      if (draft?.id) {
         const body = new FormData();
         body.append("file", file);
         const res = await fetch(
@@ -420,7 +420,7 @@ export function PhotoEditModal({
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#d4dde6] px-4 py-3">
           <div>
-            {draft?.id && mode === "edit" && (
+            {draft?.id && (
               <button
                 type="button"
                 onClick={() => void remove()}
