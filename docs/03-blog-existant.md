@@ -1,7 +1,7 @@
 # Inventaire du blog existant
 
 > Source : [cg268269270.blogspot.com](https://cg268269270.blogspot.com/)
-> À migrer vers la nouvelle plateforme
+> Migration : contenu importé en **brouillons (DRAFT)** sur TEST via `scripts/import-blogger-drafts.mjs` (juillet 2026) — à valider / publier depuis `/editeur`.
 
 ## Métadonnées
 

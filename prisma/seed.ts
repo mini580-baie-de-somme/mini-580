@@ -5,7 +5,7 @@ import { createPrismaClient } from "../web/src/lib/prisma-client";
 const prisma = createPrismaClient();
 
 async function main() {
-  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? "admin@mini580.local";
+  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? "admin@classmini580.blog";
   const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "changeme123";
   const passwordHash = await bcrypt.hash(adminPassword, 12);
 

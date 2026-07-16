@@ -99,7 +99,7 @@ cp web/.env.example web/.env
 ./scripts/dev.sh          # postgres → migrate → seed → next dev :3002
 ```
 
-Login seed : `admin@mini580.local` / `changeme123`
+Login seed : `admin@classmini580.blog` / `changeme123`
 
 nginx (optionnel) :
 ```bash

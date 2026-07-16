@@ -28,6 +28,7 @@ Ce dépôt part de zéro pour reconstruire le site web, la documentation et la c
 | [Architecture OpenClaw](docs/05-architecture-openclaw.md) | Schéma technique, pipeline publication, skills |
 | [Spec technique site](docs/06-spec-technique.md) | Décisions validées, modèle DB, phasage |
 | [Déploiement & CI/CD](docs/07-deploy-cicd.md) | VPS Hostinger, Docker, TEST/PROD, GitHub Actions |
+| [Sync TEST ↔ PROD](docs/08-sync-test-prod.md) | OTP Ed25519, pull/publish, archive |
 
 ## Application web (`web/`)
 
@@ -36,7 +37,7 @@ cp web/.env.example web/.env
 ./scripts/dev.sh    # PostgreSQL + migrate + seed + Next.js :3002
 ```
 
-- **Login dev :** `admin@mini580.local` / `changeme123`
+- **Login dev :** `admin@classmini580.blog` / `changeme123`
 - **Pages :** `/` · `/blog` · `/timeline` · `/connexion` · `/editeur`
 - **Prod :** [classmini580.blog](https://classmini580.blog) · **Test :** [test.classmini580.blog](https://test.classmini580.blog)
 - **CI/CD :** push `main` → TEST · Deploy PROD manuel (voir `docs/07-deploy-cicd.md`)
