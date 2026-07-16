@@ -21,7 +21,7 @@ export type EditorPost = {
   excerptEn: string;
   bodyFr: string;
   bodyEn: string;
-  status: "DRAFT" | "PUBLISHED";
+  status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   coverImageUrl: string | null;
   hulls: { hull: HullId }[];
   tags: { tag: Tag }[];
@@ -152,7 +152,7 @@ export function PostEditor({ post, tags, themes, milestones }: Props) {
                 : "bg-amber-100 text-amber-800"
             }`}
           >
-            {post.status === "PUBLISHED" ? "Publié" : "Brouillon"}
+            {post.status === "PUBLISHED" ? "Publié" : post.status === "ARCHIVED" ? "Archivé" : "Brouillon"}
           </span>
         </div>
         <div className="flex gap-2">
