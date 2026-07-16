@@ -33,7 +33,8 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "posts.create",
-    description: "Create draft post with bilingual FR/EN fields",
+    description:
+      "Create a DRAFT post immediately (empty body OK; titles default to Nouvel article / New article). Returns id to reuse for patches and photos.",
     method: "POST",
     path: "/api/posts",
     auth: "bearer_or_session",

@@ -63,9 +63,10 @@ async function rememberActiveIds(
     }
   } else if (
     toolName === "posts.get" ||
-    toolName === "posts.patch" ||
+    toolName === "posts.update" ||
     toolName === "posts.publish" ||
-    toolName === "posts.archive"
+    toolName === "posts.archive" ||
+    toolName === "posts.delete"
   ) {
     if (params?.id) patch.activePostId = params.id;
   } else if (toolName === "photos.upload") {
