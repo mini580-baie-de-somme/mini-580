@@ -16,6 +16,7 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment: test
     permissions:
       contents: read
       packages: write
@@ -68,12 +69,21 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USER: ${{ github.actor }}
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          CURSOR_MODEL: ${{ secrets.CURSOR_MODEL }}
           INGEST_API_KEY: ${{ secrets.INGEST_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
+          TELEGRAM_ALLOWED_USER_IDS: ${{ secrets.TELEGRAM_ALLOWED_USER_IDS }}
+          TELEGRAM_SERVICE_USER_EMAIL: ${{ secrets.TELEGRAM_SERVICE_USER_EMAIL }}
+          SYNC_PRIVATE_KEY: ${{ secrets.SYNC_PRIVATE_KEY }}
+          SYNC_PEER_PUBLIC_KEY: ${{ secrets.SYNC_PEER_PUBLIC_KEY }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: GHCR_TOKEN,GHCR_USER,CURSOR_API_KEY,INGEST_API_KEY
+          envs: GHCR_TOKEN,GHCR_USER,CURSOR_API_KEY,CURSOR_MODEL,INGEST_API_KEY,TELEGRAM_BOT_TOKEN,TELEGRAM_WEBHOOK_SECRET,TELEGRAM_ALLOWED_USER_IDS,TELEGRAM_SERVICE_USER_EMAIL,SYNC_PRIVATE_KEY,SYNC_PEER_PUBLIC_KEY,SESSION_SECRET,POSTGRES_PASSWORD
           script: |
             set -euo pipefail
             IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:test"
@@ -84,18 +94,27 @@ jobs:
             cp "$SYNC/scripts/deploy.sh" /opt/mini580/bin/deploy.sh
             chmod +x /opt/mini580/bin/deploy.sh
             cp "$SYNC/nginx/test.classmini580.blog.conf" /opt/mini580/nginx/test.classmini580.blog.conf
-            # Merge AI / ingest secrets into .env without printing values
+            # Merge CI secrets into .env (skip empty; never print values)
             upsert_env() {
               local key="$1" val="$2"
               [[ -z "$val" ]] && return 0
-              if grep -q "^${key}=" "$ENVF" 2>/dev/null; then
-                sed -i "s|^${key}=.*|${key}=${val}|" "$ENVF"
-              else
-                echo "${key}=${val}" >> "$ENVF"
-              fi
+              touch "$ENVF"
+              grep -v "^${key}=" "$ENVF" > "${ENVF}.tmp" || true
+              printf '%s=%s\n' "$key" "$val" >> "${ENVF}.tmp"
+              mv "${ENVF}.tmp" "$ENVF"
+              chmod 600 "$ENVF"
             }
             upsert_env CURSOR_API_KEY "${CURSOR_API_KEY:-}"
+            upsert_env CURSOR_MODEL "${CURSOR_MODEL:-}"
             upsert_env INGEST_API_KEY "${INGEST_API_KEY:-}"
+            upsert_env TELEGRAM_BOT_TOKEN "${TELEGRAM_BOT_TOKEN:-}"
+            upsert_env TELEGRAM_WEBHOOK_SECRET "${TELEGRAM_WEBHOOK_SECRET:-}"
+            upsert_env TELEGRAM_ALLOWED_USER_IDS "${TELEGRAM_ALLOWED_USER_IDS:-}"
+            upsert_env TELEGRAM_SERVICE_USER_EMAIL "${TELEGRAM_SERVICE_USER_EMAIL:-}"
+            upsert_env SYNC_PRIVATE_KEY "${SYNC_PRIVATE_KEY:-}"
+            upsert_env SYNC_PEER_PUBLIC_KEY "${SYNC_PEER_PUBLIC_KEY:-}"
+            upsert_env SESSION_SECRET "${SESSION_SECRET:-}"
+            upsert_env POSTGRES_PASSWORD "${POSTGRES_PASSWORD:-}"
             if command -v sudo >/dev/null 2>&1; then
               sudo cp /opt/mini580/nginx/test.classmini580.blog.conf /etc/nginx/sites-available/test.classmini580.blog.conf || true
               sudo nginx -t && sudo systemctl reload nginx || true

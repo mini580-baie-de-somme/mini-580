@@ -21,13 +21,33 @@ VPS : `2.24.13.70` · stacks isolées sous `/opt/mini580/{test,prod}` · images 
 
 ## Secrets GitHub (repo `mini580-baie-de-somme/mini-580`)
 
-| Secret | Valeur |
-|--------|--------|
+Chaque deploy **réécrit** les secrets applicatifs dans `/opt/mini580/{test,prod}/.env` depuis GitHub (jamais commités). Les workflows utilisent les **environments** `test` et `prod`.
+
+### Repo (partagés)
+
+| Secret | Rôle |
+|--------|------|
 | `DEPLOY_HOST` | `2.24.13.70` |
 | `DEPLOY_USER` | `deploy` |
-| `DEPLOY_SSH_KEY` | Contenu de la clé privée CI (`~/.ssh/id_ed25519_mini580_ci`) |
+| `DEPLOY_SSH_KEY` | Clé privée CI (`~/.ssh/id_ed25519_mini580_ci`) |
+| `CURSOR_API_KEY` | Modèle IA (Cursor Dashboard) |
+| `CURSOR_MODEL` | Défaut `composer-2.5` |
 
-Le push d’images GHCR utilise `GITHUB_TOKEN` (permissions `packages: write` dans les workflows).
+`GITHUB_TOKEN` (Actions) sert au push/pull GHCR (`packages: write`).
+
+### Environment `test` / `prod` (par stack)
+
+| Secret | Rôle |
+|--------|------|
+| `TELEGRAM_BOT_TOKEN` | Bot dédié (TEST ≠ PROD — un webhook par bot) |
+| `TELEGRAM_WEBHOOK_SECRET` | Header `secret_token` webhook |
+| `TELEGRAM_ALLOWED_USER_IDS` | Allowlist IDs numériques |
+| `TELEGRAM_SERVICE_USER_EMAIL` | Auteur DB des posts bot |
+| `INGEST_API_KEY` | Bearer machine (OpenClaw / tools) |
+| `SYNC_PRIVATE_KEY` | OTP sync Ed25519 (cette stack) |
+| `SYNC_PEER_PUBLIC_KEY` | Clé publique de l’autre stack |
+| `SESSION_SECRET` | Sessions Next.js |
+| `POSTGRES_PASSWORD` | Mot de passe Postgres |
 
 ### Pull GHCR depuis le VPS
 
@@ -60,12 +80,33 @@ ssh mini580-test 'cd /chemin/vers/repo && sudo bash deploy/scripts/bootstrap-vps
 ## Secrets GitHub CLI
 
 ```bash
-gh secret set DEPLOY_HOST --body "2.24.13.70" --repo mini580-baie-de-somme/mini-580
-gh secret set DEPLOY_USER --body "deploy" --repo mini580-baie-de-somme/mini-580
-gh secret set DEPLOY_SSH_KEY < ~/.ssh/id_ed25519_mini580_ci --repo mini580-baie-de-somme/mini-580
-gh secret set CURSOR_API_KEY --repo mini580-baie-de-somme/mini-580   # clé modèle IA (jamais dans git)
-# Optionnel : INGEST_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, TELEGRAM_ALLOWED_USER_IDS
+REPO=mini580-baie-de-somme/mini-580
+
+# Environments
+gh api --method PUT "repos/$REPO/environments/test" --input /dev/null
+gh api --method PUT "repos/$REPO/environments/prod" --input /dev/null
+
+# Repo
+gh secret set DEPLOY_HOST --body "2.24.13.70" --repo "$REPO"
+gh secret set DEPLOY_USER --body "deploy" --repo "$REPO"
+gh secret set DEPLOY_SSH_KEY < ~/.ssh/id_ed25519_mini580_ci --repo "$REPO"
+gh secret set CURSOR_API_KEY --repo "$REPO"          # interactif / stdin
+gh secret set CURSOR_MODEL --body "composer-2.5" --repo "$REPO"
+
+# Par environment (répéter --env test et --env prod)
+gh secret set TELEGRAM_BOT_TOKEN --env test --repo "$REPO"
+gh secret set TELEGRAM_WEBHOOK_SECRET --env test --repo "$REPO"
+gh secret set TELEGRAM_ALLOWED_USER_IDS --env test --repo "$REPO"
+gh secret set TELEGRAM_SERVICE_USER_EMAIL --env test --repo "$REPO"
+gh secret set INGEST_API_KEY --env test --repo "$REPO"
+gh secret set SYNC_PRIVATE_KEY --env test --repo "$REPO"
+gh secret set SYNC_PEER_PUBLIC_KEY --env test --repo "$REPO"
+gh secret set SESSION_SECRET --env test --repo "$REPO"
+gh secret set POSTGRES_PASSWORD --env test --repo "$REPO"
+# idem --env prod
 ```
+
+Après un changement de secret : relancer **Deploy TEST** (push `main` ou manuel) et/ou **Deploy PROD** — le `.env` VPS est mis à jour automatiquement.
 
 ## Déploiements
 

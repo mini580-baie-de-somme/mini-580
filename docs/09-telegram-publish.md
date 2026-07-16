@@ -80,17 +80,23 @@ Auth : cookie session **ou** `Authorization: Bearer <INGEST_API_KEY>`.
 | Réordonner | `PUT /api/posts/:id/images/reorder` `{ imageIds }` |
 | Supprimer | `DELETE /api/posts/:id/images/:imageId` |
 
-## Secrets CI/CD (IA)
+## Secrets CI/CD (IA + Telegram)
 
-| Variable | Rôle |
-|----------|------|
-| `CURSOR_API_KEY` | Clé modèle Cursor (GitHub secret → `.env` VPS TEST/PROD) |
-| `CURSOR_MODEL` | Défaut `composer-2.5` |
-| `INGEST_API_KEY` | Bearer tools HTTP |
+Injectés à chaque deploy depuis GitHub → `/opt/mini580/{test,prod}/.env` (voir `docs/07-deploy-cicd.md`).
+
+| Variable | Portée GitHub | Rôle |
+|----------|---------------|------|
+| `CURSOR_API_KEY` / `CURSOR_MODEL` | Repo | Modèle IA |
+| `TELEGRAM_*` | Environment `test` / `prod` | Bot + webhook + allowlist |
+| `INGEST_API_KEY` | Environment | Bearer tools HTTP |
 
 ```bash
+# Repo
 gh secret set CURSOR_API_KEY --repo mini580-baie-de-somme/mini-580
-# puis merger dans /opt/mini580/{test,prod}/.env (hors git)
+# Environment (bots distincts TEST/PROD)
+gh secret set TELEGRAM_BOT_TOKEN --env prod --repo mini580-baie-de-somme/mini-580
+gh secret set TELEGRAM_WEBHOOK_SECRET --env prod --repo mini580-baie-de-somme/mini-580
+# puis Deploy TEST / Deploy PROD
 ```
 
 ## Sécurité

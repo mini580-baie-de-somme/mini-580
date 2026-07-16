@@ -43,7 +43,7 @@ cp web/.env.example web/.env
 - Médias : bucket local + galerie 0–N (`urlOrigin` + formats picto/petite/moyenne/grande) — éditeur drag-drop/paste
 - **Prod :** [classmini580.blog](https://classmini580.blog) · **Test :** [test.classmini580.blog](https://test.classmini580.blog)
 - **CI/CD :** push `main` → TEST · Deploy PROD manuel (voir `docs/07-deploy-cicd.md`)
-- **IA :** `CURSOR_API_KEY` via secrets GitHub → `.env` VPS (voir `docs/09-telegram-publish.md`)
+- **Secrets CI/CD :** `CURSOR_*`, `TELEGRAM_*`, SSH deploy, sync/DB — GitHub Environments `test`/`prod` → `.env` VPS à chaque deploy (`docs/07-deploy-cicd.md`)
 
 ## Liens utiles
 
