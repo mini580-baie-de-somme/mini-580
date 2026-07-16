@@ -57,6 +57,9 @@ services:
       - "127.0.0.1:3001:3000"
     volumes:
       - ./media:/data/media
+    extra_hosts:
+      - "classmini580.blog:2.24.13.70"
+      - "www.classmini580.blog:2.24.13.70"
     networks:
       - mini580_test
 
