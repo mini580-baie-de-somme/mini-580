@@ -33,7 +33,7 @@ export function jsonRequest(
     }
   }
   const { searchParams: _sp, ...rest } = init ?? {};
-  return new NextRequest(u, rest);
+  return new NextRequest(u, rest as ConstructorParameters<typeof NextRequest>[1]);
 }
 
 export async function ensureAdminUser() {
