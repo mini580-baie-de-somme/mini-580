@@ -7,6 +7,20 @@
 Publier un article bilingue (FR → EN) depuis Telegram, avec validation pas à pas :
 contenu, traduction, aperçu, ordre des photos, métadonnées et transforms par photo.
 
+## Agent intelligent (tools plateforme)
+
+Par défaut, Telegram parle à un **agent Cursor** qui appelle les endpoints via `AI_TOOLS` (`Bearer INGEST_API_KEY`) :
+
+- lire / rechercher posts, galerie, tags, thèmes, jalons
+- CRUD articles + publish/archive
+- médiathèque & images liées (meta FR/EN, transforms, reorder, replace)
+- liens d’aperçu `preview.create` → `/apercu/t/{token}`
+- traduction FR→EN (`translate`)
+
+Parcours guidé conservé : `/nouveau`.
+
+Fichiers clés : `web/src/lib/telegram/agent.ts`, `ai-tools.ts`, `ai-tools-runtime.ts`.
+
 ## Prérequis
 
 | Variable | Rôle |
@@ -71,7 +85,8 @@ Auth : cookie session **ou** `Authorization: Bearer <INGEST_API_KEY>`.
 
 | Tool | Méthode |
 |------|---------|
-| Lister | `GET /api/posts/:id/images` |
+| Galerie publique | `GET /api/gallery?hull=&theme=&tag=&milestone=&search=&sort=date\|milestone` |
+| Lister (post) | `GET /api/posts/:id/images` |
 | Upload + variants | `POST /api/posts/:id/images` (multipart `file`) |
 | Créer (URLs) | `POST /api/posts/:id/images` (JSON) |
 | Remplacer tout | `PUT /api/posts/:id/images` |
@@ -79,6 +94,7 @@ Auth : cookie session **ou** `Authorization: Bearer <INGEST_API_KEY>`.
 | Remplacer origine | `POST /api/posts/:id/images/:imageId/replace` |
 | Réordonner | `PUT /api/posts/:id/images/reorder` `{ imageIds }` |
 | Supprimer | `DELETE /api/posts/:id/images/:imageId` |
+| Bucket brut (cover) | `POST /api/media` |
 
 ## Secrets CI/CD (IA + Telegram)
 

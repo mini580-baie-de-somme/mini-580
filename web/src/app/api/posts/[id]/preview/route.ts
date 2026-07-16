@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PostStatus } from "@/generated/prisma/client";
-import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
-import { postInclude } from "@/lib/posts";
+import { prisma } from "@/lib/db";
+import { createPreviewLink } from "@/lib/telegram/publish-flow";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+/** POST /api/posts/:id/preview — temporary shareable preview URL (72h). */
 export async function POST(request: NextRequest, context: RouteContext) {
   const editor = await getEditorOrService(request);
   if (!editor) {
@@ -13,19 +13,20 @@ export async function POST(request: NextRequest, context: RouteContext) {
   }
 
   const { id } = await context.params;
-  const existing = await prisma.post.findUnique({ where: { id } });
-  if (!existing) {
+  const post = await prisma.post.findUnique({
+    where: { id },
+    select: { id: true, titleFr: true, status: true },
+  });
+  if (!post) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const post = await prisma.post.update({
-    where: { id },
-    data: {
-      status: PostStatus.PUBLISHED,
-      publishedAt: existing.publishedAt ?? new Date(),
-    },
-    include: postInclude,
+  const url = await createPreviewLink(id);
+  return NextResponse.json({
+    postId: post.id,
+    titleFr: post.titleFr,
+    status: post.status,
+    previewUrl: url,
+    expiresInHours: 72,
   });
-
-  return NextResponse.json(post);
 }

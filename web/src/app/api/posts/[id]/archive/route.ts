@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { PostStatus } from "@/generated/prisma/client";
-import { getSession } from "@/lib/auth";
+import { getEditorOrService } from "@/lib/service-auth";
 import { prisma } from "@/lib/db";
 import { postInclude } from "@/lib/posts";
 
@@ -13,8 +13,8 @@ const bodySchema = z.object({
 
 /** Archive / unarchive a post (soft delete). */
 export async function POST(request: NextRequest, context: RouteContext) {
-  const session = await getSession();
-  if (!session) {
+  const editor = await getEditorOrService(request);
+  if (!editor) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

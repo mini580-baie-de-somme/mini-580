@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { PostStatus, Hull } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/auth";
 import { getEditorOrService } from "@/lib/service-auth";
 import {
   postInclude,
@@ -28,14 +27,14 @@ const createPostSchema = z.object({
 });
 
 export async function GET(request: NextRequest) {
-  const session = await getSession();
+  const editor = await getEditorOrService(request);
   const { searchParams } = request.nextUrl;
   const hull = searchParams.get("hull") ?? undefined;
   const theme = searchParams.get("theme") ?? undefined;
   const tag = searchParams.get("tag") ?? undefined;
   const search = searchParams.get("search") ?? undefined;
 
-  if (session) {
+  if (editor) {
     const posts = await prisma.post.findMany({
       include: postInclude,
       orderBy: { updatedAt: "desc" },

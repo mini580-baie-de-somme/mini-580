@@ -179,6 +179,18 @@ model TelegramPublishSession {
   @@index([step])
 }
 
+/// Durable Cursor agent thread per Telegram chat (free-form tools agent).
+model TelegramAgentThread {
+  id             String   @id @default(cuid())
+  telegramUserId String
+  telegramChatId String
+  cursorAgentId  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([telegramUserId, telegramChatId])
+}
+
 /// Shareable draft preview link for Telegram (no login cookie).
 model PreviewToken {
   id        String   @id @default(cuid())
@@ -189,4 +201,38 @@ model PreviewToken {
   createdAt DateTime @default(now())
 
   @@index([postId])
+}
+
+enum SyncJobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum SyncJobType {
+  PULL_FROM_PROD
+  PUBLISH_POST
+  PUBLISH_MILESTONE
+  CATALOG_PULL
+  CATALOG_PUSH
+}
+
+/// Async TEST↔PROD sync job (global lock: only one PENDING/RUNNING at a time).
+model SyncJob {
+  id         String        @id @default(cuid())
+  type       SyncJobType
+  status     SyncJobStatus @default(PENDING)
+  /// Job-specific params (postId, publish, direction, …)
+  params     Json?
+  /// { step, current, total, message, mediaSynced? }
+  progress   Json?
+  result     Json?
+  error      String?       @db.Text
+  createdBy  String?
+  createdAt  DateTime      @default(now())
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  @@index([status, createdAt])
 }
