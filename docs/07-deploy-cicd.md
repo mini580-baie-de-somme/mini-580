@@ -29,13 +29,13 @@ VPS : `2.24.13.70` · stacks isolées sous `/opt/mini580/{test,prod}` · images 
 
 Le push d’images GHCR utilise `GITHUB_TOKEN` (permissions `packages: write` dans les workflows).
 
-### Token GHCR read sur le VPS (si le package est privé)
+### Pull GHCR depuis le VPS
 
-1. GitHub → Settings → Developer settings → Personal access token (classic) avec `read:packages`
-2. Sur le VPS : `echo 'TOKEN' | sudo tee /opt/mini580/.ghcr-token && sudo chmod 600 /opt/mini580/.ghcr-token && sudo chown deploy:deploy /opt/mini580/.ghcr-token`
-3. `export GHCR_USER=smramdani` (ou le user GitHub propriétaire du token) — ou ajouter `GHCR_USER=...` dans le cron/profile de `deploy`
+Les workflows passent `GITHUB_TOKEN` au serveur et exécutent `docker login ghcr.io` avant `deploy.sh` (pas besoin de PAT permanent si les deploys passent par Actions).
 
-Astuce : rendre le package GHCR **public** (Package settings) pour simplifier les pulls.
+Optionnel (deploys manuels hors CI) : déposer un PAT `read:packages` dans `/opt/mini580/.ghcr-token` (voir `deploy.sh`).
+
+Astuce alternative : rendre le package GHCR **public** (Package settings sur GitHub).
 
 ## Bootstrap VPS (une fois)
 

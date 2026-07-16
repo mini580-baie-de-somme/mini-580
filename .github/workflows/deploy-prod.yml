@@ -59,11 +59,16 @@ jobs:
 
       - name: Deploy to VPS (PROD)
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: GHCR_TOKEN,GHCR_USER
           script: |
             set -euo pipefail
             IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:prod"
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             /opt/mini580/bin/deploy.sh prod "$IMAGE"
