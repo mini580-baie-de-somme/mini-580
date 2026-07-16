@@ -19,7 +19,7 @@ L'équipe publie comme elle communique déjà entre amis. Vous, en admin, orches
 
 ```mermaid
 flowchart TB
-    subgraph equipe ["Équipe Mini5.80 Baie de Somme — zéro technique"]
+    subgraph equipe ["Équipe Class Mini 5.80 Baie de Somme — zéro technique"]
         L[Laurent]
         M[Marco]
         R[Rodolphe]
@@ -31,13 +31,13 @@ flowchart TB
         BOT[Bot Telegram]
         AGENT_ADMIN[Agent Admin\nWebmaster]
         AGENT_PUB[Agent Publication\nContenu équipe]
-        SKILLS[Skills Mini5.80 Baie de Somme\npublish · migrate · deploy]
+        SKILLS[Skills Class Mini 5.80 Baie de Somme\npublish · migrate · deploy]
         CRON[Cron / Heartbeat\nveille Drive · rappels]
     end
 
     subgraph sortie ["Sortie publique"]
         REPO[Repo Git\ncontenu + site]
-        SITE[Site documentation\nMini5.80 Baie de Somme]
+        SITE[Site documentation\nClass Mini 5.80 Baie de Somme]
     end
 
     L & M & R -->|"photo + texte\nou vocal"| TG_GRP
@@ -90,7 +90,7 @@ flowchart TB
       dmPolicy: "allowlist",           // Seul vous en DM admin
       allowFrom: ["<VOTRE_TELEGRAM_ID>"],
       groups: {
-        "<Mini5.80 Baie de Somme_GROUP_ID>": {
+        "<Class Mini 5.80 Baie de Somme_GROUP_ID>": {
           requireMention: false,         // L'équipe n'a pas à @mentionner
           groupPolicy: "allowlist",
           groupAllowFrom: [
@@ -135,13 +135,13 @@ Interface familière, déjà sur leur téléphone. **Aucune formation technique.
 > 🏷️ **Précisez si possible** : le numéro de coque (268, 269 ou 270) et l'étape (couples, plaquage, fournisseurs…).
 > C'est tout. On s'occupe du reste.
 
-### Canal secondaire : Google Drive `Mini5.80 Baie de Somme / À publier`
+### Canal secondaire : Google Drive `Class Mini 5.80 Baie de Somme / À publier`
 
 Pour les fichiers lourds ou structurés que Telegram compresse mal.
 
 ```
 Google Drive/
-└── Mini5.80 Baie de Somme/
+└── Class Mini 5.80 Baie de Somme/
     ├── À publier/          ← l'équipe dépose ici
     │   ├── 268-couples/
     │   ├── 269-sourcing/
@@ -247,7 +247,7 @@ Skills personnalisés dans `.openclaw/skills/` ou `skills/` du workspace :
 |------|-------|
 | OpenClaw Gateway | Vous seul (machine / VPS privé) |
 | Telegram DM bot | Allowlist : votre ID uniquement |
-| Groupe Mini5.80 Baie de Somme | Laurent, Marco, Rodolphe + vous |
+| Groupe Class Mini 5.80 Baie de Somme | Laurent, Marco, Rodolphe + vous |
 | Google Drive | Dossier partagé équipe, pas de droits admin site |
 | Repo Git | Admin : push direct ; équipe : aucun accès Git requis |
 | Site public | Lecture seule pour visiteurs ; commentaires modérés |

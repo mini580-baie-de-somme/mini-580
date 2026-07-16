@@ -12,11 +12,11 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Mini5.80 Baie de Somme — Class Globe 5.80 #268-269-270",
-    template: "%s | Mini5.80 Baie de Somme",
+    default: "Class Mini 5.80 Baie de Somme — Class Globe 5.80 #268-269-270",
+    template: "%s | Class Mini 5.80 Baie de Somme",
   },
   description:
-    "Blog de construction bilingue pour trois Class Globe 5.80 à Mini5.80 Baie de Somme.",
+    "Blog de construction bilingue pour trois Class Globe 5.80 à Class Mini 5.80 Baie de Somme.",
 };
 
 export default function RootLayout({

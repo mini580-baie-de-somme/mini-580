@@ -11,7 +11,7 @@ export function Footer() {
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <div className="grid gap-8 sm:grid-cols-2">
           <div>
-            <p className="font-semibold text-[#0D131A]">Mini5.80 Baie de Somme</p>
+            <p className="font-semibold text-[#0D131A]">Class Mini 5.80 Baie de Somme</p>
             <p className="mt-2 text-sm text-[#495867]">{t("footer.tagline")}</p>
           </div>
           <div>

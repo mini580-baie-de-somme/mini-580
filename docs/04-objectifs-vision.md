@@ -1,4 +1,4 @@
-# Objectifs & vision — Plateforme Mini 5.80 Baie de Somme
+# Objectifs & vision — Plateforme Class Mini 5.80 Baie de Somme
 
 > Vision validée — juillet 2026
 
@@ -65,7 +65,7 @@ Admin  → Telegram DM / Control UI → OpenClaw → tout le reste
 | Site public | Site statique (Astro/Next.js) alimenté par Git |
 | Contenu | Markdown bilingue FR/EN, généré/assisté par OpenClaw |
 | Blog existant | Migration des 3 articles Blogger |
-| Identité | Mini5.80 Baie de Somme + "Les vieux fourneaux" |
+| Identité | Class Mini 5.80 Baie de Somme + "Les vieux fourneaux" |
 
 ## Décisions encore ouvertes
 

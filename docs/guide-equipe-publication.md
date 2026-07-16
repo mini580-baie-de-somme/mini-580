@@ -1,4 +1,4 @@
-# Guide équipe Mini5.80 Baie de Somme — Comment publier sur le site
+# Guide équipe Class Mini 5.80 Baie de Somme — Comment publier sur le site
 
 > À partager dans le groupe Telegram #Mini580-Chantier
 
@@ -19,7 +19,7 @@ C'est tout. Le reste est automatique.
 
 ### Pour partager un plan, un PDF ou des photos lourdes
 
-1. Ouvrez le dossier Google Drive **Mini5.80 Baie de Somme → À publier**
+1. Ouvrez le dossier Google Drive **Class Mini 5.80 Baie de Somme → À publier**
 2. Déposez votre fichier dans le bon sous-dossier (ou créez-en un)
 3. Optionnel : envoyez un message dans Telegram pour prévenir
 

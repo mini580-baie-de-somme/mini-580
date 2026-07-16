@@ -11,10 +11,10 @@ async function main() {
 
   const admin = await prisma.user.upsert({
     where: { email: adminEmail },
-    update: { passwordHash, name: "Admin Mini5.80" },
+    update: { passwordHash, name: "Admin Class Mini 5.80" },
     create: {
       email: adminEmail,
-      name: "Admin Mini5.80",
+      name: "Admin Class Mini 5.80",
       passwordHash,
     },
   });
@@ -69,8 +69,8 @@ async function main() {
     },
     {
       slug: "workshop-found",
-      titleFr: "Atelier Mini5.80 Baie de Somme trouvé",
-      titleEn: "Mini5.80 Baie de Somme workshop secured",
+      titleFr: "Atelier Class Mini 5.80 Baie de Somme trouvé",
+      titleEn: "Class Mini 5.80 Baie de Somme workshop secured",
       descriptionFr: "Grange 250 m² — Baie de Somme.",
       descriptionEn: "250 m² barn workshop — Baie de Somme.",
       milestoneDate: new Date("2026-02-01"),
@@ -228,19 +228,19 @@ Hull numbers 268, 269 and 270 are assigned. The "Old Stoves" blog is registered 
       titleFr: "Préparation du chantier",
       titleEn: "Workshop setup",
       excerptFr:
-        "Congé Laurent, rôles définis, premières courbes Onshape et découverte de Mini5.80 Baie de Somme.",
+        "Congé Laurent, rôles définis, premières courbes Onshape et découverte de Class Mini 5.80 Baie de Somme.",
       excerptEn:
-        "Laurent's sabbatical, defined roles, first Onshape curves and discovering Mini5.80 Baie de Somme.",
+        "Laurent's sabbatical, defined roles, first Onshape curves and discovering Class Mini 5.80 Baie de Somme.",
       bodyFr: `Février 2026 : le congé de Laurent est validé — six mois à temps plein sur le chantier. Les rôles sont clairs : Marco source les matériaux, Laurent modélise en 3D sur Onshape, Rodolphe prépare les programmes CNC.
 
 Les premières captures 3D montrent les courbes et surfaces de coque et de pont. C'est enthousiasmant de voir le bateau prendre forme virtuellement avant la première plaque de contreplaqué.
 
-La commande Allin est passée : 80 plaques de 10 mm okoumé marine (2500×1220 mm), livraison prévue fin 2025. Et puis la découverte de Mini5.80 Baie de Somme — une grange de 250 m² mise à disposition par les voisins de Marco, près de Saint-Valéry-sur-Somme. Mini5.80 Baie de Somme a trouvé son port d'attache.`,
+La commande Allin est passée : 80 plaques de 10 mm okoumé marine (2500×1220 mm), livraison prévue fin 2025. Et puis la découverte de Class Mini 5.80 Baie de Somme — une grange de 250 m² mise à disposition par les voisins de Marco, près de Saint-Valéry-sur-Somme. Class Mini 5.80 Baie de Somme a trouvé son port d'attache.`,
       bodyEn: `February 2026: Laurent's sabbatical is confirmed — six months full-time at the workshop. Roles are clear: Marco sources materials, Laurent models in 3D on Onshape, Rodolphe prepares CNC programs.
 
 First 3D screenshots show hull and deck curves and surfaces. It's exciting to see the boat take shape virtually before the first plywood sheet.
 
-The Allin order is placed: 80 sheets of 10 mm marine okoume (2500×1220 mm), delivery expected late 2025. Then comes the discovery of Mini5.80 Baie de Somme — a 250 m² barn offered by Marco's neighbors near Saint-Valéry-sur-Somme. Mini5.80 Baie de Somme has found its home.`,
+The Allin order is placed: 80 sheets of 10 mm marine okoume (2500×1220 mm), delivery expected late 2025. Then comes the discovery of Class Mini 5.80 Baie de Somme — a 250 m² barn offered by Marco's neighbors near Saint-Valéry-sur-Somme. Class Mini 5.80 Baie de Somme has found its home.`,
       publishedAt: new Date("2026-03-28"),
       hulls: [Hull.HULL_268, Hull.HULL_269, Hull.HULL_270],
       themeSlugs: ["chantier", "3d"],

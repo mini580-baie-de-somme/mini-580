@@ -19,7 +19,7 @@ const messages = {
     en: "Les vieux fourneaux — bilingual FR/EN documentation",
   },
 
-  "home.heroLabel": { fr: "Mini5.80 Baie de Somme", en: "Mini5.80 Baie de Somme" },
+  "home.heroLabel": { fr: "Class Mini 5.80 Baie de Somme", en: "Class Mini 5.80 Baie de Somme" },
   "home.heroTitle": {
     fr: "Trois Class Globe 5.80 — coques #268, #269 et #270",
     en: "Three Class Globe 5.80 — hulls #268, #269 and #270",
@@ -35,7 +35,7 @@ const messages = {
     fr: "Amis depuis 25 ans — kitesurf, swing manouche — ils construisent trois bateaux car un Mini 5.80 est trop petit pour naviguer à trois.",
     en: "Friends for 25 years — kitesurf, swing manouche — they're building three boats because one Mini 5.80 is too small for three.",
   },
-  "home.yardTitle": { fr: "Le chantier Mini5.80 Baie de Somme", en: "The Mini5.80 Baie de Somme yard" },
+  "home.yardTitle": { fr: "Le chantier Class Mini 5.80 Baie de Somme", en: "The Class Mini 5.80 Baie de Somme yard" },
   "home.yardText": {
     fr: "Atelier de 250 m² dans une grange près de Saint-Valéry-sur-Somme. Construction depuis les plans officiels Janusz Maderski, découpe CNC maison, modélisation 3D complète sur Onshape.",
     en: "250 m² workshop in a barn near Saint-Valéry-sur-Somme. Build from official Janusz Maderski plans, in-house CNC cutting, full 3D modelling on Onshape.",
@@ -100,8 +100,8 @@ const messages = {
 
   "login.title": { fr: "Connexion éditeur", en: "Editor sign-in" },
   "login.subtitle": {
-    fr: "Accès réservé aux membres de l'équipe Mini5.80 Baie de Somme (allowlist email).",
-    en: "Access restricted to Mini5.80 Baie de Somme team members (email allowlist).",
+    fr: "Accès réservé aux membres de l'équipe Class Mini 5.80 Baie de Somme (allowlist email).",
+    en: "Access restricted to Class Mini 5.80 Baie de Somme team members (email allowlist).",
   },
   "login.email": { fr: "Email", en: "Email" },
   "login.password": { fr: "Mot de passe", en: "Password" },

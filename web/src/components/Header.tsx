@@ -14,7 +14,7 @@ export async function Header() {
           </span>
           <div>
             <p className="text-sm font-semibold tracking-wide text-[#0D131A] group-hover:text-[#495867]">
-              Mini5.80 Baie de Somme
+              Class Mini 5.80 Baie de Somme
             </p>
           </div>
         </Link>

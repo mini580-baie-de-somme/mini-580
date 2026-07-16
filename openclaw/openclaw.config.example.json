@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.openclaw.ai/schemas/openclaw.schema.json",
-  "_comment": "Configuration conceptuelle Mini5.80 Baie de Somme — à adapter avec vos vrais IDs Telegram",
+  "_comment": "Configuration conceptuelle Class Mini 5.80 Baie de Somme — à adapter avec vos vrais IDs Telegram",
 
   "channels": {
     "telegram": {
@@ -27,13 +27,13 @@
     "list": [
       {
         "id": "mini580-admin",
-        "name": "Mini5.80 Admin",
+        "name": "Class Mini 5.80 Admin",
         "workspace": "./workspace/admin",
         "skills": ["mini580-publish", "mini580-migrate", "mini580-deploy"]
       },
       {
         "id": "mini580-publisher",
-        "name": "Mini5.80 Publisher",
+        "name": "Class Mini 5.80 Publisher",
         "workspace": "./workspace/publisher",
         "skills": ["mini580-ingest", "mini580-draft", "mini580-class-checklist"]
       }
@@ -52,7 +52,7 @@
         "name": "mini580-drive-watch",
         "schedule": "*/15 * * * *",
         "agent": "mini580-publisher",
-        "message": "Vérifie le dossier Google Drive Mini5.80 Baie de Somme/À publier pour de nouveaux fichiers"
+        "message": "Vérifie le dossier Google Drive Class Mini 5.80 Baie de Somme/À publier pour de nouveaux fichiers"
       }
     ]
   }

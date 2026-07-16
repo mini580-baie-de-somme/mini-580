@@ -1,4 +1,4 @@
-# Projet Mini5.80 Baie de Somme
+# Projet Class Mini 5.80 Baie de Somme
 
 > Synthèse issue du blog [cg268269270.blogspot.com](https://cg268269270.blogspot.com/) — juillet 2026
 
@@ -23,11 +23,11 @@
 - Laurent & Rodolphe : voilier depuis quelques années, niveau modeste
 - Marco : ne savait pas naviguer au départ — a acheté un bateau depuis
 
-## Le chantier — Mini5.80 Baie de Somme
+## Le chantier — Class Mini 5.80 Baie de Somme
 
 - **Localisation** : Baie de Somme (région Saint-Valéry-sur-Somme)
 - **Atelier** : grange de **250 m²** mise à disposition par les voisins de Marco
-- **Nom** : Mini5.80 Baie de Somme
+- **Nom** : Class Mini 5.80 Baie de Somme
 - **Démarrage effectif** : février 2026 (congé Laurent validé)
 
 ### Contexte nautique local
@@ -73,7 +73,7 @@
 
 ## Choix de construction
 
-Le projet Mini5.80 Baie de Somme construit **depuis les plans + matériaux bruts** (pas de kit CNC pré-découpé), avec :
+Le projet Class Mini 5.80 Baie de Somme construit **depuis les plans + matériaux bruts** (pas de kit CNC pré-découpé), avec :
 - Découpe CNC maison pour le contreplaqué et le Douglas
 - Modélisation 3D complète pour préparer la fabrication
 - Approche documentée et partagée (bilingue FR/EN)

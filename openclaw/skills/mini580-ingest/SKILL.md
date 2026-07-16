@@ -1,16 +1,16 @@
 ---
 name: mini580-ingest
 description: >-
-  Reçoit les messages Telegram et fichiers Google Drive de l'équipe Mini5.80 Baie de Somme,
+  Reçoit les messages Telegram et fichiers Google Drive de l'équipe Class Mini 5.80 Baie de Somme,
   extrait métadonnées (coque, auteur, étape) et déclenche la rédaction bilingue.
 ---
 
-# Mini5.80 Ingest — Réception contenu équipe
+# Class Mini 5.80 Ingest — Réception contenu équipe
 
 ## Déclencheurs
 
 - Message reçu dans le groupe Telegram `#Mini580-Chantier`
-- Nouveau fichier détecté dans Google Drive `Mini5.80 Baie de Somme/À publier/`
+- Nouveau fichier détecté dans Google Drive `Class Mini 5.80 Baie de Somme/À publier/`
 
 ## Entrées attendues
 
@@ -30,7 +30,7 @@ description: >-
 ## Notification équipe
 
 ```
-🔔 Nouveau contenu Mini5.80 Baie de Somme
+🔔 Nouveau contenu Class Mini 5.80 Baie de Somme
 Coque : #268
 Étape : couples
 Auteur : Laurent

@@ -1,4 +1,4 @@
-# Spec technique — Site Mini5.80 Baie de Somme
+# Spec technique — Site Class Mini 5.80 Baie de Somme
 
 > Validée par Hammed — 15 juillet 2026
 
@@ -19,7 +19,7 @@
 | Langues | FR + EN par article |
 | Autosave | Oui (~500 ms debounce) |
 | Prévisualisation | Oui (`/apercu/[id]`) |
-| Telegram | Channel dédié Mini5.80 Baie de Somme — VM OpenClaw séparée (Phase 2) |
+| Telegram | Channel dédié Class Mini 5.80 Baie de Somme — VM OpenClaw séparée (Phase 2) |
 
 ## Architecture
 
@@ -45,7 +45,7 @@
 └─────────────────────────────────────────────────────────┘
 
 Phase 2 (VM dédiée) :
-  Telegram Mini5.80 Baie de Somme → OpenClaw → même API/DB (pas cette instance Simohra)
+  Telegram Class Mini 5.80 Baie de Somme → OpenClaw → même API/DB (pas cette instance Simohra)
 ```
 
 ## Modèle de données
@@ -115,7 +115,7 @@ Voir **[Déploiement & CI/CD](07-deploy-cicd.md)** :
 2. Docker Compose (stacks isolées) + nginx + Certbot
 3. GitHub Actions : push `main` → TEST · `workflow_dispatch` → PROD
 4. Images GHCR `ghcr.io/mini580-baie-de-somme/mini-580`
-5. Phase 2 : VM OpenClaw séparée + bot Telegram Mini5.80 Baie de Somme → API posts
+5. Phase 2 : VM OpenClaw séparée + bot Telegram Class Mini 5.80 Baie de Somme → API posts
 
 ## Phasage
 
@@ -123,7 +123,7 @@ Voir **[Déploiement & CI/CD](07-deploy-cicd.md)** :
 |-------|---------|--------|
 | **1a** | Site public + DB + seed 3 articles + jalons | ✅ Livré |
 | **1b** | Auth + éditeur + autosave + preview | ✅ Livré |
-| **2** | VM OpenClaw Mini5.80 Baie de Somme + Telegram publish | À faire |
+| **2** | VM OpenClaw Class Mini 5.80 Baie de Somme + Telegram publish | À faire |
 | **3** | Google Drive, newsletter, commentaires | À faire |
 
 ## Contenu seed
