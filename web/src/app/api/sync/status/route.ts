@@ -62,63 +62,90 @@ export async function GET() {
 
   const activeJobRow = await getActiveSyncJob();
 
-  const localPosts = await exportPostSummaries();
-  const localMilestones: MilestoneSummary[] = (
-    await prisma.milestone.findMany({
-      orderBy: [{ milestoneDate: "asc" }, { sortOrder: "asc" }],
-    })
-  ).map((m) => ({
-    id: m.id,
-    slug: m.slug,
-    titleFr: m.titleFr,
-    titleEn: m.titleEn,
-    milestoneDate: m.milestoneDate.toISOString(),
-    sortOrder: m.sortOrder,
-  }));
+  try {
+    const localPosts = await exportPostSummaries();
+    const localMilestones: MilestoneSummary[] = (
+      await prisma.milestone.findMany({
+        orderBy: [{ milestoneDate: "asc" }, { sortOrder: "asc" }],
+      })
+    ).map((m) => ({
+      id: m.id,
+      slug: m.slug,
+      titleFr: m.titleFr,
+      titleEn: m.titleEn,
+      milestoneDate: m.milestoneDate.toISOString(),
+      sortOrder: m.sortOrder,
+    }));
 
-  const [peerPostsRes, peerCatalogRes] = await Promise.all([
-    peerFetch("/api/sync/peer/export?resource=summaries", "export"),
-    peerFetch("/api/sync/peer/export?resource=catalog", "export"),
-  ]);
+    const [peerPostsRes, peerCatalogRes] = await Promise.all([
+      peerFetch("/api/sync/peer/export?resource=summaries", "export"),
+      peerFetch("/api/sync/peer/export?resource=catalog", "export"),
+    ]);
 
-  if (!peerPostsRes.ok) {
+    if (!peerPostsRes.ok) {
+      return NextResponse.json(
+        {
+          configured: true,
+          env: getSyncEnv(),
+          activeJob: activeJobRow ? serializeSyncJob(activeJobRow) : null,
+          error: `Peer posts export failed: ${await peerPostsRes.text()}`,
+        },
+        { status: 502 }
+      );
+    }
+    if (!peerCatalogRes.ok) {
+      return NextResponse.json(
+        {
+          configured: true,
+          env: getSyncEnv(),
+          activeJob: activeJobRow ? serializeSyncJob(activeJobRow) : null,
+          error: `Peer catalog export failed: ${await peerCatalogRes.text()}`,
+        },
+        { status: 502 }
+      );
+    }
+
+    const peerPosts = (await peerPostsRes.json()) as SyncPostSummary[];
+    const peerCatalog = (await peerCatalogRes.json()) as {
+      milestones: MilestoneSummary[];
+    };
+    const peerMilestones = peerCatalog.milestones ?? [];
+
+    const posts = compareById(
+      localPosts,
+      peerPosts,
+      (a, b) => a.updatedAt !== b.updatedAt
+    );
+    const milestones = compareById(
+      localMilestones,
+      peerMilestones,
+      (a, b) =>
+        a.titleFr !== b.titleFr ||
+        a.titleEn !== b.titleEn ||
+        a.milestoneDate !== b.milestoneDate ||
+        a.sortOrder !== b.sortOrder
+    );
+
+    return NextResponse.json({
+      configured: true,
+      env: getSyncEnv(),
+      activeJob: activeJobRow ? serializeSyncJob(activeJobRow) : null,
+      ...posts,
+      counts: posts.counts,
+      milestones: {
+        ...milestones,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Peer unreachable";
     return NextResponse.json(
-      { error: `Peer posts export failed: ${await peerPostsRes.text()}` },
+      {
+        configured: true,
+        env: getSyncEnv(),
+        activeJob: activeJobRow ? serializeSyncJob(activeJobRow) : null,
+        error: message,
+      },
       { status: 502 }
     );
   }
-  if (!peerCatalogRes.ok) {
-    return NextResponse.json(
-      { error: `Peer catalog export failed: ${await peerCatalogRes.text()}` },
-      { status: 502 }
-    );
-  }
-
-  const peerPosts = (await peerPostsRes.json()) as SyncPostSummary[];
-  const peerCatalog = (await peerCatalogRes.json()) as {
-    milestones: MilestoneSummary[];
-  };
-  const peerMilestones = peerCatalog.milestones ?? [];
-
-  const posts = compareById(localPosts, peerPosts, (a, b) => a.updatedAt !== b.updatedAt);
-  const milestones = compareById(
-    localMilestones,
-    peerMilestones,
-    (a, b) =>
-      a.titleFr !== b.titleFr ||
-      a.titleEn !== b.titleEn ||
-      a.milestoneDate !== b.milestoneDate ||
-      a.sortOrder !== b.sortOrder
-  );
-
-  return NextResponse.json({
-    configured: true,
-    env: getSyncEnv(),
-    activeJob: activeJobRow ? serializeSyncJob(activeJobRow) : null,
-    ...posts,
-    counts: posts.counts,
-    milestones: {
-      ...milestones,
-    },
-  });
 }
