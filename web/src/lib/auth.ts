@@ -91,12 +91,18 @@ export async function getSessionUserFromDb(): Promise<SessionUser | null> {
   return user;
 }
 
+function sessionCookieSecure(): boolean {
+  if (process.env.SESSION_COOKIE_SECURE === "false") return false;
+  if (process.env.SESSION_COOKIE_SECURE === "true") return true;
+  return process.env.NODE_ENV === "production";
+}
+
 export function sessionCookieOptions(token: string) {
   return {
     name: SESSION_COOKIE,
     value: token,
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: sessionCookieSecure(),
     sameSite: "lax" as const,
     path: "/",
     maxAge: SESSION_MAX_AGE,
@@ -108,7 +114,7 @@ export function clearSessionCookieOptions() {
     name: SESSION_COOKIE,
     value: "",
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: sessionCookieSecure(),
     sameSite: "lax" as const,
     path: "/",
     maxAge: 0,

@@ -121,8 +121,77 @@ describe("API integration — Posts CRUD + FR/EN", () => {
     );
     expect(gone.status).toBe(404);
 
-    // list still works
-    const list = await GET(jsonRequest("http://localhost/api/posts"));
+    // list still works (paginated editor response)
+    const list = await GET(
+      jsonRequest("http://localhost/api/posts", { headers: bearerHeaders() })
+    );
     expect(list.status).toBe(200);
+    const body = (await list.json()) as { items: unknown[]; total: number };
+    expect(Array.isArray(body.items)).toBe(true);
+    expect(typeof body.total).toBe("number");
+  });
+
+  it("filters and paginates editor list server-side", async () => {
+    const { POST, GET } = await import("@/app/api/posts/route");
+    const slugA = uniqueSlug(`${PREFIX}-a`);
+    const slugB = uniqueSlug(`${PREFIX}-b`);
+
+    const createA = await POST(
+      jsonRequest("http://localhost/api/posts", {
+        method: "POST",
+        headers: bearerHeaders(),
+        body: JSON.stringify({
+          titleFr: "Alpha zoulou",
+          titleEn: "Alpha zulu",
+          slug: slugA,
+        }),
+      })
+    );
+    expect(createA.status).toBe(201);
+    const postA = await createA.json();
+
+    const createB = await POST(
+      jsonRequest("http://localhost/api/posts", {
+        method: "POST",
+        headers: bearerHeaders(),
+        body: JSON.stringify({
+          titleFr: "Bravo charlie",
+          titleEn: "Bravo charlie",
+          slug: slugB,
+        }),
+      })
+    );
+    expect(createB.status).toBe(201);
+
+    const searchRes = await GET(
+      jsonRequest("http://localhost/api/posts", {
+        headers: bearerHeaders(),
+        searchParams: { q: "zoulou", limit: "10", offset: "0" },
+      })
+    );
+    expect(searchRes.status).toBe(200);
+    const searchBody = (await searchRes.json()) as {
+      items: { id: string }[];
+      total: number;
+    };
+    expect(searchBody.total).toBe(1);
+    expect(searchBody.items[0]?.id).toBe(postA.id);
+
+    const pageRes = await GET(
+      jsonRequest("http://localhost/api/posts", {
+        headers: bearerHeaders(),
+        searchParams: { limit: "1", offset: "0" },
+      })
+    );
+    const pageBody = (await pageRes.json()) as {
+      items: unknown[];
+      total: number;
+      limit: number;
+      offset: number;
+    };
+    expect(pageBody.items).toHaveLength(1);
+    expect(pageBody.limit).toBe(1);
+    expect(pageBody.offset).toBe(0);
+    expect(pageBody.total).toBeGreaterThanOrEqual(2);
   });
 });

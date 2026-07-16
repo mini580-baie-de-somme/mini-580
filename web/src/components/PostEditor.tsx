@@ -4,10 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { HullId } from "@/lib/types";
-
-const HULL_OPTIONS: HullId[] = ["HULL_268", "HULL_269", "HULL_270"];
 import { LangToggle } from "./LangToggle";
 import { PostGalleryEditor } from "./PostGalleryEditor";
+import { useLocale } from "./LocaleProvider";
 import type { GalleryEditorImage } from "@/lib/gallery-editor";
 
 type Tag = { id: string; name: string; labelFr: string; labelEn: string };
@@ -37,10 +36,22 @@ type Props = {
   tags: Tag[];
   themes: Theme[];
   milestones: Milestone[];
+  isTestEnv?: boolean;
+  onProd?: boolean;
 };
 
-export function PostEditor({ post, tags, themes, milestones }: Props) {
+const HULL_OPTIONS: HullId[] = ["HULL_268", "HULL_269", "HULL_270"];
+
+export function PostEditor({
+  post,
+  tags,
+  themes,
+  milestones,
+  isTestEnv = false,
+  onProd,
+}: Props) {
   const router = useRouter();
+  const { locale, t } = useLocale();
   const [lang, setLang] = useState<"fr" | "en">("fr");
   const [form, setForm] = useState({
     titleFr: post.titleFr,
@@ -105,6 +116,47 @@ export function PostEditor({ post, tags, themes, milestones }: Props) {
     if (res.ok) router.push("/editeur");
   }
 
+  async function archive(archived: boolean) {
+    const res = await fetch(`/api/posts/${post.id}/archive`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ archived }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert((data as { error?: string }).error ?? t("editor.archiveFailed"));
+      return;
+    }
+    router.refresh();
+  }
+
+  async function removePost() {
+    const title = locale === "fr" ? form.titleFr : form.titleEn || form.titleFr;
+    if (!confirm(t("editor.deleteConfirm").replace("{title}", title))) return;
+    const res = await fetch(`/api/posts/${post.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      alert(t("editor.deleteFailed"));
+      return;
+    }
+    router.push("/editeur");
+  }
+
+  async function publishToProd() {
+    if (!confirm(t("editor.publishProdConfirm"))) return;
+    const res = await fetch("/api/sync/publish-to-prod", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ postId: post.id, publish: true }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert((data as { error?: string }).error ?? t("editor.publishProdFailed"));
+      return;
+    }
+    alert(t("editor.publishProdDone"));
+    router.refresh();
+  }
+
   async function addTag() {
     if (!newTagFr.trim() || !newTagEn.trim()) return;
     const res = await fetch("/api/tags", {
@@ -163,8 +215,31 @@ export function PostEditor({ post, tags, themes, milestones }: Props) {
           ? "Erreur"
           : "";
 
+  const displayTitle =
+    (lang === "fr" ? form.titleFr : form.titleEn).trim() ||
+    (lang === "fr" ? "Sans titre" : "Untitled");
+
   return (
     <div className="space-y-6">
+      <div className="flex items-start gap-3">
+        <Link
+          href="/editeur"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-[#d4dde6] text-lg text-[#495867] hover:bg-[#f4f7fa]"
+          aria-label={lang === "fr" ? "Retour à la liste" : "Back to list"}
+          title={lang === "fr" ? "Retour à la liste" : "Back to list"}
+        >
+          ←
+        </Link>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-2xl font-semibold text-[#0D131A]">
+            {displayTitle}
+          </h1>
+          <p className="mt-0.5 text-sm text-[#495867]">
+            {lang === "fr" ? "Modification" : "Editing"}
+          </p>
+        </div>
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <LangToggle lang={lang} onChange={setLang} />
@@ -184,14 +259,40 @@ export function PostEditor({ post, tags, themes, milestones }: Props) {
             href={`/apercu/${post.id}`}
             className="rounded-md border border-[#495867] px-4 py-2 text-sm text-[#495867] hover:bg-[#eef3f7]"
           >
-            Aperçu
+            {locale === "fr" ? "Aperçu" : "Preview"}
           </Link>
+          {isTestEnv && onProd === false && post.status !== "ARCHIVED" && (
+            <button
+              type="button"
+              onClick={() => void publishToProd()}
+              className="rounded-md border border-emerald-700 px-4 py-2 text-sm text-emerald-800 hover:bg-emerald-50"
+            >
+              {t("editor.publishProd")}
+            </button>
+          )}
+          {post.status === "ARCHIVED" ? (
+            <button
+              type="button"
+              onClick={() => void archive(false)}
+              className="rounded-md border border-[#d4dde6] px-4 py-2 text-sm text-[#495867] hover:bg-[#f4f7fa]"
+            >
+              {t("editor.unarchive")}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void archive(true)}
+              className="rounded-md border border-[#d4dde6] px-4 py-2 text-sm text-[#495867] hover:bg-[#f4f7fa]"
+            >
+              {t("editor.archive")}
+            </button>
+          )}
           <button
             type="button"
             onClick={publish}
             className="rounded-md bg-[#495867] px-4 py-2 text-sm text-white hover:bg-[#3a4654]"
           >
-            Publier
+            {locale === "fr" ? "Publier" : "Publish"}
           </button>
         </div>
       </div>
@@ -394,6 +495,17 @@ export function PostEditor({ post, tags, themes, milestones }: Props) {
           ))}
         </div>
       </fieldset>
+
+      <div className="rounded-lg border border-red-200 bg-red-50/50 p-4">
+        <h2 className="text-sm font-semibold text-red-900">{t("editor.dangerZone")}</h2>
+        <button
+          type="button"
+          onClick={() => void removePost()}
+          className="mt-3 rounded-md border border-red-300 bg-white px-4 py-2 text-sm text-red-800 hover:bg-red-100"
+        >
+          {t("editor.delete")}
+        </button>
+      </div>
     </div>
   );
 }

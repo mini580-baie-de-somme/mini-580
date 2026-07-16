@@ -9,6 +9,11 @@ const messages = {
   "nav.milestones": { fr: "Jalons", en: "Milestones" },
   "nav.sync": { fr: "Sync", en: "Sync" },
   "nav.login": { fr: "Connexion", en: "Sign in" },
+  "nav.openMenu": { fr: "Ouvrir le menu", en: "Open menu" },
+  "nav.closeMenu": { fr: "Fermer le menu", en: "Close menu" },
+  "nav.sectionSite": { fr: "Site", en: "Site" },
+  "nav.sectionEditor": { fr: "Édition", en: "Editor" },
+  "nav.sectionAccount": { fr: "Compte", en: "Account" },
 
   "footer.tagline": {
     fr: "Construction de trois Class Globe 5.80 — coques #268, #269 et #270.",
@@ -140,6 +145,44 @@ const messages = {
 
   "article.gallery": { fr: "Galerie photos", en: "Photo gallery" },
   "article.back": { fr: "Retour au blog", en: "Back to blog" },
+
+  "editor.title": { fr: "Éditeur", en: "Editor" },
+  "editor.newPost": { fr: "Nouvel article", en: "New post" },
+  "editor.logout": { fr: "Déconnexion", en: "Sign out" },
+  "editor.search": { fr: "Rechercher un article…", en: "Search posts…" },
+  "editor.filter": { fr: "Filtrer", en: "Filter" },
+  "editor.status": { fr: "Statut:", en: "Status:" },
+  "editor.status.all": { fr: "Tous", en: "All" },
+  "editor.status.draft": { fr: "Brouillon", en: "Draft" },
+  "editor.status.published": { fr: "Publié", en: "Published" },
+  "editor.status.archived": { fr: "Archivé", en: "Archived" },
+  "editor.colTitle": { fr: "Titre", en: "Title" },
+  "editor.colHulls": { fr: "Coques", en: "Hulls" },
+  "editor.colStatus": { fr: "Statut", en: "Status" },
+  "editor.colUpdated": { fr: "Modifié", en: "Updated" },
+  "editor.empty": { fr: "Aucun article.", en: "No posts." },
+  "editor.loading": { fr: "Chargement…", en: "Loading…" },
+  "editor.loadingMore": { fr: "Chargement…", en: "Loading more…" },
+  "editor.loadError": { fr: "Impossible de charger les articles.", en: "Failed to load posts." },
+  "editor.count": { fr: "{n} article(s)", en: "{n} post(s)" },
+  "editor.notOnProd": { fr: "hors PROD", en: "not on PROD" },
+  "editor.archive": { fr: "Archiver", en: "Archive" },
+  "editor.unarchive": { fr: "Désarchiver", en: "Unarchive" },
+  "editor.delete": { fr: "Supprimer", en: "Delete" },
+  "editor.deleteConfirm": {
+    fr: "Supprimer définitivement « {title} » ?",
+    en: "Permanently delete “{title}”?",
+  },
+  "editor.publishProd": { fr: "Publier PROD", en: "Publish to PROD" },
+  "editor.publishProdConfirm": {
+    fr: "Publier cet article sur PROD ?",
+    en: "Publish this post to PROD?",
+  },
+  "editor.publishProdDone": { fr: "Publié sur PROD", en: "Published to PROD" },
+  "editor.archiveFailed": { fr: "Échec archivage", en: "Archive failed" },
+  "editor.deleteFailed": { fr: "Échec suppression", en: "Delete failed" },
+  "editor.publishProdFailed": { fr: "Échec publication PROD", en: "PROD publish failed" },
+  "editor.dangerZone": { fr: "Zone sensible", en: "Danger zone" },
 } as const satisfies Record<string, Record<Locale, string>>;
 
 export type MessageKey = keyof typeof messages;

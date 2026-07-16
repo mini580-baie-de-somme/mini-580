@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { Header } from "@/components/Header";
+import { AppShellWrapper } from "@/components/AppShellWrapper";
 import { Footer } from "@/components/Footer";
 import { LocaleProvider } from "@/components/LocaleProvider";
 import "./globals.css";
@@ -28,9 +28,10 @@ export default function RootLayout({
     <html lang="fr" suppressHydrationWarning>
       <body className={`${inter.variable} flex min-h-screen flex-col antialiased`}>
         <LocaleProvider>
-          <Header />
-          <main className="flex-1">{children}</main>
-          <Footer />
+          <AppShellWrapper>
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </AppShellWrapper>
         </LocaleProvider>
       </body>
     </html>

@@ -4,11 +4,15 @@ import { PostStatus, Hull } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
 import {
+  editorPostWhere,
   postInclude,
   publicPostWhere,
   uniqueSlug,
   syncPostRelations,
 } from "@/lib/posts";
+import { EDITOR_POSTS_PAGE_SIZE } from "@/lib/constants";
+import { getSyncEnv, isSyncConfigured, peerFetch } from "@/lib/sync-crypto";
+import type { SyncPostSummary } from "@/lib/sync";
 
 const createPostSchema = z.object({
   titleFr: z.string().optional(),
@@ -35,11 +39,54 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get("search") ?? undefined;
 
   if (editor) {
-    const posts = await prisma.post.findMany({
-      include: postInclude,
-      orderBy: { updatedAt: "desc" },
+    const q = searchParams.get("q") ?? searchParams.get("search") ?? undefined;
+    const status = searchParams.get("status") ?? undefined;
+    const limit = Math.min(
+      100,
+      Math.max(1, Number.parseInt(searchParams.get("limit") ?? String(EDITOR_POSTS_PAGE_SIZE), 10) || EDITOR_POSTS_PAGE_SIZE)
+    );
+    const offset = Math.max(0, Number.parseInt(searchParams.get("offset") ?? "0", 10) || 0);
+    const where = editorPostWhere({ q, status, hull, theme, tag });
+
+    const [posts, total] = await Promise.all([
+      prisma.post.findMany({
+        where,
+        include: postInclude,
+        orderBy: { updatedAt: "desc" },
+        take: limit,
+        skip: offset,
+      }),
+      prisma.post.count({ where }),
+    ]);
+
+    let prodIds = new Set<string>();
+    if (getSyncEnv() === "test" && isSyncConfigured()) {
+      try {
+        const res = await peerFetch("/api/sync/peer/export?resource=summaries", "export");
+        if (res.ok) {
+          const peer = (await res.json()) as SyncPostSummary[];
+          prodIds = new Set(peer.map((p) => p.id));
+        }
+      } catch {
+        // Peer unreachable — omit onProd hints
+      }
+    }
+
+    return NextResponse.json({
+      items: posts.map((p) => ({
+        id: p.id,
+        slug: p.slug,
+        titleFr: p.titleFr,
+        titleEn: p.titleEn,
+        status: p.status,
+        updatedAt: p.updatedAt.toISOString(),
+        hulls: p.hulls,
+        ...(prodIds.size > 0 ? { onProd: prodIds.has(p.id) } : {}),
+      })),
+      total,
+      limit,
+      offset,
     });
-    return NextResponse.json(posts);
   }
 
   const posts = await prisma.post.findMany({

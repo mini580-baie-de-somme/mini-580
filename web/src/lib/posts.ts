@@ -113,3 +113,49 @@ export function publicPostWhere(
 
   return where;
 }
+
+export function editorPostWhere(
+  filters?: {
+    q?: string;
+    search?: string;
+    status?: string;
+    hull?: string;
+    theme?: string;
+    tag?: string;
+  }
+): Prisma.PostWhereInput {
+  const where: Prisma.PostWhereInput = {};
+  const search = filters?.q?.trim() || filters?.search?.trim();
+
+  if (filters?.status && filters.status !== "ALL") {
+    const status = filters.status as PostStatus;
+    if (Object.values(PostStatus).includes(status)) {
+      where.status = status;
+    }
+  }
+
+  if (filters?.hull) {
+    const hull = parseHull(filters.hull) as Hull | null;
+    if (hull) where.hulls = { some: { hull } };
+  }
+
+  if (filters?.theme) {
+    where.themes = { some: { theme: { slug: filters.theme } } };
+  }
+
+  if (filters?.tag) {
+    where.tags = { some: { tag: { name: filters.tag } } };
+  }
+
+  if (search) {
+    where.OR = [
+      { titleFr: { contains: search, mode: "insensitive" } },
+      { titleEn: { contains: search, mode: "insensitive" } },
+      { excerptFr: { contains: search, mode: "insensitive" } },
+      { excerptEn: { contains: search, mode: "insensitive" } },
+      { slug: { contains: search, mode: "insensitive" } },
+    ];
+  }
+
+  return where;
+}

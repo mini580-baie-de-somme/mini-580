@@ -9,6 +9,7 @@ export const HULL_LABELS: Record<HullValue, string> = {
 
 export const SESSION_COOKIE = "mini580_session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
+export const EDITOR_POSTS_PAGE_SIZE = 20;
 
 export const CLASS_GLOBE_LINKS = {
   website: "https://classglobe580.com/",
