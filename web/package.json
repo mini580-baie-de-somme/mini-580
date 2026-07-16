@@ -13,6 +13,7 @@
     "seed": "npm run seed:run"
   },
   "dependencies": {
+    "@cursor/sdk": "^1.0.23",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "bcrypt": "^6.0.0",
@@ -22,6 +23,7 @@
     "pg": "^8.22.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "sharp": "^0.35.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -32,6 +34,7 @@
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/sharp": "^0.31.1",
     "eslint": "^9",
     "eslint-config-next": "15.5.20",
     "prisma": "^7.8.0",

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { Agent } from "@cursor/sdk";
+import { mkdirSync } from "fs";
 import { z } from "zod";
 
 const translateResponseSchema = z.object({
@@ -10,7 +12,13 @@ const translateResponseSchema = z.object({
     .array(z.object({ labelFr: z.string(), labelEn: z.string() }))
     .optional(),
   images: z
-    .array(z.object({ titleEn: z.string(), captionEn: z.string() }))
+    .array(
+      z.object({
+        titleEn: z.string(),
+        descriptionEn: z.string().optional(),
+        captionEn: z.string().optional(),
+      })
+    )
     .optional(),
 });
 
@@ -23,66 +31,80 @@ export type TranslateArticleInput = {
 };
 
 export type TranslateImagesInput = {
-  images: { titleFr: string; captionFr: string }[];
+  images: { titleFr: string; descriptionFr: string }[];
 };
 
-function getOpenAiConfig() {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) return null;
-  return {
-    apiKey,
-    baseUrl: (process.env.OPENAI_BASE_URL?.trim() || "https://api.openai.com/v1").replace(
-      /\/$/,
-      ""
-    ),
-    model: process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini",
-  };
+function getCursorApiKey(): string | null {
+  const key = process.env.CURSOR_API_KEY?.trim();
+  return key || null;
 }
 
-async function chatJson(system: string, user: string): Promise<unknown> {
-  const config = getOpenAiConfig();
-  if (!config) {
-    throw new Error(
-      "OPENAI_API_KEY is not configured — translation unavailable"
-    );
+function getCursorModelId(): string {
+  return process.env.CURSOR_MODEL?.trim() || "composer-2.5";
+}
+
+function getCursorCwd(): string {
+  const cwd = process.env.CURSOR_CWD?.trim() || "/tmp/mini580-cursor";
+  try {
+    mkdirSync(cwd, { recursive: true });
+  } catch {
+    // ignore — Agent.prompt will surface a clearer error if cwd is unusable
   }
-
-  const res = await fetch(`${config.baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: config.model,
-      temperature: 0.3,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Translation API error (${res.status}): ${text.slice(0, 400)}`);
-  }
-
-  const data = (await res.json()) as {
-    choices?: { message?: { content?: string } }[];
-  };
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) throw new Error("Empty translation response");
-  return JSON.parse(content);
+  return cwd;
 }
 
 export function isTranslationConfigured(): boolean {
-  return Boolean(getOpenAiConfig());
+  return Boolean(getCursorApiKey());
+}
+
+function extractJson(text: string): unknown {
+  const trimmed = text.trim();
+  const fenced = /```(?:json)?\s*([\s\S]*?)```/i.exec(trimmed);
+  const candidate = (fenced?.[1] ?? trimmed).trim();
+  const start = candidate.indexOf("{");
+  const end = candidate.lastIndexOf("}");
+  if (start < 0 || end <= start) {
+    throw new Error("Cursor agent did not return JSON");
+  }
+  return JSON.parse(candidate.slice(start, end + 1));
+}
+
+async function cursorJson(system: string, user: string): Promise<unknown> {
+  const apiKey = getCursorApiKey();
+  if (!apiKey) {
+    throw new Error("CURSOR_API_KEY is not configured — translation unavailable");
+  }
+
+  const prompt = [
+    system,
+    "",
+    "IMPORTANT:",
+    "- Do not use tools, do not edit files, do not run shell commands.",
+    "- Reply with a single JSON object only (no markdown, no commentary).",
+    "",
+    user,
+  ].join("\n");
+
+  const result = await Agent.prompt(prompt, {
+    apiKey,
+    model: { id: getCursorModelId() },
+    name: "mini580-llm",
+    local: { cwd: getCursorCwd() },
+  });
+
+  if (result.status === "error") {
+    throw new Error(`Cursor agent run failed (${result.id})`);
+  }
+
+  const text = typeof result.result === "string" ? result.result : "";
+  if (!text.trim()) {
+    throw new Error("Empty Cursor agent response");
+  }
+  return extractJson(text);
 }
 
 export async function translateArticleToEn(input: TranslateArticleInput) {
-  const raw = await chatJson(
+  const raw = await cursorJson(
     `Tu traduis du contenu de blog nautique Class Mini 5.80 FR → EN.
 Réponds UNIQUEMENT en JSON avec les clés demandées.
 Garde un ton clair, factuel, adapté à un chantier naval amateur.
@@ -105,19 +127,26 @@ Ne traduis pas les numéros de coque (#268, #269, #270) ni les noms propres.`,
 }
 
 export async function translateImagesToEn(input: TranslateImagesInput) {
-  if (input.images.length === 0) return { images: [] as { titleEn: string; captionEn: string }[] };
+  if (input.images.length === 0) {
+    return { images: [] as { titleEn: string; descriptionEn: string }[] };
+  }
 
-  const raw = await chatJson(
-    `Tu traduis titres et légendes photo de blog nautique FR → EN.
-Réponds UNIQUEMENT en JSON: { "images": [{ "titleEn", "captionEn" }] } dans le même ordre.`,
-    JSON.stringify({ images: input.images })
+  const raw = await cursorJson(
+    `Tu traduis titres et descriptions photo de blog nautique FR → EN.
+Réponds UNIQUEMENT en JSON: { "images": [{ "titleEn", "descriptionEn" }] } dans le même ordre.`,
+    JSON.stringify({
+      images: input.images.map((img) => ({
+        titleFr: img.titleFr,
+        descriptionFr: img.descriptionFr,
+      })),
+    })
   );
 
   const parsed = translateResponseSchema.parse(raw);
   return {
     images: (parsed.images ?? []).map((img) => ({
-      titleEn: img.titleEn,
-      captionEn: img.captionEn,
+      titleEn: img.titleEn ?? "",
+      descriptionEn: img.descriptionEn ?? img.captionEn ?? "",
     })),
   };
 }
@@ -142,13 +171,12 @@ export async function parseTelegramDraftWithAi(input: {
   knownTags: { name: string; labelFr: string }[];
   knownMilestones: { slug: string; titleFr: string }[];
 }): Promise<ParsedDraftContent> {
-  const config = getOpenAiConfig();
-  if (!config) {
+  if (!isTranslationConfigured()) {
     return heuristicParse(input.text, input.photoCount);
   }
 
   try {
-    const raw = await chatJson(
+    const raw = await cursorJson(
       `Tu extrais un brouillon d'article de blog Class Mini 5.80 depuis un message Telegram (FR).
 Réponds UNIQUEMENT en JSON avec:
 titleFr, excerptFr, bodyFr, publishedAt (ISO date ou null),
@@ -195,9 +223,7 @@ function heuristicParse(text: string, photoCount: number): ParsedDraftContent {
   };
 
   const titleFr =
-    field(/^titre\s*[:=]\s*/i) ||
-    lines[0] ||
-    "Nouvel article chantier";
+    field(/^titre\s*[:=]\s*/i) || lines[0] || "Nouvel article chantier";
 
   const bodyStart = lines.findIndex((l) => /^---+/.test(l));
   const bodyFr =
@@ -224,10 +250,16 @@ function heuristicParse(text: string, photoCount: number): ParsedDraftContent {
     publishedAt: dateRaw,
     hulls,
     themeSlugs: themesRaw
-      ? themesRaw.split(/[,;]/).map((s) => s.trim().toLowerCase()).filter(Boolean)
+      ? themesRaw
+          .split(/[,;]/)
+          .map((s) => s.trim().toLowerCase())
+          .filter(Boolean)
       : [],
     tagLabelsFr: tagsRaw
-      ? tagsRaw.split(/[,;]/).map((s) => s.trim()).filter(Boolean)
+      ? tagsRaw
+          .split(/[,;]/)
+          .map((s) => s.trim())
+          .filter(Boolean)
       : [],
     milestoneSlug: jalon,
     imageTitlesFr: Array.from({ length: photoCount }, () => ""),

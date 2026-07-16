@@ -40,9 +40,10 @@ cp web/.env.example web/.env
 
 - **Login dev :** `admin@classmini580.blog` / `changeme123`
 - **Pages :** `/` · `/blog` · `/timeline` · `/connexion` · `/editeur`
-- **Médias :** bucket local (`web/data/media` en dev · `/opt/mini580/{test,prod}/media` sur le VPS) — API style S3 sans service tiers
+- Médias : bucket local + galerie 0–N (`urlOrigin` + formats picto/petite/moyenne/grande) — éditeur drag-drop/paste
 - **Prod :** [classmini580.blog](https://classmini580.blog) · **Test :** [test.classmini580.blog](https://test.classmini580.blog)
 - **CI/CD :** push `main` → TEST · Deploy PROD manuel (voir `docs/07-deploy-cicd.md`)
+- **IA :** `CURSOR_API_KEY` via secrets GitHub → `.env` VPS (voir `docs/09-telegram-publish.md`)
 
 ## Liens utiles
 
@@ -63,4 +64,4 @@ cp web/.env.example web/.env
 6. Installer OpenClaw sur VM dédiée + bot Telegram Class Mini 5.80 Baie de Somme
 7. ~~Développer le skill `mini580-ingest`~~ → webhook + FSM review (`docs/09-telegram-publish.md`)
 8. Migrer photos Blogger + enrichir contenu équipe
-9. Brancher `TELEGRAM_*` + `OPENAI_API_KEY` sur TEST et valider un post bout-en-bout
+9. Brancher `TELEGRAM_*` + `CURSOR_API_KEY` sur TEST et valider un post bout-en-bout

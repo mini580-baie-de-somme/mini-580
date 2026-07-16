@@ -7,6 +7,8 @@ import {
   translateImagesToEn,
 } from "@/lib/translate";
 
+export const runtime = "nodejs";
+export const maxDuration = 120;
 const articleSchema = z.object({
   kind: z.literal("article"),
   titleFr: z.string().min(1),
@@ -20,7 +22,8 @@ const imagesSchema = z.object({
   images: z.array(
     z.object({
       titleFr: z.string(),
-      captionFr: z.string(),
+      descriptionFr: z.string().optional(),
+      captionFr: z.string().optional(),
     })
   ),
 });
@@ -35,7 +38,7 @@ export async function POST(request: NextRequest) {
 
   if (!isTranslationConfigured()) {
     return NextResponse.json(
-      { error: "OPENAI_API_KEY is not configured" },
+      { error: "CURSOR_API_KEY is not configured" },
       { status: 503 }
     );
   }
@@ -51,7 +54,12 @@ export async function POST(request: NextRequest) {
     const data = bodySchema.parse(normalized);
 
     if (data.kind === "images") {
-      const result = await translateImagesToEn(data);
+      const result = await translateImagesToEn({
+        images: data.images.map((img) => ({
+          titleFr: img.titleFr,
+          descriptionFr: img.descriptionFr ?? img.captionFr ?? "",
+        })),
+      });
       return NextResponse.json(result);
     }
 

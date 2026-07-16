@@ -16,7 +16,8 @@ contenu, traduction, aperçu, ordre des photos, métadonnées et transforms par 
 | `TELEGRAM_ALLOWED_USER_IDS` | IDs numériques autorisés |
 | `TELEGRAM_SERVICE_USER_EMAIL` | Auteur DB des posts bot |
 | `INGEST_API_KEY` | Bearer pour appels machine (OpenClaw) |
-| `OPENAI_API_KEY` | Traduction / parsing IA |
+| `CURSOR_API_KEY` | Accès modèle IA via `@cursor/sdk` (traduction / parsing) |
+| `CURSOR_MODEL` | Modèle Cursor (défaut `composer-2.5`) |
 | `SITE_URL` | Liens d'aperçu absolus |
 
 Migration : `telegram_publish_flow` (PostImage enrichi + `TelegramPublishSession` + `PreviewToken`).
@@ -58,10 +59,39 @@ flowchart TD
 
 Chaque `PostImage` stocke :
 
-- `titleFr/En`, `captionFr/En`, `takenAt`, `sortOrder`
+- `urlOrigin` (image d’origine) + formats dérivés `urlPicto` / `urlPetite` / `urlMoyenne` / `urlGrande`
+- `titleFr/En`, `descriptionFr/En`, `takenAt`, `sortOrder`
 - transforms CSS : `focusX/Y`, `zoom`, `rotation`, `cropX/Y/W/H`
 
-Le fichier source n'est pas réencodé ; l'affichage applique le transform (`GalleryImage`).
+Les variants sont générés au upload (`sharp`). L’affichage applique le transform (`GalleryImage`) sur `urlMoyenne` (fallback origin).
+
+## API tools images (éditeur + assistant IA)
+
+Auth : cookie session **ou** `Authorization: Bearer <INGEST_API_KEY>`.
+
+| Tool | Méthode |
+|------|---------|
+| Lister | `GET /api/posts/:id/images` |
+| Upload + variants | `POST /api/posts/:id/images` (multipart `file`) |
+| Créer (URLs) | `POST /api/posts/:id/images` (JSON) |
+| Remplacer tout | `PUT /api/posts/:id/images` |
+| Patch meta/transform | `PATCH /api/posts/:id/images/:imageId` |
+| Remplacer origine | `POST /api/posts/:id/images/:imageId/replace` |
+| Réordonner | `PUT /api/posts/:id/images/reorder` `{ imageIds }` |
+| Supprimer | `DELETE /api/posts/:id/images/:imageId` |
+
+## Secrets CI/CD (IA)
+
+| Variable | Rôle |
+|----------|------|
+| `CURSOR_API_KEY` | Clé modèle Cursor (GitHub secret → `.env` VPS TEST/PROD) |
+| `CURSOR_MODEL` | Défaut `composer-2.5` |
+| `INGEST_API_KEY` | Bearer tools HTTP |
+
+```bash
+gh secret set CURSOR_API_KEY --repo mini580-baie-de-somme/mini-580
+# puis merger dans /opt/mini580/{test,prod}/.env (hors git)
+```
 
 ## Sécurité
 

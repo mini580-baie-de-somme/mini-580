@@ -12,9 +12,19 @@ import {
   translateImagesToEn,
 } from "@/lib/translate";
 
+export type DraftMediaItem = {
+  urlOrigin: string;
+  urlPicto: string;
+  urlPetite: string;
+  urlMoyenne: string;
+  urlGrande: string;
+};
+
 export type DraftPayload = {
   textParts: string[];
+  /** @deprecated use mediaItems; kept as origin URLs for cover */
   mediaUrls: string[];
+  mediaItems: DraftMediaItem[];
 };
 
 export type InlineButton = { text: string; callback_data: string };
@@ -101,7 +111,7 @@ export async function startSession(
       telegramUserId,
       telegramChatId,
       step: "AWAITING_CONTENT",
-      draftPayload: { textParts: [], mediaUrls: [] } satisfies DraftPayload,
+      draftPayload: { textParts: [], mediaUrls: [], mediaItems: [] } satisfies DraftPayload,
     },
   });
 
@@ -133,22 +143,43 @@ export async function startSession(
 
 function asDraftPayload(raw: Prisma.JsonValue | null | undefined): DraftPayload {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    return { textParts: [], mediaUrls: [] };
+    return { textParts: [], mediaUrls: [], mediaItems: [] };
   }
   const obj = raw as Record<string, unknown>;
+  const mediaUrls = Array.isArray(obj.mediaUrls)
+    ? obj.mediaUrls.filter((t): t is string => typeof t === "string")
+    : [];
+  const mediaItems: DraftMediaItem[] = Array.isArray(obj.mediaItems)
+    ? obj.mediaItems
+        .filter((m): m is Record<string, unknown> => !!m && typeof m === "object")
+        .map((m) => ({
+          urlOrigin: String(m.urlOrigin ?? ""),
+          urlPicto: String(m.urlPicto ?? ""),
+          urlPetite: String(m.urlPetite ?? ""),
+          urlMoyenne: String(m.urlMoyenne ?? m.urlOrigin ?? ""),
+          urlGrande: String(m.urlGrande ?? ""),
+        }))
+        .filter((m) => m.urlOrigin)
+    : mediaUrls.map((urlOrigin) => ({
+        urlOrigin,
+        urlPicto: "",
+        urlPetite: "",
+        urlMoyenne: urlOrigin,
+        urlGrande: "",
+      }));
   return {
     textParts: Array.isArray(obj.textParts)
       ? obj.textParts.filter((t): t is string => typeof t === "string")
       : [],
-    mediaUrls: Array.isArray(obj.mediaUrls)
-      ? obj.mediaUrls.filter((t): t is string => typeof t === "string")
-      : [],
+    mediaUrls:
+      mediaUrls.length > 0 ? mediaUrls : mediaItems.map((m) => m.urlOrigin),
+    mediaItems,
   };
 }
 
 export async function appendContent(
   sessionId: string,
-  patch: { text?: string; mediaUrl?: string }
+  patch: { text?: string; mediaUrl?: string; mediaItem?: DraftMediaItem }
 ): Promise<BotReply> {
   const session = await prisma.telegramPublishSession.findUnique({
     where: { id: sessionId },
@@ -159,15 +190,27 @@ export async function appendContent(
 
   const draft = asDraftPayload(session.draftPayload);
   if (patch.text?.trim()) draft.textParts.push(patch.text.trim());
-  if (patch.mediaUrl) draft.mediaUrls.push(patch.mediaUrl);
+  if (patch.mediaItem) {
+    draft.mediaItems.push(patch.mediaItem);
+    draft.mediaUrls.push(patch.mediaItem.urlOrigin);
+  } else if (patch.mediaUrl) {
+    draft.mediaUrls.push(patch.mediaUrl);
+    draft.mediaItems.push({
+      urlOrigin: patch.mediaUrl,
+      urlPicto: "",
+      urlPetite: "",
+      urlMoyenne: patch.mediaUrl,
+      urlGrande: "",
+    });
+  }
 
   await prisma.telegramPublishSession.update({
     where: { id: sessionId },
-    data: { draftPayload: draft },
+    data: { draftPayload: draft as unknown as Prisma.InputJsonValue },
   });
 
   return {
-    text: `Reçu — ${draft.mediaUrls.length} photo(s), ${draft.textParts.length} message(s) texte.\nAppuie sur *Terminer la saisie* quand tu as fini.`,
+    text: `Reçu — ${draft.mediaItems.length} photo(s), ${draft.textParts.length} message(s) texte.\nAppuie sur *Terminer la saisie* quand tu as fini.`,
     buttons: [
       [{ text: "✅ Terminer la saisie", callback_data: "content:done" }],
       [{ text: "❌ Annuler", callback_data: "session:cancel" }],
@@ -312,15 +355,19 @@ export async function finalizeContentCollection(
     milestoneIds,
   });
 
-  if (draft.mediaUrls.length) {
+  if (draft.mediaItems.length) {
     await prisma.postImage.createMany({
-      data: draft.mediaUrls.map((url, i) => ({
+      data: draft.mediaItems.map((item, i) => ({
         postId: post.id,
-        url,
+        urlOrigin: item.urlOrigin,
+        urlPicto: item.urlPicto || null,
+        urlPetite: item.urlPetite || null,
+        urlMoyenne: item.urlMoyenne || item.urlOrigin,
+        urlGrande: item.urlGrande || null,
         titleFr: parsed.imageTitlesFr[i] ?? "",
         titleEn: "",
-        captionFr: parsed.imageCaptionsFr[i] ?? "",
-        captionEn: "",
+        descriptionFr: parsed.imageCaptionsFr[i] ?? "",
+        descriptionEn: "",
         sortOrder: i,
         takenAt: publishedAt,
       })),
@@ -436,7 +483,7 @@ export async function formatPhotoOrderReview(postId: string): Promise<BotReply> 
     post.images
       .map(
         (img, i) =>
-          `${i + 1}. ${img.titleFr || "(sans titre)"} — ${truncate(img.captionFr || img.url, 60)}`
+          `${i + 1}. ${img.titleFr || "(sans titre)"} — ${truncate(img.descriptionFr || img.urlOrigin, 60)}`
       )
       .join("\n") || "(aucune photo)";
 
@@ -485,7 +532,7 @@ export async function formatPhotoMetaFrReview(
       `📷 *Photo ${photoIndex + 1}/${post.images.length} (FR)*`,
       "",
       `*Titre :* ${img.titleFr || "(vide)"}`,
-      `*Description :* ${img.captionFr || "(vide)"}`,
+      `*Description :* ${img.descriptionFr || "(vide)"}`,
       `*Date :* ${formatDate(img.takenAt)}`,
       `*Transform :* ${formatTransform(img)}`,
       "",
@@ -517,7 +564,7 @@ export async function formatPhotoMetaEnReview(
       `🇬🇧 *Photo ${photoIndex + 1}/${post.images.length} (EN)*`,
       "",
       `*Title :* ${img.titleEn || "(empty)"}`,
-      `*Description :* ${img.captionEn || "(empty)"}`,
+      `*Description :* ${img.descriptionEn || "(empty)"}`,
       "",
       "Valide, ou envoie `title: …` / `description: …`.",
     ].join("\n"),
@@ -528,7 +575,7 @@ export async function formatPhotoMetaEnReview(
 export async function runArticleTranslation(postId: string): Promise<BotReply> {
   if (!isTranslationConfigured()) {
     return {
-      text: "⚠️ Traduction IA indisponible (OPENAI_API_KEY manquant). Remplis titleEn/bodyEn via l'éditeur web, ou configure la clé puis renvoie /traduire.",
+      text: "⚠️ Traduction IA indisponible (CURSOR_API_KEY manquant). Remplis titleEn/bodyEn via l'éditeur web, ou configure la clé puis renvoie /traduire.",
       buttons: approveKeyboard("en"),
     };
   }
@@ -582,7 +629,7 @@ export async function runImagesTranslation(postId: string): Promise<void> {
   const result = await translateImagesToEn({
     images: post.images.map((img) => ({
       titleFr: img.titleFr,
-      captionFr: img.captionFr,
+      descriptionFr: img.descriptionFr,
     })),
   });
 
@@ -593,7 +640,7 @@ export async function runImagesTranslation(postId: string): Promise<void> {
       where: { id: post.images[i].id },
       data: {
         titleEn: tr.titleEn || post.images[i].titleFr,
-        captionEn: tr.captionEn || post.images[i].captionFr,
+        descriptionEn: tr.descriptionEn || post.images[i].descriptionFr,
       },
     });
   }
@@ -783,7 +830,7 @@ export async function handleEditMessage(
     const data: Prisma.PostImageUpdateInput = {};
     if (kv.titre || kv.title) data.titleFr = kv.titre || kv.title;
     if (kv.description || kv.desc || kv.caption) {
-      data.captionFr = kv.description || kv.desc || kv.caption;
+      data.descriptionFr = kv.description || kv.desc || kv.caption;
     }
     if (kv.date) {
       const d = new Date(kv.date);
@@ -821,7 +868,7 @@ export async function handleEditMessage(
     const data: Prisma.PostImageUpdateInput = {};
     if (kv.title || kv.titre) data.titleEn = kv.title || kv.titre;
     if (kv.description || kv.desc || kv.caption) {
-      data.captionEn = kv.description || kv.desc || kv.caption;
+      data.descriptionEn = kv.description || kv.desc || kv.caption;
     }
     await prisma.postImage.update({ where: { id: img.id }, data });
     return formatPhotoMetaEnReview(postId, session.photoIndex);
