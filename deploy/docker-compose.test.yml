@@ -47,6 +47,7 @@ services:
       CURSOR_API_KEY: ${CURSOR_API_KEY:-}
       CURSOR_MODEL: ${CURSOR_MODEL:-composer-2.5}
       CURSOR_CWD: ${CURSOR_CWD:-/tmp/mini580-cursor}
+      HOME: /tmp
       SYNC_ENV: ${SYNC_ENV:-test}
       SYNC_PEER_URL: ${SYNC_PEER_URL:-https://classmini580.blog}
       SYNC_PRIVATE_KEY: ${SYNC_PRIVATE_KEY:-}
