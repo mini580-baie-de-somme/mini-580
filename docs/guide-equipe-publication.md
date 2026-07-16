@@ -1,6 +1,6 @@
-# Guide équipe CNBS — Comment publier sur le site
+# Guide équipe Mini5.80 Baie de Somme — Comment publier sur le site
 
-> À partager dans le groupe Telegram #CNBS-Chantier
+> À partager dans le groupe Telegram #Mini580-Chantier
 
 ## C'est simple
 
@@ -8,7 +8,7 @@ Vous n'avez **rien à installer**, **aucun site à ouvrir**, **aucun compte à c
 
 ### Pour publier des photos de chantier
 
-1. Ouvrez le groupe **#CNBS-Chantier** sur Telegram
+1. Ouvrez le groupe **#Mini580-Chantier** sur Telegram
 2. Envoyez vos photos (1 ou plusieurs)
 3. Ajoutez une petite description, par exemple :
    - *"Pose des couples sur la 268"*
@@ -19,7 +19,7 @@ C'est tout. Le reste est automatique.
 
 ### Pour partager un plan, un PDF ou des photos lourdes
 
-1. Ouvrez le dossier Google Drive **CNBS → À publier**
+1. Ouvrez le dossier Google Drive **Mini5.80 Baie de Somme → À publier**
 2. Déposez votre fichier dans le bon sous-dossier (ou créez-en un)
 3. Optionnel : envoyez un message dans Telegram pour prévenir
 

@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.openclaw.ai/schemas/openclaw.schema.json",
-  "_comment": "Configuration conceptuelle CNBS — à adapter avec vos vrais IDs Telegram",
+  "_comment": "Configuration conceptuelle Mini5.80 Baie de Somme — à adapter avec vos vrais IDs Telegram",
 
   "channels": {
     "telegram": {
@@ -9,7 +9,7 @@
       "dmPolicy": "allowlist",
       "allowFrom": ["<ADMIN_TELEGRAM_USER_ID>"],
       "groups": {
-        "<CNBS_CHANTIER_GROUP_ID>": {
+        "<MINI580_CHANTIER_GROUP_ID>": {
           "requireMention": false,
           "groupPolicy": "allowlist",
           "groupAllowFrom": [
@@ -26,16 +26,16 @@
   "agents": {
     "list": [
       {
-        "id": "cnbs-admin",
-        "name": "CNBS Admin",
+        "id": "mini580-admin",
+        "name": "Mini5.80 Admin",
         "workspace": "./workspace/admin",
-        "skills": ["cnbs-publish", "cnbs-migrate", "cnbs-deploy"]
+        "skills": ["mini580-publish", "mini580-migrate", "mini580-deploy"]
       },
       {
-        "id": "cnbs-publisher",
-        "name": "CNBS Publisher",
+        "id": "mini580-publisher",
+        "name": "Mini5.80 Publisher",
         "workspace": "./workspace/publisher",
-        "skills": ["cnbs-ingest", "cnbs-draft", "cnbs-class-checklist"]
+        "skills": ["mini580-ingest", "mini580-draft", "mini580-class-checklist"]
       }
     ]
   },
@@ -49,10 +49,10 @@
   "cron": {
     "jobs": [
       {
-        "name": "cnbs-drive-watch",
+        "name": "mini580-drive-watch",
         "schedule": "*/15 * * * *",
-        "agent": "cnbs-publisher",
-        "message": "Vérifie le dossier Google Drive CNBS/À publier pour de nouveaux fichiers"
+        "agent": "mini580-publisher",
+        "message": "Vérifie le dossier Google Drive Mini5.80 Baie de Somme/À publier pour de nouveaux fichiers"
       }
     ]
   }

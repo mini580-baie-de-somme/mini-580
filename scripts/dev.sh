@@ -40,7 +40,7 @@ npx prisma migrate dev --name init 2>/dev/null || npx prisma migrate deploy
 echo "==> prisma db seed"
 npx prisma db seed
 
-# Start Next.js on port 3001
-echo "==> next dev on :3001"
-export PORT=3001
-exec npm run dev -- -p 3001
+# Start Next.js on port 3002 (slot 02 — see scripts/host/projects.conf)
+echo "==> next dev on :3002"
+export PORT=3002
+exec npm run dev -- -p 3002

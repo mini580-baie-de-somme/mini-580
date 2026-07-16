@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import type { HullId } from "@/lib/types";
-import { LangToggle, ArticleBody } from "./LangToggle";
+import { ArticleBody } from "./LangToggle";
 import { HullBadgeList } from "./HullBadge";
+import { useLocale } from "./LocaleProvider";
 
 type ArticlePost = {
   slug: string;
@@ -23,12 +23,12 @@ type ArticlePost = {
 };
 
 export function ArticleView({ post }: { post: ArticlePost }) {
-  const [lang, setLang] = useState<"fr" | "en">("fr");
-  const title = lang === "fr" ? post.titleFr : post.titleEn;
-  const excerpt = lang === "fr" ? post.excerptFr : post.excerptEn;
-  const body = lang === "fr" ? post.bodyFr : post.bodyEn;
+  const { locale, t } = useLocale();
+  const title = locale === "fr" ? post.titleFr : post.titleEn;
+  const excerpt = locale === "fr" ? post.excerptFr : post.excerptEn;
+  const body = locale === "fr" ? post.bodyFr : post.bodyEn;
   const date = post.publishedAt
-    ? new Date(post.publishedAt).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", {
+    ? new Date(post.publishedAt).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-GB", {
         day: "numeric",
         month: "long",
         year: "numeric",
@@ -46,7 +46,7 @@ export function ArticleView({ post }: { post: ArticlePost }) {
                 key={tag.labelFr}
                 className="rounded bg-[#eef3f7] px-2 py-0.5 text-xs text-[#495867]"
               >
-                {lang === "fr" ? tag.labelFr : tag.labelEn}
+                {locale === "fr" ? tag.labelFr : tag.labelEn}
               </span>
             ))}
           </div>
@@ -57,7 +57,6 @@ export function ArticleView({ post }: { post: ArticlePost }) {
             {post.author.name && <span>{post.author.name}</span>}
           </div>
         </div>
-        <LangToggle lang={lang} onChange={setLang} />
       </div>
 
       {post.coverImageUrl && (
@@ -71,17 +70,15 @@ export function ArticleView({ post }: { post: ArticlePost }) {
 
       {post.images.length > 0 && (
         <section className="mt-12 border-t border-[#d4dde6] pt-10">
-          <h2 className="mb-6 text-xl font-semibold text-[#0D131A]">
-            {lang === "fr" ? "Galerie photos" : "Photo gallery"}
-          </h2>
+          <h2 className="mb-6 text-xl font-semibold text-[#0D131A]">{t("article.gallery")}</h2>
           <div className="grid gap-6 sm:grid-cols-2">
             {post.images.map((img, i) => (
               <figure key={i} className="overflow-hidden rounded-lg border border-[#d4dde6] bg-white">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={img.url} alt="" className="w-full" />
-                {(lang === "fr" ? img.captionFr : img.captionEn) && (
+                {(locale === "fr" ? img.captionFr : img.captionEn) && (
                   <figcaption className="px-4 py-3 text-sm text-[#495867]">
-                    {lang === "fr" ? img.captionFr : img.captionEn}
+                    {locale === "fr" ? img.captionFr : img.captionEn}
                   </figcaption>
                 )}
               </figure>
@@ -92,7 +89,7 @@ export function ArticleView({ post }: { post: ArticlePost }) {
 
       <div className="mt-10">
         <Link href="/blog" className="text-sm font-medium text-[#495867] hover:underline">
-          ← {lang === "fr" ? "Retour au blog" : "Back to blog"}
+          ← {t("article.back")}
         </Link>
       </div>
     </article>

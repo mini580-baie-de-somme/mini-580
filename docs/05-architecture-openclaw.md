@@ -19,11 +19,11 @@ L'équipe publie comme elle communique déjà entre amis. Vous, en admin, orches
 
 ```mermaid
 flowchart TB
-    subgraph equipe ["Équipe CNBS — zéro technique"]
+    subgraph equipe ["Équipe Mini5.80 Baie de Somme — zéro technique"]
         L[Laurent]
         M[Marco]
         R[Rodolphe]
-        TG_GRP["Groupe Telegram\n#CNBS-Chantier"]
+        TG_GRP["Groupe Telegram\n#Mini580-Chantier"]
         GDRIVE["Google Drive\nDossier À publier"]
     end
 
@@ -31,13 +31,13 @@ flowchart TB
         BOT[Bot Telegram]
         AGENT_ADMIN[Agent Admin\nWebmaster]
         AGENT_PUB[Agent Publication\nContenu équipe]
-        SKILLS[Skills CNBS\npublish · migrate · deploy]
+        SKILLS[Skills Mini5.80 Baie de Somme\npublish · migrate · deploy]
         CRON[Cron / Heartbeat\nveille Drive · rappels]
     end
 
     subgraph sortie ["Sortie publique"]
         REPO[Repo Git\ncontenu + site]
-        SITE[Site documentation\nCNBS / Mini 5.80]
+        SITE[Site documentation\nMini5.80 Baie de Somme]
     end
 
     L & M & R -->|"photo + texte\nou vocal"| TG_GRP
@@ -90,7 +90,7 @@ flowchart TB
       dmPolicy: "allowlist",           // Seul vous en DM admin
       allowFrom: ["<VOTRE_TELEGRAM_ID>"],
       groups: {
-        "<CNBS_GROUP_ID>": {
+        "<Mini5.80 Baie de Somme_GROUP_ID>": {
           requireMention: false,         // L'équipe n'a pas à @mentionner
           groupPolicy: "allowlist",
           groupAllowFrom: [
@@ -104,8 +104,8 @@ flowchart TB
   },
   agents: {
     routes: [
-      { match: { channel: "telegram", peer: "dm" }, agent: "cnbs-admin" },
-      { match: { channel: "telegram", peer: "group:cnbs" }, agent: "cnbs-publisher" }
+      { match: { channel: "telegram", peer: "dm" }, agent: "mini580-admin" },
+      { match: { channel: "telegram", peer: "group:mini580" }, agent: "mini580-publisher" }
     ]
   }
 }
@@ -115,7 +115,7 @@ flowchart TB
 
 ## Couche 2 — Équipe (Laurent, Marco, Rodolphe)
 
-### Canal principal : Groupe Telegram `#CNBS-Chantier`
+### Canal principal : Groupe Telegram `#Mini580-Chantier`
 
 Interface familière, déjà sur leur téléphone. **Aucune formation technique.**
 
@@ -135,13 +135,13 @@ Interface familière, déjà sur leur téléphone. **Aucune formation technique.
 > 🏷️ **Précisez si possible** : le numéro de coque (268, 269 ou 270) et l'étape (couples, plaquage, fournisseurs…).
 > C'est tout. On s'occupe du reste.
 
-### Canal secondaire : Google Drive `CNBS / À publier`
+### Canal secondaire : Google Drive `Mini5.80 Baie de Somme / À publier`
 
 Pour les fichiers lourds ou structurés que Telegram compresse mal.
 
 ```
 Google Drive/
-└── CNBS/
+└── Mini5.80 Baie de Somme/
     ├── À publier/          ← l'équipe dépose ici
     │   ├── 268-couples/
     │   ├── 269-sourcing/
@@ -173,11 +173,11 @@ sequenceDiagram
 
     E->>TG: Photo(s) + "Plaquage coque 268"
     TG->>OC: Message entrant
-    OC->>OC: Skill cnbs-ingest<br/>détecte coque, étape, auteur
-    OC->>OC: Skill cnbs-draft<br/>génère article MD bilingue
+    OC->>OC: Skill mini580-ingest<br/>détecte coque, étape, auteur
+    OC->>OC: Skill mini580-draft<br/>génère article MD bilingue
     OC->>A: 🔔 "Brouillon prêt — Publier ?"
     A->>OC: "Publie" ou modifications
-    OC->>OC: Skill cnbs-publish<br/>commit Git + build site
+    OC->>OC: Skill mini580-publish<br/>commit Git + build site
     OC->>S: Déploiement
     OC->>TG: ✅ "Publié : Plaquage coque 268"
 ```
@@ -202,7 +202,7 @@ sequenceDiagram
 | Contenu | **Markdown + YAML** dans ce repo | OpenClaw écrit directement dans Git |
 | Images | `public/images/{coque}/{date}/` | Organisation par chantier |
 | Hébergement | Vercel / Netlify / GitHub Pages | Déploiement auto depuis Git |
-| Domaine | À définir (cnbs.fr, mini580-somme.fr…) | |
+| Domaine | À définir (mini580-somme.fr, mini580-somme.fr…) | |
 
 ### Structure de contenu cible
 
@@ -232,12 +232,12 @@ Skills personnalisés dans `.openclaw/skills/` ou `skills/` du workspace :
 
 | Skill | Rôle |
 |-------|------|
-| `cnbs-ingest` | Reçoit message Telegram / fichier Drive, extrait métadonnées (coque, auteur, étape) |
-| `cnbs-draft` | Génère article Markdown bilingue FR/EN à partir du contenu brut |
-| `cnbs-publish` | Commit Git, optimise images, déclenche build + deploy |
-| `cnbs-migrate` | Importe les articles Blogger existants |
-| `cnbs-class-checklist` | Vérifie quelles étapes obligatoires classe sont documentées |
-| `cnbs-reply` | Gère questions/commentaires visiteurs → notification équipe |
+| `mini580-ingest` | Reçoit message Telegram / fichier Drive, extrait métadonnées (coque, auteur, étape) |
+| `mini580-draft` | Génère article Markdown bilingue FR/EN à partir du contenu brut |
+| `mini580-publish` | Commit Git, optimise images, déclenche build + deploy |
+| `mini580-migrate` | Importe les articles Blogger existants |
+| `mini580-class-checklist` | Vérifie quelles étapes obligatoires classe sont documentées |
+| `mini580-reply` | Gère questions/commentaires visiteurs → notification équipe |
 
 ---
 
@@ -247,7 +247,7 @@ Skills personnalisés dans `.openclaw/skills/` ou `skills/` du workspace :
 |------|-------|
 | OpenClaw Gateway | Vous seul (machine / VPS privé) |
 | Telegram DM bot | Allowlist : votre ID uniquement |
-| Groupe CNBS | Laurent, Marco, Rodolphe + vous |
+| Groupe Mini5.80 Baie de Somme | Laurent, Marco, Rodolphe + vous |
 | Google Drive | Dossier partagé équipe, pas de droits admin site |
 | Repo Git | Admin : push direct ; équipe : aucun accès Git requis |
 | Site public | Lecture seule pour visiteurs ; commentaires modérés |
@@ -258,12 +258,12 @@ Skills personnalisés dans `.openclaw/skills/` ou `skills/` du workspace :
 
 ### Phase 1 — Fondations (semaine 1–2)
 - [ ] Installer OpenClaw + configurer bot Telegram
-- [ ] Créer groupe `#CNBS-Chantier` + Google Drive partagé
+- [ ] Créer groupe `#Mini580-Chantier` + Google Drive partagé
 - [ ] Squelette site Astro/Next.js dans ce repo
 - [ ] Migrer les 3 articles Blogger existants
 
 ### Phase 2 — Pipeline publication (semaine 3–4)
-- [ ] Skill `cnbs-ingest` + `cnbs-draft`
+- [ ] Skill `mini580-ingest` + `mini580-draft`
 - [ ] Workflow review admin via Telegram
 - [ ] Premier post chantier publié par l'équipe via Telegram seul
 

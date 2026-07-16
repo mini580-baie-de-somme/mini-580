@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { HullId } from "@/lib/types";
 import { HullBadgeList } from "./HullBadge";
+import { useLocale } from "./LocaleProvider";
 
 type PostCardData = {
   slug: string;
@@ -13,20 +14,15 @@ type PostCardData = {
   coverImageUrl: string | null;
   publishedAt: Date | string | null;
   hulls: { hull: HullId }[];
-  themes: { theme: { slug: string; labelFr: string } }[];
+  themes: { theme: { slug: string; labelFr: string; labelEn: string } }[];
 };
 
-export function PostCard({
-  post,
-  lang = "fr",
-}: {
-  post: PostCardData;
-  lang?: "fr" | "en";
-}) {
-  const title = lang === "fr" ? post.titleFr : post.titleEn;
-  const excerpt = lang === "fr" ? post.excerptFr : post.excerptEn;
+export function PostCard({ post }: { post: PostCardData }) {
+  const { locale, t } = useLocale();
+  const title = locale === "fr" ? post.titleFr : post.titleEn;
+  const excerpt = locale === "fr" ? post.excerptFr : post.excerptEn;
   const date = post.publishedAt
-    ? new Date(post.publishedAt).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", {
+    ? new Date(post.publishedAt).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-GB", {
         day: "numeric",
         month: "long",
         year: "numeric",
@@ -53,7 +49,7 @@ export function PostCard({
               key={theme.slug}
               className="rounded bg-[#eef3f7] px-2 py-0.5 text-xs text-[#495867]"
             >
-              {theme.labelFr}
+              {locale === "fr" ? theme.labelFr : theme.labelEn}
             </span>
           ))}
         </div>
@@ -68,7 +64,7 @@ export function PostCard({
           href={`/blog/${post.slug}`}
           className="mt-4 text-sm font-medium text-[#495867] hover:underline"
         >
-          {lang === "fr" ? "Lire l'article →" : "Read article →"}
+          {t("blog.readMore")}
         </Link>
       </div>
     </article>

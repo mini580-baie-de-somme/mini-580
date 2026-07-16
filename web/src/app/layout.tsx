@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { LocaleProvider } from "@/components/LocaleProvider";
 import "./globals.css";
 
 const inter = Inter({
@@ -11,11 +12,11 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "CNBS — Class Globe 5.80 #268-269-270",
-    template: "%s | CNBS Mini 5.80",
+    default: "Mini5.80 Baie de Somme — Class Globe 5.80 #268-269-270",
+    template: "%s | Mini5.80 Baie de Somme",
   },
   description:
-    "Blog de construction bilingue pour trois Class Globe 5.80 au Chantier Naval de la Baie de Somme.",
+    "Blog de construction bilingue pour trois Class Globe 5.80 à Mini5.80 Baie de Somme.",
 };
 
 export default function RootLayout({
@@ -24,11 +25,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr">
+    <html lang="fr" suppressHydrationWarning>
       <body className={`${inter.variable} flex min-h-screen flex-col antialiased`}>
-        <Header />
-        <main className="flex-1">{children}</main>
-        <Footer />
+        <LocaleProvider>
+          <Header />
+          <main className="flex-1">{children}</main>
+          <Footer />
+        </LocaleProvider>
       </body>
     </html>
   );

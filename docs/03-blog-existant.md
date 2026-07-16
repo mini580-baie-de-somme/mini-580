@@ -34,7 +34,7 @@
   - Rôles : Marco (sourcing), Laurent (3D Onshape), Rodolphe (CNC)
   - Captures 3D : premières courbes et surfaces
   - Choix Allin pour le CP (80 plaques 10 mm okoumé)
-  - Découverte du CNBS (grange 250 m²)
+  - Découverte du Mini5.80 Baie de Somme (grange 250 m²)
   - **Images** : captures Onshape (courbes, surfaces)
 
 ### 3. Choix des fournisseurs

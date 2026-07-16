@@ -31,7 +31,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-mini580}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-mini580_test}?schema=public
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET required}
       EDITORS_ALLOWLIST: ${EDITORS_ALLOWLIST:-}
-      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@cnbs.local}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@mini580.local}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-changeme123}
       NODE_ENV: production
       PORT: "3000"

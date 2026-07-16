@@ -1,4 +1,4 @@
-# Spec technique — Site CNBS mini-580
+# Spec technique — Site Mini5.80 Baie de Somme
 
 > Validée par Hammed — 15 juillet 2026
 
@@ -7,7 +7,7 @@
 | Sujet | Décision |
 |-------|----------|
 | Base de données | **PostgreSQL** — source de vérité unique |
-| Dev local | PostgreSQL local + Node (port 3001) derrière nginx |
+| Dev local | PostgreSQL local + Node (port 3002, slot 02 Simohra) derrière nginx :8002 |
 | Prod | VPS Hostinger `2.24.13.70` — Docker Compose (TEST + PROD isolés) |
 | Domaine | **classmini580.blog** (PROD) · **test.classmini580.blog** (TEST) |
 | Tags | Table enrichissable — ajout libre à la volée |
@@ -19,7 +19,7 @@
 | Langues | FR + EN par article |
 | Autosave | Oui (~500 ms debounce) |
 | Prévisualisation | Oui (`/apercu/[id]`) |
-| Telegram | Channel dédié CNBS — VM OpenClaw séparée (Phase 2) |
+| Telegram | Channel dédié Mini5.80 Baie de Somme — VM OpenClaw séparée (Phase 2) |
 
 ## Architecture
 
@@ -45,7 +45,7 @@
 └─────────────────────────────────────────────────────────┘
 
 Phase 2 (VM dédiée) :
-  Telegram CNBS → OpenClaw → même API/DB (pas cette instance Simohra)
+  Telegram Mini5.80 Baie de Somme → OpenClaw → même API/DB (pas cette instance Simohra)
 ```
 
 ## Modèle de données
@@ -96,10 +96,10 @@ Phase 2 (VM dédiée) :
 
 ```bash
 cp web/.env.example web/.env
-./scripts/dev.sh          # postgres → migrate → seed → next dev :3001
+./scripts/dev.sh          # postgres → migrate → seed → next dev :3002
 ```
 
-Login seed : `admin@cnbs.local` / `changeme123`
+Login seed : `admin@mini580.local` / `changeme123`
 
 nginx (optionnel) :
 ```bash
@@ -115,7 +115,7 @@ Voir **[Déploiement & CI/CD](07-deploy-cicd.md)** :
 2. Docker Compose (stacks isolées) + nginx + Certbot
 3. GitHub Actions : push `main` → TEST · `workflow_dispatch` → PROD
 4. Images GHCR `ghcr.io/mini580-baie-de-somme/mini-580`
-5. Phase 2 : VM OpenClaw séparée + bot Telegram CNBS → API posts
+5. Phase 2 : VM OpenClaw séparée + bot Telegram Mini5.80 Baie de Somme → API posts
 
 ## Phasage
 
@@ -123,7 +123,7 @@ Voir **[Déploiement & CI/CD](07-deploy-cicd.md)** :
 |-------|---------|--------|
 | **1a** | Site public + DB + seed 3 articles + jalons | ✅ Livré |
 | **1b** | Auth + éditeur + autosave + preview | ✅ Livré |
-| **2** | VM OpenClaw CNBS + Telegram publish | À faire |
+| **2** | VM OpenClaw Mini5.80 Baie de Somme + Telegram publish | À faire |
 | **3** | Google Drive, newsletter, commentaires | À faire |
 
 ## Contenu seed

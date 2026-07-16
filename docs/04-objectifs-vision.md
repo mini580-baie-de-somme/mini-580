@@ -65,11 +65,11 @@ Admin  → Telegram DM / Control UI → OpenClaw → tout le reste
 | Site public | Site statique (Astro/Next.js) alimenté par Git |
 | Contenu | Markdown bilingue FR/EN, généré/assisté par OpenClaw |
 | Blog existant | Migration des 3 articles Blogger |
-| Identité | CNBS (*Chantier Naval de la Baie de Somme*) + "Les vieux fourneaux" |
+| Identité | Mini5.80 Baie de Somme + "Les vieux fourneaux" |
 
 ## Décisions encore ouvertes
 
-- [ ] **Domaine** : cnbs.fr, mini580-somme.fr, autre ?
+- [ ] **Domaine** : mini580-somme.fr, autre ?
 - [ ] **Hébergement site** : Vercel, Netlify, GitHub Pages ?
 - [ ] **Mode publication** : review systématique ou auto pour photos routinières ?
 - [ ] **Hébergement OpenClaw** : Mac local, VPS (Hetzner…), autre ?
@@ -84,4 +84,4 @@ Admin  → Telegram DM / Control UI → OpenClaw → tout le reste
 2. Choisir domaine + hébergement
 3. Installer OpenClaw et créer le bot Telegram
 4. Lancer le squelette du site web dans ce repo
-5. Développer le premier skill `cnbs-ingest` pour tester le flux équipe → site
+5. Développer le premier skill `mini580-ingest` pour tester le flux équipe → site
