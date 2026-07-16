@@ -1,9 +1,49 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { getSyncEnv, isSyncConfigured, peerFetch } from "@/lib/sync-crypto";
 import { exportPostSummaries, type SyncPostSummary } from "@/lib/sync";
 
-/** Compare local posts with peer — session required. */
+type MilestoneSummary = {
+  id: string;
+  slug: string;
+  titleFr: string;
+  titleEn: string;
+  milestoneDate: string;
+  sortOrder: number;
+};
+
+function compareById<T extends { id: string; titleFr?: string }>(
+  local: T[],
+  peer: T[],
+  divergedFn?: (a: T, b: T) => boolean
+) {
+  const localMap = new Map(local.map((p) => [p.id, p]));
+  const peerMap = new Map(peer.map((p) => [p.id, p]));
+  const onlyLocal = local.filter((p) => !peerMap.has(p.id));
+  const onlyPeer = peer.filter((p) => !localMap.has(p.id));
+  const both = local
+    .filter((p) => peerMap.has(p.id))
+    .map((p) => ({
+      local: p,
+      peer: peerMap.get(p.id)!,
+      diverged: divergedFn ? divergedFn(p, peerMap.get(p.id)!) : false,
+    }));
+  return {
+    onlyLocal,
+    onlyPeer,
+    both,
+    counts: {
+      local: local.length,
+      peer: peer.length,
+      onlyLocal: onlyLocal.length,
+      onlyPeer: onlyPeer.length,
+      both: both.length,
+    },
+  };
+}
+
+/** Compare local posts + milestones with peer — session required. */
 export async function GET() {
   const session = await getSession();
   if (!session) {
@@ -18,42 +58,62 @@ export async function GET() {
     });
   }
 
-  const local = await exportPostSummaries();
-  const peerRes = await peerFetch("/api/sync/peer/export?resource=summaries", "export");
-  if (!peerRes.ok) {
-    const err = await peerRes.text();
+  const localPosts = await exportPostSummaries();
+  const localMilestones: MilestoneSummary[] = (
+    await prisma.milestone.findMany({
+      orderBy: [{ milestoneDate: "asc" }, { sortOrder: "asc" }],
+    })
+  ).map((m) => ({
+    id: m.id,
+    slug: m.slug,
+    titleFr: m.titleFr,
+    titleEn: m.titleEn,
+    milestoneDate: m.milestoneDate.toISOString(),
+    sortOrder: m.sortOrder,
+  }));
+
+  const [peerPostsRes, peerCatalogRes] = await Promise.all([
+    peerFetch("/api/sync/peer/export?resource=summaries", "export"),
+    peerFetch("/api/sync/peer/export?resource=catalog", "export"),
+  ]);
+
+  if (!peerPostsRes.ok) {
     return NextResponse.json(
-      { error: `Peer export failed: ${err}` },
+      { error: `Peer posts export failed: ${await peerPostsRes.text()}` },
       { status: 502 }
     );
   }
-  const peer = (await peerRes.json()) as SyncPostSummary[];
+  if (!peerCatalogRes.ok) {
+    return NextResponse.json(
+      { error: `Peer catalog export failed: ${await peerCatalogRes.text()}` },
+      { status: 502 }
+    );
+  }
 
-  const localMap = new Map(local.map((p) => [p.id, p]));
-  const peerMap = new Map(peer.map((p) => [p.id, p]));
+  const peerPosts = (await peerPostsRes.json()) as SyncPostSummary[];
+  const peerCatalog = (await peerCatalogRes.json()) as {
+    milestones: MilestoneSummary[];
+  };
+  const peerMilestones = peerCatalog.milestones ?? [];
 
-  const onlyLocal = local.filter((p) => !peerMap.has(p.id));
-  const onlyPeer = peer.filter((p) => !localMap.has(p.id));
-  const both = local
-    .filter((p) => peerMap.has(p.id))
-    .map((p) => ({
-      local: p,
-      peer: peerMap.get(p.id)!,
-      diverged: p.updatedAt !== peerMap.get(p.id)!.updatedAt,
-    }));
+  const posts = compareById(localPosts, peerPosts, (a, b) => a.updatedAt !== b.updatedAt);
+  const milestones = compareById(
+    localMilestones,
+    peerMilestones,
+    (a, b) =>
+      a.titleFr !== b.titleFr ||
+      a.titleEn !== b.titleEn ||
+      a.milestoneDate !== b.milestoneDate ||
+      a.sortOrder !== b.sortOrder
+  );
 
   return NextResponse.json({
     configured: true,
     env: getSyncEnv(),
-    onlyLocal,
-    onlyPeer,
-    both,
-    counts: {
-      local: local.length,
-      peer: peer.length,
-      onlyLocal: onlyLocal.length,
-      onlyPeer: onlyPeer.length,
-      both: both.length,
+    ...posts,
+    counts: posts.counts,
+    milestones: {
+      ...milestones,
     },
   });
 }

@@ -1,57 +1,33 @@
 # Sync TEST ↔ PROD
 
-> OTP Ed25519 mutuels · pull PROD→TEST · publish TEST→PROD · archive/delete
+> OTP Ed25519 mutuels · pull PROD→TEST · publish TEST→PROD · archive/delete · jalons timeline
 
 ## Principes
 
 | Action | Comportement |
 |--------|----------------|
-| **Tirer depuis PROD** (sur TEST) | Pour chaque article PROD : upsert par **même `id`** (écrase tags, thèmes, jalons, images). Les posts présents **seulement sur TEST** sont conservés. |
-| **Publier sur PROD** (depuis TEST) | Article TEST-only → import sur PROD (même id) + passage en `PUBLISHED` si demandé. |
-| **Catalogue** | Tags / Thèmes / Jalons timeline (FR/EN) — pull ou push peer. |
-| **Archiver** | Statut `ARCHIVED` (invisible public). |
-| **Supprimer** | Suppression définitive en base. |
+| **Tirer depuis PROD** (sur TEST) | Articles PROD upsert par **même `id`**. Posts TEST-only conservés. |
+| **Publier sur PROD** (depuis TEST) | Article ou **jalon** TEST-only → import PROD (même id). |
+| **Catalogue** | Tags / Thèmes / Jalons (FR/EN) — pull ou push. |
+| **CRUD Jalons** | `/editeur/jalons` — créer / éditer / supprimer, sync PROD↔TEST. |
+| **Archiver / Supprimer** | Soft archive ou hard delete. |
 
-Auth croisée : chaque environnement signe un JWT court (`EdDSA` / Ed25519). Le pair vérifie avec la clé publique de l’émetteur.
+## UI (connecté)
 
-## Variables d’environnement
+| Route | Rôle |
+|-------|------|
+| Header | **Articles** · **Jalons** · **Sync** |
+| `/editeur` | Articles |
+| `/editeur/jalons` | CRUD roadmap |
+| `/editeur/sync` | Pull / catalogue / divergences |
 
-```bash
-SYNC_ENV=test|prod
-SYNC_PEER_URL=https://classmini580.blog   # ou https://test.classmini580.blog
-SYNC_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
-SYNC_PEER_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"
-```
-
-Dans les `.env` Docker, les retours à la ligne du PEM sont remplacés par `\n`.
-
-## Génération des clés
-
-```bash
-openssl genpkey -algorithm Ed25519 -out sync-test-private.pem
-openssl pkey -in sync-test-private.pem -pubout -out sync-test-public.pem
-
-openssl genpkey -algorithm Ed25519 -out sync-prod-private.pem
-openssl pkey -in sync-prod-private.pem -pubout -out sync-prod-public.pem
-```
-
-- TEST `.env` : `SYNC_PRIVATE_KEY` = contenu test-private · `SYNC_PEER_PUBLIC_KEY` = prod-public  
-- PROD `.env` : `SYNC_PRIVATE_KEY` = contenu prod-private · `SYNC_PEER_PUBLIC_KEY` = test-public  
-
-## UI
-
-- `/editeur` — Archiver / Supprimer / Publier PROD (si TEST-only)
-- `/editeur/sync` — pull PROD, sync catalogue, liste divergences
-
-## API
+## API jalons
 
 | Route | Auth | Rôle |
 |-------|------|------|
-| `GET /api/sync/peer/export` | OTP Bearer | Export posts / catalog / summaries |
-| `PUT /api/sync/peer/import` | OTP Bearer | Import post ou catalog |
-| `GET /api/sync/status` | Session | Comparaison local ↔ peer |
-| `POST /api/sync/pull-from-prod` | Session (TEST) | Pull articles + catalog |
-| `POST /api/sync/publish-to-prod` | Session (TEST) | Pousse un post vers PROD |
-| `POST /api/sync/catalog` | Session | `{ direction: "pull"\|"push" }` |
-| `POST /api/posts/[id]/archive` | Session | Soft archive |
-| `DELETE /api/posts/[id]` | Session | Hard delete |
+| `GET/POST /api/milestones` | Session (POST) | Liste / créer |
+| `PATCH/DELETE /api/milestones/[id]` | Session | Modifier / supprimer |
+| `POST /api/sync/publish-milestone-to-prod` | Session (TEST) | Pousse un jalon vers PROD |
+| `POST /api/sync/catalog` `{ direction: "pull" }` | Session | Tirer jalons (+ tags/thèmes) depuis peer |
+
+Voir aussi les routes sync articles dans ce même document historique / code `web/src/app/api/sync/`.

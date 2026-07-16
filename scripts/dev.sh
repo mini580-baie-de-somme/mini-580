@@ -22,6 +22,10 @@ fi
 
 cd "$WEB"
 
+# Local media bucket (same contract as VPS bind mount)
+mkdir -p "$WEB/data/media"
+echo "✓ Media bucket: $WEB/data/media"
+
 # Install deps if needed
 if [[ ! -d node_modules ]]; then
   echo "==> npm install"

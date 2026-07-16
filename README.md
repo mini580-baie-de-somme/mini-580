@@ -39,6 +39,7 @@ cp web/.env.example web/.env
 
 - **Login dev :** `admin@classmini580.blog` / `changeme123`
 - **Pages :** `/` · `/blog` · `/timeline` · `/connexion` · `/editeur`
+- **Médias :** bucket local (`web/data/media` en dev · `/opt/mini580/{test,prod}/media` sur le VPS) — API style S3 sans service tiers
 - **Prod :** [classmini580.blog](https://classmini580.blog) · **Test :** [test.classmini580.blog](https://test.classmini580.blog)
 - **CI/CD :** push `main` → TEST · Deploy PROD manuel (voir `docs/07-deploy-cicd.md`)
 

@@ -76,6 +76,12 @@ export function EditorPostList({
         <h1 className="text-2xl font-semibold text-[#0D131A]">Éditeur</h1>
         <div className="flex flex-wrap gap-2">
           <Link
+            href="/editeur/jalons"
+            className="rounded-md border border-[#d4dde6] px-4 py-2 text-sm text-[#495867] hover:bg-[#f4f7fa]"
+          >
+            Jalons
+          </Link>
+          <Link
             href="/editeur/sync"
             className="rounded-md border border-[#d4dde6] px-4 py-2 text-sm text-[#495867] hover:bg-[#f4f7fa]"
           >

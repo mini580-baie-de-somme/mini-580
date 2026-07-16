@@ -4,7 +4,9 @@ const messages = {
   "nav.home": { fr: "Accueil", en: "Home" },
   "nav.blog": { fr: "Blog", en: "Blog" },
   "nav.timeline": { fr: "Timeline", en: "Timeline" },
-  "nav.editor": { fr: "Éditeur", en: "Editor" },
+  "nav.editor": { fr: "Articles", en: "Posts" },
+  "nav.milestones": { fr: "Jalons", en: "Milestones" },
+  "nav.sync": { fr: "Sync", en: "Sync" },
   "nav.login": { fr: "Connexion", en: "Sign in" },
 
   "footer.tagline": {

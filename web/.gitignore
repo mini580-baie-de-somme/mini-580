@@ -43,3 +43,6 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# Local media bucket (Plan A — persisted outside containers on VPS)
+/data/media

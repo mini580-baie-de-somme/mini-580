@@ -10,10 +10,16 @@ type HeaderUser = {
   name: string | null;
 } | null;
 
-const navKeys = [
+const publicNav = [
   { href: "/", key: "nav.home" as const },
   { href: "/blog", key: "nav.blog" as const },
   { href: "/timeline", key: "nav.timeline" as const },
+];
+
+const editorNav = [
+  { href: "/editeur", key: "nav.editor" as const },
+  { href: "/editeur/jalons", key: "nav.milestones" as const },
+  { href: "/editeur/sync", key: "nav.sync" as const },
 ];
 
 export function HeaderActions({ user }: { user: HeaderUser }) {
@@ -22,7 +28,7 @@ export function HeaderActions({ user }: { user: HeaderUser }) {
   return (
     <div className="flex items-center gap-2 sm:gap-3">
       <nav className="flex flex-wrap items-center gap-1 sm:gap-2">
-        {navKeys.map((item) => (
+        {publicNav.map((item) => (
           <Link
             key={item.href}
             href={item.href}
@@ -32,12 +38,21 @@ export function HeaderActions({ user }: { user: HeaderUser }) {
           </Link>
         ))}
         {user ? (
-          <Link
-            href="/editeur"
-            className="rounded-md bg-[#495867] px-3 py-2 text-sm text-white hover:bg-[#3a4654]"
-          >
-            {t("nav.editor")}
-          </Link>
+          <>
+            {editorNav.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={
+                  item.href === "/editeur"
+                    ? "rounded-md bg-[#495867] px-3 py-2 text-sm text-white hover:bg-[#3a4654]"
+                    : "rounded-md px-3 py-2 text-sm text-[#495867] hover:bg-[#eef3f7]"
+                }
+              >
+                {t(item.key)}
+              </Link>
+            ))}
+          </>
         ) : (
           <Link
             href="/connexion"

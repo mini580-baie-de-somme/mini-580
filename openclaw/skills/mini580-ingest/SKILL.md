@@ -24,7 +24,7 @@ description: >-
 1. **Réception** — message Telegram ou webhook Drive
 2. **Extraction** — parser texte pour coque, étape, auteur
 3. **Validation** — vérifier allowlist expéditeur
-4. **Stockage** — sauver médias localement (`uploads/`)
+4. **Stockage** — sauver médias via bucket local (`POST /api/media` → `/media/{key}`, disque VPS `/opt/mini580/*/media`)
 5. Sinon → déclencher le skill `mini580-draft`
 
 ## Notification équipe

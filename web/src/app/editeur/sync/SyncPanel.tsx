@@ -26,6 +26,22 @@ type StatusPayload = {
     onlyPeer: number;
     both: number;
   };
+  milestones?: {
+    onlyLocal?: { id: string; titleFr: string; slug: string }[];
+    onlyPeer?: { id: string; titleFr: string; slug: string }[];
+    both?: {
+      local: { id: string; titleFr: string };
+      peer: { id: string; titleFr: string };
+      diverged: boolean;
+    }[];
+    counts?: {
+      local: number;
+      peer: number;
+      onlyLocal: number;
+      onlyPeer: number;
+      both: number;
+    };
+  };
 };
 
 export function SyncPanel() {
@@ -180,16 +196,29 @@ export function SyncPanel() {
 
           {status.counts && (
             <p className="text-sm text-[#495867]">
-              Local {status.counts.local} · Peer {status.counts.peer} · Communs{" "}
-              {status.counts.both} · Seulement ici {status.counts.onlyLocal} ·
-              Seulement peer {status.counts.onlyPeer}
+              Articles — local {status.counts.local} · peer {status.counts.peer} ·
+              communs {status.counts.both} · seulement ici {status.counts.onlyLocal}
+              {status.milestones?.counts && (
+                <>
+                  {" "}
+                  · Jalons — local {status.milestones.counts.local} · peer{" "}
+                  {status.milestones.counts.peer} · seulement ici{" "}
+                  {status.milestones.counts.onlyLocal}
+                </>
+              )}
             </p>
           )}
+
+          <p className="text-sm">
+            <Link href="/editeur/jalons" className="text-[#495867] hover:underline">
+              Gérer les jalons timeline →
+            </Link>
+          </p>
 
           {isTest && (status.onlyLocal?.length ?? 0) > 0 && (
             <section>
               <h2 className="mb-3 text-lg font-semibold text-[#0D131A]">
-                Sur TEST seulement — publier sur PROD
+                Articles sur TEST seulement — publier sur PROD
               </h2>
               <ul className="divide-y divide-[#eef3f7] overflow-hidden rounded-lg border border-[#d4dde6] bg-white">
                 {status.onlyLocal!.map((p) => (
@@ -230,6 +259,43 @@ export function SyncPanel() {
             </section>
           )}
 
+          {isTest && (status.milestones?.onlyLocal?.length ?? 0) > 0 && (
+            <section>
+              <h2 className="mb-3 text-lg font-semibold text-[#0D131A]">
+                Jalons sur TEST seulement — publier sur PROD
+              </h2>
+              <ul className="divide-y divide-[#eef3f7] overflow-hidden rounded-lg border border-[#d4dde6] bg-white">
+                {status.milestones!.onlyLocal!.map((m) => (
+                  <li
+                    key={m.id}
+                    className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+                  >
+                    <div>
+                      <span className="font-medium text-[#0D131A]">{m.titleFr}</span>
+                      <div className="text-xs text-[#495867]">{m.slug}</div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!!busy}
+                      onClick={() =>
+                        run(`publish-milestone-${m.id}`, () =>
+                          fetch("/api/sync/publish-milestone-to-prod", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ milestoneId: m.id }),
+                          })
+                        )
+                      }
+                      className="rounded-md bg-emerald-700 px-3 py-1.5 text-xs text-white hover:bg-emerald-800 disabled:opacity-50"
+                    >
+                      Publier sur PROD
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           {(status.both?.length ?? 0) > 0 && (
             <section>
               <h2 className="mb-3 text-lg font-semibold text-[#0D131A]">
@@ -248,6 +314,26 @@ export function SyncPanel() {
                       local {new Date(local.updatedAt).toLocaleString("fr-FR")} ·
                       peer {new Date(peer.updatedAt).toLocaleString("fr-FR")}
                     </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {(status.milestones?.both?.length ?? 0) > 0 && (
+            <section>
+              <h2 className="mb-3 text-lg font-semibold text-[#0D131A]">
+                Jalons communs (même id)
+              </h2>
+              <ul className="divide-y divide-[#eef3f7] overflow-hidden rounded-lg border border-[#d4dde6] bg-white text-sm">
+                {status.milestones!.both!.map(({ local, diverged }) => (
+                  <li key={local.id} className="px-4 py-3">
+                    <span className="font-medium">{local.titleFr}</span>
+                    {diverged && (
+                      <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
+                        divergé
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>

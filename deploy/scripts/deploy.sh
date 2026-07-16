@@ -39,6 +39,15 @@ echo "==> Deploy $ENV_NAME"
 echo "    IMAGE=$IMAGE"
 echo "    DIR=$DIR"
 
+# Ensure host media bucket exists (bind mount ./media → /data/media)
+MEDIA_DIR="$DIR/media"
+mkdir -p "$MEDIA_DIR"
+# Prefer container user ownership when running as root; otherwise leave as-is
+if [[ "$(id -u)" -eq 0 ]]; then
+  chown -R 1001:1001 "$MEDIA_DIR"
+fi
+chmod 755 "$MEDIA_DIR" || true
+
 # Persist IMAGE in .env for compose variable substitution
 if grep -q '^IMAGE=' "$ENV_FILE"; then
   sed -i "s|^IMAGE=.*|IMAGE=${IMAGE}|" "$ENV_FILE"

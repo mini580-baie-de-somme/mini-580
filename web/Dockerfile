@@ -25,7 +25,9 @@ ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
 RUN groupadd --system --gid 1001 nodejs \
-  && useradd --system --uid 1001 --gid nodejs nextjs
+  && useradd --system --uid 1001 --gid nodejs nextjs \
+  && mkdir -p /data/media \
+  && chown nextjs:nodejs /data/media
 
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./

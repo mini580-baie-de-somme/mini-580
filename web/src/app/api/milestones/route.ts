@@ -46,7 +46,12 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const data = createSchema.parse(body);
-    const slug = data.slug ?? slugify(data.titleEn);
+    let slug = data.slug ?? slugify(data.titleEn);
+    let n = 0;
+    while (await prisma.milestone.findUnique({ where: { slug } })) {
+      n += 1;
+      slug = `${data.slug ?? slugify(data.titleEn)}-${n}`;
+    }
 
     const milestone = await prisma.milestone.create({
       data: {

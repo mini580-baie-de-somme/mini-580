@@ -55,6 +55,7 @@ Phase 2 (VM dédiée) :
 - `status` : DRAFT | PUBLISHED
 - `slug`, `coverImageUrl`, `publishedAt`
 - Relations : hulls (268/269/270), tags, themes, milestone optionnel, images
+- Médias binaires : bucket local style S3 sur disque VPS (`/opt/mini580/{test,prod}/media`), URLs `/media/{key}` — voir `docs/07-deploy-cicd.md`
 
 ### Tag (enrichissable)
 - `slug` unique, `labelFr`, `labelEn`

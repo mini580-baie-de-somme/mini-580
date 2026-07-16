@@ -57,6 +57,15 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Sync PROD deploy configs to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "deploy/docker-compose.prod.yml,deploy/scripts/deploy.sh,deploy/nginx/classmini580.blog.conf"
+          target: "/tmp/mini580-deploy-sync"
+
       - name: Deploy to VPS (PROD)
         uses: appleboy/ssh-action@v1.2.0
         env:
@@ -70,5 +79,16 @@ jobs:
           script: |
             set -euo pipefail
             IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:prod"
+            SYNC=/tmp/mini580-deploy-sync/deploy
+            mkdir -p /opt/mini580/prod/media /opt/mini580/nginx /opt/mini580/bin
+            cp "$SYNC/docker-compose.prod.yml" /opt/mini580/prod/docker-compose.yml
+            cp "$SYNC/scripts/deploy.sh" /opt/mini580/bin/deploy.sh
+            chmod +x /opt/mini580/bin/deploy.sh
+            cp "$SYNC/nginx/classmini580.blog.conf" /opt/mini580/nginx/classmini580.blog.conf
+            if command -v sudo >/dev/null 2>&1; then
+              sudo cp /opt/mini580/nginx/classmini580.blog.conf /etc/nginx/sites-available/classmini580.blog.conf || true
+              sudo nginx -t && sudo systemctl reload nginx || true
+              sudo chown -R 1001:1001 /opt/mini580/prod/media || true
+            fi
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             /opt/mini580/bin/deploy.sh prod "$IMAGE"

@@ -101,6 +101,35 @@ ssh mini580-test 'docker compose -f /opt/mini580/test/docker-compose.yml --env-f
 
 Créer un utilisateur éditeur via seed local pointant temporairement vers la DB, ou utiliser l’API après avoir créé un user manuellement en SQL.
 
+## Médias persistés (bucket local style S3)
+
+Les images uploadées ne vivent **pas** dans le filesystem éphémère du container.
+
+| Env | Disque VPS (hôte) | Mount container | URL publique |
+|-----|-------------------|-----------------|--------------|
+| TEST | `/opt/mini580/test/media` | `/data/media` | `https://test.classmini580.blog/media/…` |
+| PROD | `/opt/mini580/prod/media` | `/data/media` | `https://classmini580.blog/media/…` |
+
+- API maison (Node `fs` uniquement) : `POST /api/media`, `PUT|DELETE|HEAD /api/media/{key}`, lecture `GET /media/{key}`
+- nginx sert `/media/` directement depuis le disque hôte (cache long)
+- Propriétaire des dossiers : uid `1001` (user `nextjs` de l’image)
+
+Sur un VPS déjà bootstrapé :
+
+```bash
+sudo mkdir -p /opt/mini580/{test,prod}/media
+sudo chown -R 1001:1001 /opt/mini580/{test,prod}/media
+# Recopier compose + nginx puis reload
+sudo cp /chemin/repo/deploy/docker-compose.test.yml /opt/mini580/test/docker-compose.yml
+sudo cp /chemin/repo/deploy/docker-compose.prod.yml /opt/mini580/prod/docker-compose.yml
+sudo cp /chemin/repo/deploy/nginx/*.conf /opt/mini580/nginx/
+sudo cp /opt/mini580/nginx/*.conf /etc/nginx/sites-available/
+sudo nginx -t && sudo systemctl reload nginx
+sudo -u deploy /opt/mini580/bin/deploy.sh test   # ou prod
+```
+
+Backup recommandé : inclure `/opt/mini580/{test,prod}/media` dans les snapshots / rsync Hostinger.
+
 ## Commandes utiles sur le VPS
 
 ```bash
@@ -119,7 +148,7 @@ sudo -u deploy docker compose -f /opt/mini580/prod/docker-compose.yml --env-file
 | `deploy/docker-compose.test.yml` | Stack TEST |
 | `deploy/docker-compose.prod.yml` | Stack PROD |
 | `deploy/nginx/*.conf` | Reverse proxy HTTP |
-| `deploy/scripts/bootstrap-vps.sh` | Provisionnement serveur |
-| `deploy/scripts/deploy.sh` | Pull image + compose up |
+| `deploy/scripts/bootstrap-vps.sh` | Provisionnement serveur (+ dossiers media uid 1001) |
+| `deploy/scripts/deploy.sh` | Pull image + compose up (+ assure `./media`) |
 | `.github/workflows/deploy-test.yml` | CI TEST |
 | `.github/workflows/deploy-prod.yml` | CD PROD manuel |

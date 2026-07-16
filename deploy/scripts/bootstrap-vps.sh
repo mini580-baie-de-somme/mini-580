@@ -66,6 +66,11 @@ chown deploy:deploy "$AUTH_KEYS"
 echo "==> Create /opt/mini580/{test,prod,nginx,bin}"
 install -d -m 755 -o deploy -g deploy "$OPT_ROOT"/{test,prod,nginx,bin}
 
+# Media buckets on host disk (uid 1001 = nextjs user inside the web image)
+echo "==> Create persisted media directories (bind-mounted into web containers)"
+install -d -m 755 -o 1001 -g 1001 "$OPT_ROOT/test/media"
+install -d -m 755 -o 1001 -g 1001 "$OPT_ROOT/prod/media"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Support both repo layout (.../deploy/scripts) and scp layout (/tmp/mini580-deploy/scripts)
 if [[ -f "$SCRIPT_DIR/../docker-compose.test.yml" ]]; then
@@ -85,7 +90,12 @@ cp "$DEPLOY_DIR/nginx/test.classmini580.blog.conf" "$OPT_ROOT/nginx/test.classmi
 cp "$DEPLOY_DIR/nginx/classmini580.blog.conf" "$OPT_ROOT/nginx/classmini580.blog.conf"
 cp "$DEPLOY_DIR/scripts/deploy.sh" "$OPT_ROOT/bin/deploy.sh"
 chmod +x "$OPT_ROOT/bin/deploy.sh"
-chown -R deploy:deploy "$OPT_ROOT"
+# Ensure media dirs exist even on re-bootstrap
+install -d -m 755 -o 1001 -g 1001 "$OPT_ROOT/test/media"
+install -d -m 755 -o 1001 -g 1001 "$OPT_ROOT/prod/media"
+chown -R deploy:deploy "$OPT_ROOT"/{test,prod,nginx,bin}
+# Keep media owned by container user (not deploy)
+chown -R 1001:1001 "$OPT_ROOT/test/media" "$OPT_ROOT/prod/media"
 
 if [[ ! -f "$OPT_ROOT/test/.env" ]]; then
   cp "$DEPLOY_DIR/env.test.example" "$OPT_ROOT/test/.env"
