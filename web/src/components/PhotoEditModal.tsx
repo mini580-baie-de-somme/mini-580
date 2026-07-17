@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { GalleryImage } from "./GalleryImage";
 import {
   type GalleryEditorImage,
@@ -16,6 +16,20 @@ type Props = {
   onSaved: (image: GalleryEditorImage) => void;
   onDeleted?: (id: string) => void;
 };
+
+function imageFileFromClipboard(data: DataTransfer | null): File | null {
+  if (!data) return null;
+  for (const item of data.items) {
+    if (item.type.startsWith("image/")) {
+      const file = item.getAsFile();
+      if (file) return file;
+    }
+  }
+  for (const file of data.files) {
+    if (file.type.startsWith("image/")) return file;
+  }
+  return null;
+}
 
 export function PhotoEditModal({
   postId,
@@ -35,6 +49,8 @@ export function PhotoEditModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
   const [dragOver, setDragOver] = useState(false);
+  const draftIdRef = useRef(draft?.id);
+  draftIdRef.current = draft?.id;
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -49,45 +65,62 @@ export function PhotoEditModal({
     setDirty(true);
   }
 
-  async function uploadFile(file: File) {
-    if (!file.type.startsWith("image/")) {
-      setError("Fichier image requis");
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      if (draft?.id) {
-        const body = new FormData();
-        body.append("file", file);
-        const res = await fetch(
-          `/api/posts/${postId}/images/${draft.id}/replace`,
-          { method: "POST", body }
-        );
-        if (!res.ok) throw new Error("replace failed");
-        const updated = toEditorImage(await res.json());
-        setDraft(updated);
-        setDirty(false);
-        onSaved(updated);
-      } else {
-        const body = new FormData();
-        body.append("file", file);
-        const res = await fetch(`/api/posts/${postId}/images`, {
-          method: "POST",
-          body,
-        });
-        if (!res.ok) throw new Error("upload failed");
-        const created = toEditorImage(await res.json());
-        setDraft(created);
-        setDirty(false);
-        onSaved(created);
+  const uploadFile = useCallback(
+    async (file: File) => {
+      if (!file.type.startsWith("image/")) {
+        setError("Fichier image requis");
+        return;
       }
-    } catch {
-      setError("Échec du téléversement vers la médiathèque");
-    } finally {
-      setBusy(false);
+      setBusy(true);
+      setError(null);
+      const existingId = draftIdRef.current;
+      try {
+        if (existingId) {
+          const body = new FormData();
+          body.append("file", file);
+          const res = await fetch(
+            `/api/posts/${postId}/images/${existingId}/replace`,
+            { method: "POST", body }
+          );
+          if (!res.ok) throw new Error("replace failed");
+          const updated = toEditorImage(await res.json());
+          setDraft(updated);
+          setDirty(false);
+          onSaved(updated);
+        } else {
+          const body = new FormData();
+          body.append("file", file);
+          const res = await fetch(`/api/posts/${postId}/images`, {
+            method: "POST",
+            body,
+          });
+          if (!res.ok) throw new Error("upload failed");
+          const created = toEditorImage(await res.json());
+          setDraft(created);
+          setDirty(false);
+          onSaved(created);
+        }
+      } catch {
+        setError("Échec du téléversement vers la médiathèque");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [postId, onSaved]
+  );
+
+  // Restore clipboard paste (lost when the gallery editor was split into this modal).
+  useEffect(() => {
+    function onPaste(e: ClipboardEvent) {
+      if (busy) return;
+      const file = imageFileFromClipboard(e.clipboardData);
+      if (!file) return;
+      e.preventDefault();
+      void uploadFile(file);
     }
-  }
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [busy, uploadFile]);
 
   async function saveMeta() {
     if (!draft?.id) {
@@ -214,7 +247,7 @@ export function PhotoEditModal({
               }`}
             >
               <p className="text-sm text-[#495867]">
-                Glisser-déposer une image, ou
+                Glisser-déposer une image, coller (Ctrl/⌘+V), ou
               </p>
               <button
                 type="button"
@@ -242,6 +275,9 @@ export function PhotoEditModal({
                 >
                   Remplacer le fichier
                 </button>
+                <p className="text-xs text-[#495867]">
+                  Ou coller une image depuis le presse-papiers (Ctrl/⌘+V).
+                </p>
               </div>
 
               <div className="space-y-3 text-sm">
