@@ -1,0 +1,76 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - ".github/workflows/test.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "web/**"
+      - ".github/workflows/test.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  local-and-telegram:
+    name: Local API + Telegram (Cursor IA)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    env:
+      # Injected from GitHub Secrets — never committed
+      CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+      CURSOR_MODEL: ${{ secrets.CURSOR_MODEL }}
+      CURSOR_CWD: /tmp/mini580-cursor
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Require CURSOR_API_KEY secret
+        run: |
+          if [ -z "$CURSOR_API_KEY" ]; then
+            echo "::error::Repo secret CURSOR_API_KEY is missing. Set it with: gh secret set CURSOR_API_KEY"
+            exit 1
+          fi
+          if [ -z "$CURSOR_MODEL" ]; then
+            echo "CURSOR_MODEL=composer-2.5" >> "$GITHUB_ENV"
+            export CURSOR_MODEL=composer-2.5
+          fi
+          echo "CURSOR_API_KEY present (len=${#CURSOR_API_KEY})"
+          echo "CURSOR_MODEL=${CURSOR_MODEL:-composer-2.5}"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Start Postgres IT
+        run: npm run test:db:up
+
+      - name: Migrate IT database
+        run: npm run test:db:migrate
+
+      - name: Local API tests (incl. Cursor translate)
+        run: npx vitest run --config vitest.config.ts
+
+      - name: Telegram conversation scenarios (Cursor IA)
+        run: npx vitest run --config vitest.telegram.config.ts
+
+      - name: Stop Postgres IT
+        if: always()
+        run: npm run test:db:down

@@ -17,7 +17,8 @@
     "test": "npm run test:local",
     "test:local": "npm run test:db:up && npm run test:db:migrate && vitest run --config vitest.config.ts",
     "test:http": "vitest run --config vitest.http.config.ts",
-    "test:telegram": "npm run test:db:up && npm run test:db:migrate && vitest run --config vitest.telegram.config.ts"
+    "test:telegram": "npm run test:db:up && npm run test:db:migrate && vitest run --config vitest.telegram.config.ts",
+    "test:cursor:sync": "bash ../scripts/sync-cursor-key-from-vps.sh"
   },
   "prisma": {
     "seed": "npm run seed:run"

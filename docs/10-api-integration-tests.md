@@ -69,7 +69,28 @@ Scénarios (`npm run test:telegram` — **7/7**) :
 | `/statut` + `/annuler` | |
 
 Sans `CURSOR_API_KEY` : les tests Telegram/IA **échouent** (clé obligatoire).
-Fournir via `web/.env.cursor.local` ou `/tmp/mini580-cursor.env` (jamais committer).
+
+### D’où vient la clé (jamais dans git)
+
+```
+GitHub Secret CURSOR_API_KEY
+        │
+        ├─► Actions workflow « Tests » (env injecté automatiquement)
+        │
+        └─► Deploy TEST/PROD → /opt/mini580/{test,prod}/.env
+                 │
+                 └─► local (optionnel) :
+                     cd web && npm run test:cursor:sync
+                     # → web/.env.cursor.local (gitignoré)
+```
+
+Mettre / mettre à jour le secret :
+```bash
+gh secret set CURSOR_API_KEY --repo mini580-baie-de-somme/mini-580
+gh secret set CURSOR_MODEL --body "composer-2.5" --repo mini580-baie-de-somme/mini-580
+```
+
+CI : push/PR sur `web/**` → workflow [Tests](../.github/workflows/test.yml).
 
 ## Photo — comportement produit
 

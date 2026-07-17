@@ -30,7 +30,7 @@ Chaque deploy **réécrit** les secrets applicatifs dans `/opt/mini580/{test,pro
 | `DEPLOY_HOST` | `2.24.13.70` |
 | `DEPLOY_USER` | `deploy` |
 | `DEPLOY_SSH_KEY` | Clé privée CI (`~/.ssh/id_ed25519_mini580_ci`) |
-| `CURSOR_API_KEY` | Modèle IA (Cursor Dashboard) |
+| `CURSOR_API_KEY` | Modèle IA (Cursor Dashboard) — aussi injecté dans le workflow **Tests** |
 | `CURSOR_MODEL` | Défaut `composer-2.5` |
 
 `GITHUB_TOKEN` (Actions) sert au push/pull GHCR (`packages: write`).

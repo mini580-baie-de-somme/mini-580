@@ -45,10 +45,9 @@ cp web/.env.example web/.env
 - Médias : bucket local + galerie 0–N (`urlOrigin` + formats picto/petite/moyenne/grande) — éditeur drag-drop/paste
 - **Galerie publique :** `/galerie` — filtres date/jalon/tags/thèmes + diaporama
 - **Prod :** [classmini580.blog](https://classmini580.blog) · **Test :** [test.classmini580.blog](https://test.classmini580.blog)
-- **CI/CD :** push `main` → TEST · Deploy PROD manuel (voir `docs/07-deploy-cicd.md`)
-- **Tests :** locaux handlers `npm run test:local` · HTTP réel TEST `npm run test:http` · Telegram sim `npm run test:telegram` (`docs/10-api-integration-tests.md`)
-- **Secrets CI/CD :** `CURSOR_*`, `TELEGRAM_*`, SSH deploy, sync/DB — GitHub Environments `test`/`prod` → `.env` VPS à chaque deploy (`docs/07-deploy-cicd.md`)
-
+- **CI/CD :** push `main` → TEST · Deploy PROD manuel · **Tests** (local+Telegram+Cursor) via secret `CURSOR_API_KEY` (`docs/07-deploy-cicd.md`, `docs/10-api-integration-tests.md`)
+- **Tests :** `npm run test:local` · `test:http` · `test:telegram` · sync clé locale `npm run test:cursor:sync` (depuis VPS, gitignoré)
+- **Secrets :** `CURSOR_*` (repo) + Telegram/sync/DB (environments) — jamais dans git
 ## Liens utiles
 
 - [Class Globe 5.80 — site officiel](https://classglobe580.com/)

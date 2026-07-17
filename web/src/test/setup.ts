@@ -27,9 +27,15 @@ function loadEnvFile(file: string, { override = true }: { override?: boolean } =
 
 // Base IT DB / auth
 loadEnvFile(resolve(process.cwd(), ".env.test"));
-// Cursor key for real IA translation (never commit — .env.* gitignored except .env.test)
-loadEnvFile(resolve(process.cwd(), ".env.cursor.local"));
-loadEnvFile("/tmp/mini580-cursor.env");
+// Cursor: prefer env already set (GitHub Actions secrets / shell export).
+// Fallback local files only — never commit these.
+if (!process.env.CURSOR_API_KEY?.trim()) {
+  loadEnvFile(resolve(process.cwd(), ".env.cursor.local"));
+  loadEnvFile("/tmp/mini580-cursor.env");
+}
+if (!process.env.CURSOR_MODEL?.trim()) {
+  process.env.CURSOR_MODEL = "composer-2.5";
+}
 
 process.env.MEDIA_ROOT =
   process.env.MEDIA_ROOT || resolve(process.cwd(), "data/media-it");
