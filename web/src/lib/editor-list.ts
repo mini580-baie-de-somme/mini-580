@@ -38,10 +38,8 @@ export function isListFiltered(searchParams: URLSearchParams, filterKeys: string
 
 export function countListFilters(searchParams: URLSearchParams, filterKeys: string[]): number {
   let count = 0;
-  if (searchParams.get("q")?.trim()) count += 1;
   for (const key of filterKeys) {
-    if (key === "q") continue;
-    const value = searchParams.get(key);
+    const value = searchParams.get(key)?.trim();
     if (value && value !== "ALL") count += 1;
   }
   return count;

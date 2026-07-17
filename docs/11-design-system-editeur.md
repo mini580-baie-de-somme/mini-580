@@ -49,7 +49,9 @@ Disposition **obligatoire** (une seule ligne, wrap si besoin) :
 - Style actif : fond `#495867` texte blanc ; inactif : bordure `#d4dde6`
 - Filtrage côté API (`q` + clés métier)
 
-Référence articles : `EditorPostFilters` · médiathèque : `MediaLibraryManager`
+Référence articles : `EditorPostFilters` · médiathèque : `MediaLibraryManager`  
+Surfaces publiques : **Blog** (`BlogFilters`) · **Galerie** (`GalleryPageContent`) — même toolbar
+
 
 ### 2. Compteur de lignes
 

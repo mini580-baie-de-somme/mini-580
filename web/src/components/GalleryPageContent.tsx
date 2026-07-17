@@ -2,18 +2,18 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  FormEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GalleryPhoto } from "@/lib/gallery-types";
+import { countListFilters } from "@/lib/editor-list";
 import { resolveThumbKind } from "@/lib/media-file-client";
 import { GalleryImage } from "./GalleryImage";
 import { MediaKindThumb } from "./MediaKindThumb";
+import {
+  EditorFilterChip,
+  EditorFilterGroup,
+  EditorListToolbar,
+  type EditorListActiveChip,
+} from "./EditorListToolbar";
 import { useLocale } from "./LocaleProvider";
 
 type FilterOptions = {
@@ -23,6 +23,15 @@ type FilterOptions = {
 };
 
 const AUTO_MS = 5000;
+const FILTER_KEYS = [
+  "search",
+  "kind",
+  "sort",
+  "hull",
+  "theme",
+  "tag",
+  "milestone",
+];
 
 export function GalleryPageContent({
   photos,
@@ -34,13 +43,14 @@ export function GalleryPageContent({
   const router = useRouter();
   const searchParams = useSearchParams();
   const { locale, t } = useLocale();
-  const [search, setSearch] = useState(searchParams.get("search") ?? "");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [slideshowOpen, setSlideshowOpen] = useState(false);
   const [index, setIndex] = useState(0);
   const [autoPlay, setAutoPlay] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const sort = searchParams.get("sort") === "milestone" ? "milestone" : "date";
+  const activeCount = countListFilters(searchParams, FILTER_KEYS);
 
   const update = useCallback(
     (key: string, value: string) => {
@@ -52,25 +62,21 @@ export function GalleryPageContent({
     [router, searchParams]
   );
 
-  function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    update("search", search.trim());
-  }
-
-  /** Open viewer without autoplay (manual browse). */
   const openViewer = useCallback((i: number) => {
     setIndex(i);
     setAutoPlay(false);
     setSlideshowOpen(true);
   }, []);
 
-  /** Explicit slideshow mode — user opted in via Diaporama button. */
-  const startSlideshow = useCallback((fromIndex = 0) => {
-    if (photos.length === 0) return;
-    setIndex(fromIndex);
-    setAutoPlay(true);
-    setSlideshowOpen(true);
-  }, [photos.length]);
+  const startSlideshow = useCallback(
+    (fromIndex = 0) => {
+      if (photos.length === 0) return;
+      setIndex(fromIndex);
+      setAutoPlay(true);
+      setSlideshowOpen(true);
+    },
+    [photos.length]
+  );
 
   const go = useCallback(
     (delta: number) => {
@@ -120,6 +126,96 @@ export function GalleryPageContent({
     [photos.length, t]
   );
 
+  const activeChips = useMemo((): EditorListActiveChip[] => {
+    const chips: EditorListActiveChip[] = [];
+    const search = searchParams.get("search")?.trim();
+    if (search) {
+      chips.push({
+        key: "search",
+        prefix: t("editor.filters.search"),
+        label: search,
+      });
+    }
+
+    const kind = searchParams.get("kind");
+    if (kind === "IMAGE") {
+      chips.push({
+        key: "kind",
+        prefix: t("media.colKind"),
+        label: t("gallery.kind.image"),
+      });
+    } else if (kind === "DOCUMENT") {
+      chips.push({
+        key: "kind",
+        prefix: t("media.colKind"),
+        label: t("gallery.kind.document"),
+      });
+    } else if (kind === "VIDEO") {
+      chips.push({
+        key: "kind",
+        prefix: t("media.colKind"),
+        label: t("gallery.kind.video"),
+      });
+    }
+
+    if (sort === "milestone") {
+      chips.push({
+        key: "sort",
+        prefix: t("gallery.sort").replace(":", ""),
+        label: t("gallery.sortMilestone"),
+      });
+    }
+
+    const hull = searchParams.get("hull");
+    if (hull) {
+      chips.push({
+        key: "hull",
+        prefix: t("blog.hull").replace(":", ""),
+        label: `#${hull}`,
+      });
+    }
+
+    const themeSlug = searchParams.get("theme");
+    if (themeSlug) {
+      const theme = options.themes.find((item) => item.slug === themeSlug);
+      chips.push({
+        key: "theme",
+        prefix: t("blog.theme").replace(":", ""),
+        label: theme
+          ? locale === "fr"
+            ? theme.labelFr
+            : theme.labelEn
+          : themeSlug,
+      });
+    }
+
+    const tagName = searchParams.get("tag");
+    if (tagName) {
+      const tag = options.tags.find((item) => item.name === tagName);
+      chips.push({
+        key: "tag",
+        prefix: t("blog.tag").replace(":", ""),
+        label: tag ? (locale === "fr" ? tag.labelFr : tag.labelEn) : tagName,
+      });
+    }
+
+    const milestoneSlug = searchParams.get("milestone");
+    if (milestoneSlug) {
+      const m = options.milestones.find((item) => item.slug === milestoneSlug);
+      chips.push({
+        key: "milestone",
+        prefix: t("gallery.milestone").replace(":", ""),
+        label: m
+          ? locale === "fr"
+            ? m.titleFr
+            : m.titleEn
+          : milestoneSlug,
+      });
+    }
+
+    return chips;
+  }, [locale, options.milestones, options.tags, options.themes, searchParams, sort, t]);
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
       <div className="mb-8">
@@ -127,178 +223,129 @@ export function GalleryPageContent({
         <p className="mt-2 text-[#495867]">{t("gallery.subtitle")}</p>
       </div>
 
-      <div className="rounded-lg border border-[#d4dde6] bg-white/80 p-4 backdrop-blur-sm">
-        <form onSubmit={onSubmit} className="flex flex-col gap-3 sm:flex-row">
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t("gallery.search")}
-            className="flex-1 rounded-md border border-[#d4dde6] px-3 py-2 text-sm"
-          />
-          <button
-            type="submit"
-            className="rounded-md bg-[#495867] px-4 py-2 text-sm text-white hover:bg-[#3a4654]"
-          >
-            {t("gallery.filter")}
-          </button>
-        </form>
+      <EditorListToolbar
+        searchValue={searchParams.get("search") ?? ""}
+        searchPlaceholder={t("gallery.search")}
+        onSearchSubmit={(q) => update("search", q)}
+        activeChips={activeChips}
+        onRemoveChip={(key) => update(key, "")}
+        onClearAll={() => router.push("/galerie")}
+        filtersOpen={filtersOpen}
+        onFiltersOpenChange={setFiltersOpen}
+        activeFilterCount={activeCount}
+        filterPanel={
+          <>
+            <EditorFilterGroup label={t("media.colKind")}>
+              {(
+                [
+                  ["", t("media.kind.all")],
+                  ["IMAGE", t("gallery.kind.image")],
+                  ["DOCUMENT", t("gallery.kind.document")],
+                  ["VIDEO", t("gallery.kind.video")],
+                ] as const
+              ).map(([value, label]) => (
+                <EditorFilterChip
+                  key={value || "all"}
+                  active={(searchParams.get("kind") ?? "") === value}
+                  onClick={() => update("kind", value)}
+                >
+                  {label}
+                </EditorFilterChip>
+              ))}
+            </EditorFilterGroup>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          <span className="text-xs font-medium uppercase tracking-wide text-[#495867]">
-            Type
-          </span>
-          {(
-            [
-              ["", t("media.kind.all")],
-              ["IMAGE", t("gallery.kind.image")],
-              ["DOCUMENT", t("gallery.kind.document")],
-              ["VIDEO", t("gallery.kind.video")],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value || "all"}
-              type="button"
-              onClick={() => update("kind", value)}
-              className={`rounded border px-2 py-1 text-xs ${
-                (searchParams.get("kind") ?? "") === value
-                  ? "border-[#495867] bg-[#495867] text-white"
-                  : "border-[#d4dde6] bg-white text-[#495867]"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+            <EditorFilterGroup label={t("gallery.sort")}>
+              {(
+                [
+                  ["date", "gallery.sortDate"],
+                  ["milestone", "gallery.sortMilestone"],
+                ] as const
+              ).map(([value, labelKey]) => (
+                <EditorFilterChip
+                  key={value}
+                  active={sort === value}
+                  onClick={() => update("sort", value === "date" ? "" : value)}
+                >
+                  {t(labelKey)}
+                </EditorFilterChip>
+              ))}
+            </EditorFilterGroup>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          <span className="text-xs font-medium uppercase tracking-wide text-[#495867]">
-            {t("gallery.sort")}
-          </span>
-          {(
-            [
-              ["date", "gallery.sortDate"],
-              ["milestone", "gallery.sortMilestone"],
-            ] as const
-          ).map(([value, labelKey]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => update("sort", value === "date" ? "" : value)}
-              className={`rounded border px-2 py-1 text-xs ${
-                sort === value
-                  ? "border-[#495867] bg-[#495867] text-white"
-                  : "border-[#d4dde6] bg-white text-[#495867]"
-              }`}
-            >
-              {t(labelKey)}
-            </button>
-          ))}
-        </div>
+            <EditorFilterGroup label={t("blog.hull")}>
+              {["268", "269", "270"].map((h) => (
+                <EditorFilterChip
+                  key={h}
+                  active={searchParams.get("hull") === h}
+                  onClick={() =>
+                    update("hull", searchParams.get("hull") === h ? "" : h)
+                  }
+                >
+                  #{h}
+                </EditorFilterChip>
+              ))}
+            </EditorFilterGroup>
 
-        <div className="mt-3 flex flex-wrap gap-2">
-          <span className="text-xs font-medium uppercase tracking-wide text-[#495867]">
-            {t("blog.hull")}
-          </span>
-          {["268", "269", "270"].map((h) => (
-            <button
-              key={h}
-              type="button"
-              onClick={() =>
-                update("hull", searchParams.get("hull") === h ? "" : h)
-              }
-              className={`rounded border px-2 py-1 text-xs ${
-                searchParams.get("hull") === h
-                  ? "border-[#495867] bg-[#495867] text-white"
-                  : "border-[#d4dde6] bg-white text-[#495867]"
-              }`}
-            >
-              #{h}
-            </button>
-          ))}
-        </div>
+            {options.themes.length > 0 && (
+              <EditorFilterGroup label={t("blog.theme")}>
+                {options.themes.map((theme) => (
+                  <EditorFilterChip
+                    key={theme.slug}
+                    active={searchParams.get("theme") === theme.slug}
+                    onClick={() =>
+                      update(
+                        "theme",
+                        searchParams.get("theme") === theme.slug
+                          ? ""
+                          : theme.slug
+                      )
+                    }
+                  >
+                    {locale === "fr" ? theme.labelFr : theme.labelEn}
+                  </EditorFilterChip>
+                ))}
+              </EditorFilterGroup>
+            )}
 
-        {options.themes.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <span className="text-xs font-medium uppercase tracking-wide text-[#495867]">
-              {t("blog.theme")}
-            </span>
-            {options.themes.map((theme) => (
-              <button
-                key={theme.slug}
-                type="button"
-                onClick={() =>
-                  update(
-                    "theme",
-                    searchParams.get("theme") === theme.slug ? "" : theme.slug
-                  )
-                }
-                className={`rounded border px-2 py-1 text-xs ${
-                  searchParams.get("theme") === theme.slug
-                    ? "border-[#495867] bg-[#495867] text-white"
-                    : "border-[#d4dde6] bg-white text-[#495867]"
-                }`}
-              >
-                {locale === "fr" ? theme.labelFr : theme.labelEn}
-              </button>
-            ))}
-          </div>
-        )}
+            {options.tags.length > 0 && (
+              <EditorFilterGroup label={t("blog.tag")}>
+                {options.tags.map((tag) => (
+                  <EditorFilterChip
+                    key={tag.name}
+                    active={searchParams.get("tag") === tag.name}
+                    onClick={() =>
+                      update(
+                        "tag",
+                        searchParams.get("tag") === tag.name ? "" : tag.name
+                      )
+                    }
+                  >
+                    {locale === "fr" ? tag.labelFr : tag.labelEn}
+                  </EditorFilterChip>
+                ))}
+              </EditorFilterGroup>
+            )}
 
-        {options.tags.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <span className="text-xs font-medium uppercase tracking-wide text-[#495867]">
-              {t("blog.tag")}
-            </span>
-            {options.tags.map((tag) => (
-              <button
-                key={tag.name}
-                type="button"
-                onClick={() =>
-                  update(
-                    "tag",
-                    searchParams.get("tag") === tag.name ? "" : tag.name
-                  )
-                }
-                className={`rounded border px-2 py-1 text-xs ${
-                  searchParams.get("tag") === tag.name
-                    ? "border-[#495867] bg-[#495867] text-white"
-                    : "border-[#d4dde6] bg-white text-[#495867]"
-                }`}
-              >
-                {locale === "fr" ? tag.labelFr : tag.labelEn}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {options.milestones.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <span className="text-xs font-medium uppercase tracking-wide text-[#495867]">
-              {t("gallery.milestone")}
-            </span>
-            {options.milestones.map((m) => (
-              <button
-                key={m.slug}
-                type="button"
-                onClick={() =>
-                  update(
-                    "milestone",
-                    searchParams.get("milestone") === m.slug ? "" : m.slug
-                  )
-                }
-                className={`rounded border px-2 py-1 text-xs ${
-                  searchParams.get("milestone") === m.slug
-                    ? "border-[#495867] bg-[#495867] text-white"
-                    : "border-[#d4dde6] bg-white text-[#495867]"
-                }`}
-              >
-                {locale === "fr" ? m.titleFr : m.titleEn}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+            {options.milestones.length > 0 && (
+              <EditorFilterGroup label={t("gallery.milestone")}>
+                {options.milestones.map((m) => (
+                  <EditorFilterChip
+                    key={m.slug}
+                    active={searchParams.get("milestone") === m.slug}
+                    onClick={() =>
+                      update(
+                        "milestone",
+                        searchParams.get("milestone") === m.slug ? "" : m.slug
+                      )
+                    }
+                  >
+                    {locale === "fr" ? m.titleFr : m.titleEn}
+                  </EditorFilterChip>
+                ))}
+              </EditorFilterGroup>
+            )}
+          </>
+        }
+      />
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-[#495867]">
