@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 import type { GalleryPhoto } from "@/lib/gallery-types";
+import { resolveThumbKind } from "@/lib/media-file-client";
 import { GalleryImage } from "./GalleryImage";
 import { MediaKindThumb } from "./MediaKindThumb";
 import { useLocale } from "./LocaleProvider";
@@ -303,6 +304,16 @@ export function GalleryPageContent({
               locale === "fr"
                 ? photo.titleFr || photo.post.titleFr
                 : photo.titleEn || photo.post.titleEn;
+            const displayKind = resolveThumbKind(
+              photo.kind,
+              photo.mimeType,
+              photo.thumbUrl || photo.urlOrigin
+            );
+            const imageSrc =
+              photo.thumbUrl ||
+              photo.urlPetite ||
+              photo.urlPicto ||
+              photo.urlOrigin;
             return (
               <button
                 key={photo.id}
@@ -311,23 +322,26 @@ export function GalleryPageContent({
                 className="group overflow-hidden rounded-lg border border-[#d4dde6] bg-white text-left shadow-sm transition hover:border-[#495867]"
               >
                 <div className="aspect-square overflow-hidden bg-[#eef3f7]">
-                  {photo.kind === "IMAGE" || !photo.kind ? (
+                  {displayKind === "IMAGE" && imageSrc ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={photo.thumbUrl}
+                      src={imageSrc}
                       alt={title}
                       className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                     />
                   ) : (
                     <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-[#495867]">
                       <MediaKindThumb
-                        kind={photo.kind}
+                        kind={displayKind}
                         mimeType={photo.mimeType}
+                        src={null}
                         size="md"
                         className="h-16 w-16 bg-transparent"
                       />
                       <span className="text-[10px] uppercase tracking-wide">
-                        {photo.kind === "DOCUMENT" ? "PDF" : photo.kind}
+                        {displayKind === "DOCUMENT"
+                          ? "PDF"
+                          : t("gallery.kind.video")}
                       </span>
                     </div>
                   )}
@@ -395,36 +409,47 @@ export function GalleryPageContent({
               ‹
             </button>
             <div className="max-h-full w-full max-w-4xl">
-              {current.kind === "VIDEO" ? (
-                <video
-                  src={current.urlOrigin}
-                  controls
-                  className="mx-auto max-h-[70vh] w-full"
-                />
-              ) : current.kind === "DOCUMENT" ? (
-                <div className="rounded-lg bg-white p-6 text-center text-[#0D131A]">
-                  <p className="mb-3 font-medium">
-                    {locale === "fr"
-                      ? current.titleFr || "Document PDF"
-                      : current.titleEn || "PDF document"}
-                  </p>
-                  <a
-                    href={current.urlOrigin}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="rounded-md bg-[#495867] px-4 py-2 text-sm text-white"
-                  >
-                    Ouvrir le PDF
-                  </a>
-                  <iframe
-                    title="pdf"
-                    src={current.urlOrigin}
-                    className="mt-4 h-[50vh] w-full rounded border border-[#d4dde6]"
-                  />
-                </div>
-              ) : (
-                <GalleryImage image={current} locale={locale} />
-              )}
+              {(() => {
+                const currentKind = resolveThumbKind(
+                  current.kind,
+                  current.mimeType,
+                  current.urlOrigin
+                );
+                if (currentKind === "VIDEO") {
+                  return (
+                    <video
+                      src={current.urlOrigin}
+                      controls
+                      className="mx-auto max-h-[70vh] w-full"
+                    />
+                  );
+                }
+                if (currentKind === "DOCUMENT") {
+                  return (
+                    <div className="rounded-lg bg-white p-6 text-center text-[#0D131A]">
+                      <p className="mb-3 font-medium">
+                        {locale === "fr"
+                          ? current.titleFr || t("gallery.kind.document")
+                          : current.titleEn || t("gallery.kind.document")}
+                      </p>
+                      <a
+                        href={current.urlOrigin}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-md bg-[#495867] px-4 py-2 text-sm text-white"
+                      >
+                        {t("gallery.openPdf")}
+                      </a>
+                      <iframe
+                        title="pdf"
+                        src={current.urlOrigin}
+                        className="mt-4 h-[50vh] w-full rounded border border-[#d4dde6]"
+                      />
+                    </div>
+                  );
+                }
+                return <GalleryImage image={current} locale={locale} />;
+              })()}
               <div className="mt-3 text-center text-sm text-white/90">
                 <Link
                   href={`/blog/${current.post.slug}`}

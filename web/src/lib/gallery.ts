@@ -100,10 +100,11 @@ export async function listGalleryItems(
       urlMoyenne: media.urlMoyenne,
       urlGrande: media.urlGrande,
     };
+    // Never expose a PDF/video URL as thumbUrl — browsers show a broken <img>.
     const thumbUrl =
       media.kind === "IMAGE"
         ? media.urlPetite || media.urlPicto || media.urlOrigin
-        : media.urlOrigin;
+        : "";
     const displayUrl =
       media.kind === "IMAGE" ? displayImageUrl(display) : media.urlOrigin;
 
