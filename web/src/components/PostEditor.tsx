@@ -68,12 +68,10 @@ export function PostEditor({
     milestoneIds: post.milestones.map((m) => m.milestone.id),
   });
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const [uploadState, setUploadState] = useState<"idle" | "uploading" | "error">("idle");
   const [newTagFr, setNewTagFr] = useState("");
   const [newTagEn, setNewTagEn] = useState("");
   const [allTags, setAllTags] = useState(tags);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef(form);
   const skipInitialAutosave = useRef(true);
   formRef.current = form;
@@ -170,21 +168,6 @@ export function PostEditor({
       setForm((f) => ({ ...f, tagIds: [...f.tagIds, tag.id] }));
       setNewTagFr("");
       setNewTagEn("");
-    }
-  }
-
-  async function uploadCover(file: File) {
-    setUploadState("uploading");
-    try {
-      const body = new FormData();
-      body.append("file", file);
-      const res = await fetch("/api/media", { method: "POST", body });
-      if (!res.ok) throw new Error("upload failed");
-      const data = (await res.json()) as { url: string };
-      setForm((f) => ({ ...f, coverImageUrl: data.url }));
-      setUploadState("idle");
-    } catch {
-      setUploadState("error");
     }
   }
 
@@ -342,56 +325,14 @@ export function PostEditor({
           rows={16}
           className="w-full rounded-md border border-[#d4dde6] px-3 py-2 font-mono text-sm leading-relaxed"
         />
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-[#495867]">
-            Image de couverture
-          </label>
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void uploadCover(file);
-                e.target.value = "";
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadState === "uploading"}
-              className="rounded-md border border-[#495867] px-3 py-2 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
-            >
-              {uploadState === "uploading" ? "Envoi…" : "Téléverser une image"}
-            </button>
-            {uploadState === "error" && (
-              <span className="text-sm text-red-600">Échec de l’envoi</span>
-            )}
-          </div>
-          <input
-            value={form.coverImageUrl}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, coverImageUrl: e.target.value }))
-            }
-            placeholder="URL ou chemin /media/… (après téléversement)"
-            className="w-full rounded-md border border-[#d4dde6] px-3 py-2 text-sm"
-          />
-          {form.coverImageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={form.coverImageUrl}
-              alt=""
-              className="mt-1 max-h-48 w-auto rounded-md border border-[#d4dde6] object-cover"
-            />
-          ) : null}
-        </div>
-
         <PostGalleryEditor
           postId={post.id}
           lang={lang}
           initialImages={post.images}
+          coverImageUrl={form.coverImageUrl || null}
+          onCoverChange={(url) =>
+            setForm((f) => ({ ...f, coverImageUrl: url ?? "" }))
+          }
         />
       </div>
 

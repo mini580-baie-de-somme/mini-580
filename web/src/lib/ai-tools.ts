@@ -101,7 +101,8 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "media.put",
-    description: "Raw bucket upload (single object, e.g. cover) — no variants",
+    description:
+      "Raw bucket upload (single object, no DB row) — prefer photos.upload for covers and gallery",
     method: "POST",
     path: "/api/media",
     auth: "bearer_or_session",
@@ -109,7 +110,8 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "photos.upload",
-    description: "Upload image (multipart) → origin + picto/petite/moyenne/grande",
+    description:
+      "Upload image (multipart) → PostImage + origin/picto/petite/moyenne/grande; use for cover then set coverImageUrl",
     method: "POST",
     path: "/api/posts/:id/images",
     auth: "bearer_or_session",

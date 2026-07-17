@@ -47,3 +47,30 @@ export function toEditorImage(raw: Record<string, unknown>): GalleryEditorImage 
     cropH: Number(raw.cropH ?? 1),
   };
 }
+
+/** Prefer a sized variant for cards / header display. */
+export function coverUrlFromImage(image: GalleryEditorImage): string {
+  return (
+    image.urlMoyenne ||
+    image.urlGrande ||
+    image.urlPetite ||
+    image.urlOrigin
+  );
+}
+
+export function findCoverImage(
+  images: GalleryEditorImage[],
+  coverImageUrl: string | null | undefined
+): GalleryEditorImage | null {
+  if (!coverImageUrl) return null;
+  return (
+    images.find(
+      (img) =>
+        img.urlOrigin === coverImageUrl ||
+        img.urlMoyenne === coverImageUrl ||
+        img.urlGrande === coverImageUrl ||
+        img.urlPetite === coverImageUrl ||
+        img.urlPicto === coverImageUrl
+    ) ?? null
+  );
+}
