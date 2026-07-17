@@ -422,4 +422,17 @@ describe("API integration — Sync PROD↔TEST", () => {
 
     await prisma.syncJob.deleteMany({});
   });
+
+  it("assertMediaTransferOk fails the job contract on failed binaries", async () => {
+    const { assertMediaTransferOk } = await import("@/lib/sync-jobs");
+    expect(() =>
+      assertMediaTransferOk({ failed: [], synced: ["a"] }, "push")
+    ).not.toThrow();
+    expect(() =>
+      assertMediaTransferOk(
+        { failed: ["2026/07/x/moyenne.webp"], synced: [] },
+        "push"
+      )
+    ).toThrow(/Media push failed/);
+  });
 });

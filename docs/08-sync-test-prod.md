@@ -1,6 +1,7 @@
 # Sync TEST ↔ PROD
 
-> Jobs async · verrou global · OTP Ed25519 · médias multipart + checksum SHA-256
+> Jobs async · verrou global · OTP Ed25519 · médias multipart + checksum SHA-256  
+> **Important :** si le push/pull binaire échoue, le job passe en **FAILED** (plus d’import métadonnées orphelines). Les deux envs doivent exposer `GET/POST /api/sync/peer/media`.
 
 ## Principes
 

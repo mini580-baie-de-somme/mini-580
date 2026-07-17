@@ -189,6 +189,7 @@ async function runPullFromProd(jobId: string) {
       total,
     });
   });
+  assertMediaTransferOk(media, "pull");
 
   await updateProgress(jobId, {
     step: "upsert",
@@ -237,6 +238,7 @@ async function runPublishPost(
       total,
     });
   });
+  assertMediaTransferOk(media, "push");
 
   await updateProgress(jobId, {
     step: "import",
@@ -251,6 +253,21 @@ async function runPublishPost(
   }
 
   return { postId, media, peer: await res.json() };
+}
+
+/** Never mark sync COMPLETED if binaries failed — that leaves orphan URLs on the peer. */
+export function assertMediaTransferOk(
+  media: { failed: string[]; synced?: string[]; skipped?: string[] },
+  direction: "push" | "pull"
+) {
+  if (media.failed.length === 0) return;
+  const sample = media.failed.slice(0, 5).join(", ");
+  const more =
+    media.failed.length > 5 ? ` (+${media.failed.length - 5})` : "";
+  throw new Error(
+    `Media ${direction} failed for ${media.failed.length} object(s): ${sample}${more}. ` +
+      `Check peer /api/sync/peer/media is deployed and OTP keys match.`
+  );
 }
 
 async function runPublishMilestone(jobId: string, milestoneId: string) {
