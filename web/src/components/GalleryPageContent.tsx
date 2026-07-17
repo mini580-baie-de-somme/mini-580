@@ -12,6 +12,7 @@ import {
 } from "react";
 import type { GalleryPhoto } from "@/lib/gallery-types";
 import { GalleryImage } from "./GalleryImage";
+import { MediaKindThumb } from "./MediaKindThumb";
 import { useLocale } from "./LocaleProvider";
 
 type FilterOptions = {
@@ -318,11 +319,16 @@ export function GalleryPageContent({
                       className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                     />
                   ) : (
-                    <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-[#495867]">
-                      <span className="text-2xl font-bold">
-                        {photo.kind === "DOCUMENT" ? "PDF" : "▶"}
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-[#495867]">
+                      <MediaKindThumb
+                        kind={photo.kind}
+                        mimeType={photo.mimeType}
+                        size="md"
+                        className="h-16 w-16 bg-transparent"
+                      />
+                      <span className="text-[10px] uppercase tracking-wide">
+                        {photo.kind === "DOCUMENT" ? "PDF" : photo.kind}
                       </span>
-                      <span className="text-[10px] uppercase">{photo.kind}</span>
                     </div>
                   )}
                 </div>

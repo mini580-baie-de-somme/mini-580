@@ -8,6 +8,7 @@ import {
   toEditorImage,
 } from "@/lib/gallery-editor";
 import { PhotoEditModal } from "./PhotoEditModal";
+import { MediaKindThumb } from "./MediaKindThumb";
 
 export type { GalleryEditorImage };
 export { toEditorImage };
@@ -58,7 +59,16 @@ export function PostGalleryEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [libraryItems, setLibraryItems] = useState<
-    { id: string; kind: string; titleFr: string; titleEn: string; urlOrigin: string; urlPicto: string | null; urlMoyenne: string | null }[]
+    {
+      id: string;
+      kind: string;
+      mimeType?: string;
+      titleFr: string;
+      titleEn: string;
+      urlOrigin: string;
+      urlPicto: string | null;
+      urlMoyenne: string | null;
+    }[]
   >([]);
   const [librarySelected, setLibrarySelected] = useState<Set<string>>(new Set());
   const orphanImportRef = useRef(false);
@@ -362,11 +372,15 @@ export function PostGalleryEditor({
                         : "border-transparent"
                     }`}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={img.urlPicto || img.urlPetite || img.urlOrigin}
-                      alt=""
-                      className="h-full w-full object-cover"
+                    <MediaKindThumb
+                      kind={img.kind || "IMAGE"}
+                      mimeType={img.mimeType}
+                      src={
+                        (img.kind || "IMAGE") === "IMAGE"
+                          ? img.urlPicto || img.urlPetite || img.urlOrigin
+                          : img.urlPicto || img.urlPetite || null
+                      }
+                      size="md"
                     />
                   </button>
                   {isCover && (
@@ -429,17 +443,15 @@ export function PostGalleryEditor({
                           }}
                         />
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        {item.kind === "IMAGE" ? (
-                          <img
-                            src={item.urlPicto || item.urlMoyenne || item.urlOrigin}
-                            alt=""
-                            className="h-10 w-10 rounded object-cover"
-                          />
-                        ) : (
-                          <span className="flex h-10 w-10 items-center justify-center rounded bg-[#eef3f7] text-[10px] font-semibold">
-                            {item.kind === "DOCUMENT" ? "PDF" : "VID"}
-                          </span>
-                        )}
+                        <MediaKindThumb
+                          kind={item.kind}
+                          mimeType={item.mimeType}
+                          src={
+                            item.kind === "IMAGE"
+                              ? item.urlPicto || item.urlMoyenne || item.urlOrigin
+                              : item.urlPicto || item.urlMoyenne || null
+                          }
+                        />
                         <span className="text-sm">
                           {item.titleFr || item.titleEn || item.id.slice(0, 8)}
                           <span className="ml-2 text-xs text-[#495867]">{item.kind}</span>

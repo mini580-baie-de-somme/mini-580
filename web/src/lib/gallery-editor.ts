@@ -1,5 +1,7 @@
 export type GalleryEditorImage = {
   id: string;
+  kind?: "IMAGE" | "DOCUMENT" | "VIDEO" | string;
+  mimeType?: string | null;
   urlOrigin: string;
   urlPicto: string | null;
   urlPetite: string | null;
@@ -24,6 +26,8 @@ export type GalleryEditorImage = {
 export function toEditorImage(raw: Record<string, unknown>): GalleryEditorImage {
   return {
     id: String(raw.id),
+    kind: raw.kind ? String(raw.kind) : "IMAGE",
+    mimeType: raw.mimeType != null ? String(raw.mimeType) : null,
     urlOrigin: String(raw.urlOrigin ?? raw.url ?? ""),
     urlPicto: (raw.urlPicto as string | null) ?? null,
     urlPetite: (raw.urlPetite as string | null) ?? null,

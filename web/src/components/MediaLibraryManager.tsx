@@ -7,6 +7,7 @@ import { EditorListCount } from "./EditorListCount";
 import { EditorListSearch } from "./EditorListSearch";
 import { useEditorInfiniteList } from "./useEditorInfiniteList";
 import { MediaPreview } from "./MediaPreview";
+import { MediaKindThumb } from "./MediaKindThumb";
 import {
   MEDIA_ACCEPT,
   isAllowedMediaFile,
@@ -330,20 +331,16 @@ export function MediaLibraryManager() {
   }
 
   function thumb(m: MediaItem) {
-    if (m.kind === "IMAGE") {
-      return (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={m.urlPicto || m.urlMoyenne || m.urlOrigin}
-          alt=""
-          className="h-10 w-10 rounded object-cover"
-        />
-      );
-    }
     return (
-      <span className="flex h-10 w-10 items-center justify-center rounded bg-[#eef3f7] text-[10px] font-semibold text-[#495867]">
-        {m.kind === "DOCUMENT" ? "PDF" : "VID"}
-      </span>
+      <MediaKindThumb
+        kind={m.kind}
+        mimeType={m.mimeType}
+        src={
+          m.kind === "IMAGE" && m.mimeType?.startsWith("image/")
+            ? m.urlPicto || m.urlMoyenne || m.urlOrigin
+            : m.urlPicto || m.urlMoyenne || null
+        }
+      />
     );
   }
 
@@ -629,19 +626,19 @@ export function MediaLibraryManager() {
           <div className="mt-4 flex gap-2">
             <button
               type="button"
-              disabled={busy || (editingId === "new" && !file)}
-              onClick={() => void save()}
-              className="rounded-md bg-[#495867] px-4 py-2 text-sm text-white disabled:opacity-50"
-            >
-              {t("media.save")}
-            </button>
-            <button
-              type="button"
               disabled={busy}
               onClick={cancelEdit}
               className="rounded-md border border-[#d4dde6] px-4 py-2 text-sm"
             >
               {t("media.cancel")}
+            </button>
+            <button
+              type="button"
+              disabled={busy || (editingId === "new" && !file)}
+              onClick={() => void save()}
+              className="rounded-md bg-[#495867] px-4 py-2 text-sm text-white disabled:opacity-50"
+            >
+              {t("media.save")}
             </button>
           </div>
         </div>

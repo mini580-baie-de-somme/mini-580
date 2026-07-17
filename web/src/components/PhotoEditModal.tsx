@@ -17,6 +17,33 @@ type Props = {
   onDeleted?: (id: string) => void;
 };
 
+function emptyDraft(): GalleryEditorImage {
+  return {
+    id: "",
+    kind: "IMAGE",
+    mimeType: "image/jpeg",
+    urlOrigin: "",
+    urlPicto: null,
+    urlPetite: null,
+    urlMoyenne: null,
+    urlGrande: null,
+    titleFr: "",
+    titleEn: "",
+    descriptionFr: "",
+    descriptionEn: "",
+    takenAt: null,
+    sortOrder: 0,
+    focusX: 0.5,
+    focusY: 0.5,
+    zoom: 1,
+    rotation: 0,
+    cropX: 0,
+    cropY: 0,
+    cropW: 1,
+    cropH: 1,
+  };
+}
+
 function imageFileFromClipboard(data: DataTransfer | null): File | null {
   if (!data) return null;
   for (const item of data.items) {
@@ -43,121 +70,154 @@ export function PhotoEditModal({
   const [draft, setDraft] = useState<GalleryEditorImage | null>(
     mode === "edit" && image ? { ...image } : null
   );
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
   const [dragOver, setDragOver] = useState(false);
-  const draftIdRef = useRef(draft?.id);
-  draftIdRef.current = draft?.id;
+
+  useEffect(() => {
+    if (!pendingFile) {
+      setLocalPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(pendingFile);
+    setLocalPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [pendingFile]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape" && !busy) onClose();
+      if (e.key === "Escape" && !busy) discard();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [busy, onClose]);
+    // discard is stable enough for Escape; avoid re-binding every render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busy]);
 
   function patchDraft(patch: Partial<GalleryEditorImage>) {
     setDraft((prev) => (prev ? { ...prev, ...patch } : prev));
     setDirty(true);
   }
 
-  const uploadFile = useCallback(
-    async (file: File) => {
-      if (!file.type.startsWith("image/")) {
-        setError("Fichier image requis");
-        return;
-      }
-      setBusy(true);
-      setError(null);
-      const existingId = draftIdRef.current;
-      try {
-        if (existingId) {
-          const body = new FormData();
-          body.append("file", file);
-          const res = await fetch(
-            `/api/posts/${postId}/images/${existingId}/replace`,
-            { method: "POST", body }
-          );
-          if (!res.ok) throw new Error("replace failed");
-          const updated = toEditorImage(await res.json());
-          setDraft(updated);
-          setDirty(false);
-          onSaved(updated);
-        } else {
-          const body = new FormData();
-          body.append("file", file);
-          const res = await fetch(`/api/posts/${postId}/images`, {
-            method: "POST",
-            body,
-          });
-          if (!res.ok) throw new Error("upload failed");
-          const created = toEditorImage(await res.json());
-          setDraft(created);
-          setDirty(false);
-          onSaved(created);
-        }
-      } catch {
-        setError("Échec du téléversement vers la médiathèque");
-      } finally {
-        setBusy(false);
-      }
-    },
-    [postId, onSaved]
-  );
+  const queueFile = useCallback((file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setError("Fichier image requis");
+      return;
+    }
+    setError(null);
+    setPendingFile(file);
+    setDirty(true);
+    setDraft((prev) => prev ?? emptyDraft());
+  }, []);
 
-  // Restore clipboard paste (lost when the gallery editor was split into this modal).
   useEffect(() => {
     function onPaste(e: ClipboardEvent) {
       if (busy) return;
       const file = imageFileFromClipboard(e.clipboardData);
       if (!file) return;
       e.preventDefault();
-      void uploadFile(file);
+      queueFile(file);
     }
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
-  }, [busy, uploadFile]);
+  }, [busy, queueFile]);
 
-  async function saveMeta() {
-    if (!draft?.id) {
+  function discard() {
+    // Do not persist: pending file stays local until Enregistrer.
+    setPendingFile(null);
+    onClose();
+  }
+
+  async function save() {
+    if (!draft && !pendingFile) {
       setError("Ajoute d’abord une image");
       return;
     }
+    if (!draft?.id && !pendingFile) {
+      setError("Ajoute d’abord une image");
+      return;
+    }
+
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/posts/${postId}/images/${draft.id}`, {
+      let current = draft ? { ...draft } : emptyDraft();
+
+      if (pendingFile) {
+        const body = new FormData();
+        body.append("file", pendingFile);
+        if (current.id) {
+          const res = await fetch(
+            `/api/posts/${postId}/images/${current.id}/replace`,
+            { method: "POST", body }
+          );
+          if (!res.ok) throw new Error("replace failed");
+          current = toEditorImage(await res.json());
+        } else {
+          const res = await fetch(`/api/posts/${postId}/images`, {
+            method: "POST",
+            body,
+          });
+          if (!res.ok) throw new Error("upload failed");
+          current = toEditorImage(await res.json());
+        }
+        // Keep meta edited locally before upload
+        if (draft) {
+          current = {
+            ...current,
+            titleFr: draft.titleFr,
+            titleEn: draft.titleEn,
+            descriptionFr: draft.descriptionFr,
+            descriptionEn: draft.descriptionEn,
+            takenAt: draft.takenAt,
+            focusX: draft.focusX,
+            focusY: draft.focusY,
+            zoom: draft.zoom,
+            rotation: draft.rotation,
+            cropX: draft.cropX,
+            cropY: draft.cropY,
+            cropW: draft.cropW,
+            cropH: draft.cropH,
+          };
+        }
+      }
+
+      if (!current.id) throw new Error("missing id");
+
+      const res = await fetch(`/api/posts/${postId}/images/${current.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          titleFr: draft.titleFr,
-          titleEn: draft.titleEn,
-          descriptionFr: draft.descriptionFr,
-          descriptionEn: draft.descriptionEn,
-          takenAt: draft.takenAt
-            ? typeof draft.takenAt === "string"
-              ? draft.takenAt
-              : draft.takenAt.toISOString()
+          titleFr: current.titleFr,
+          titleEn: current.titleEn,
+          descriptionFr: current.descriptionFr,
+          descriptionEn: current.descriptionEn,
+          takenAt: current.takenAt
+            ? typeof current.takenAt === "string"
+              ? current.takenAt
+              : current.takenAt.toISOString()
             : null,
-          focusX: draft.focusX,
-          focusY: draft.focusY,
-          zoom: draft.zoom,
-          rotation: draft.rotation,
-          cropX: draft.cropX,
-          cropY: draft.cropY,
-          cropW: draft.cropW,
-          cropH: draft.cropH,
+          focusX: current.focusX,
+          focusY: current.focusY,
+          zoom: current.zoom,
+          rotation: current.rotation,
+          cropX: current.cropX,
+          cropY: current.cropY,
+          cropW: current.cropW,
+          cropH: current.cropH,
         }),
       });
       if (!res.ok) throw new Error("patch failed");
       const updated = toEditorImage(await res.json());
-      setDraft(updated);
+      setPendingFile(null);
       setDirty(false);
       onSaved(updated);
+      onClose();
     } catch {
       setError("Échec de l’enregistrement");
     } finally {
@@ -186,14 +246,20 @@ export function PhotoEditModal({
     }
   }
 
-  async function handleClose() {
-    if (dirty && draft?.id) {
-      await saveMeta();
-    }
-    onClose();
-  }
-
   const title = mode === "add" ? "Ajouter une photo" : "Éditer la photo";
+  const previewDraft =
+    draft && localPreviewUrl
+      ? {
+          ...draft,
+          urlOrigin: localPreviewUrl,
+          urlPicto: localPreviewUrl,
+          urlPetite: localPreviewUrl,
+          urlMoyenne: localPreviewUrl,
+          urlGrande: localPreviewUrl,
+        }
+      : draft;
+  const canSave =
+    Boolean(draft?.id || pendingFile) && (dirty || Boolean(pendingFile));
 
   return (
     <div
@@ -202,7 +268,7 @@ export function PhotoEditModal({
       aria-modal="true"
       aria-label={title}
       onClick={(e) => {
-        if (e.target === e.currentTarget && !busy) void handleClose();
+        if (e.target === e.currentTarget && !busy) discard();
       }}
     >
       <div className="flex max-h-[95vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-xl bg-white shadow-xl sm:rounded-xl">
@@ -210,7 +276,7 @@ export function PhotoEditModal({
           <h2 className="text-base font-semibold text-[#0D131A]">{title}</h2>
           <button
             type="button"
-            onClick={() => void handleClose()}
+            onClick={discard}
             disabled={busy}
             className="rounded border border-[#d4dde6] px-3 py-1 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
           >
@@ -222,7 +288,7 @@ export function PhotoEditModal({
           {error && <p className="text-sm text-red-600">{error}</p>}
           {busy && <p className="text-xs text-[#495867]">Enregistrement…</p>}
 
-          {!draft && (
+          {!previewDraft && (
             <div
               ref={dropRef}
               onDragEnter={(e) => {
@@ -238,7 +304,7 @@ export function PhotoEditModal({
                 e.preventDefault();
                 setDragOver(false);
                 const file = e.dataTransfer.files?.[0];
-                if (file) void uploadFile(file);
+                if (file) queueFile(file);
               }}
               className={`rounded-lg border-2 border-dashed px-4 py-10 text-center ${
                 dragOver
@@ -258,25 +324,30 @@ export function PhotoEditModal({
                 Choisir un fichier
               </button>
               <p className="mt-2 text-xs text-[#495867]">
-                L’image est enregistrée dans la médiathèque et liée à cet article.
+                Rien n’est enregistré tant que tu n’as pas cliqué Enregistrer.
               </p>
             </div>
           )}
 
-          {draft && (
+          {previewDraft && (
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="space-y-2">
-                <GalleryImage image={draft} locale={lang} mode="edit" />
+                <GalleryImage image={previewDraft} locale={lang} mode="edit" />
+                {pendingFile && (
+                  <p className="truncate text-xs text-[#495867]">
+                    Fichier en attente : {pendingFile.name}
+                  </p>
+                )}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={busy}
                   className="w-full rounded border border-[#d4dde6] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
                 >
-                  Remplacer le fichier
+                  {draft?.id ? "Remplacer le fichier" : "Changer de fichier"}
                 </button>
                 <p className="text-xs text-[#495867]">
-                  Ou coller une image depuis le presse-papiers (Ctrl/⌘+V).
+                  Ou coller une image (Ctrl/⌘+V). Enregistrement à la validation.
                 </p>
               </div>
 
@@ -285,7 +356,7 @@ export function PhotoEditModal({
                   <label className="block">
                     <span className="text-xs text-[#495867]">Titre FR</span>
                     <input
-                      value={draft.titleFr}
+                      value={draft?.titleFr ?? ""}
                       onChange={(e) => patchDraft({ titleFr: e.target.value })}
                       className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1"
                     />
@@ -293,7 +364,7 @@ export function PhotoEditModal({
                   <label className="block">
                     <span className="text-xs text-[#495867]">Title EN</span>
                     <input
-                      value={draft.titleEn}
+                      value={draft?.titleEn ?? ""}
                       onChange={(e) => patchDraft({ titleEn: e.target.value })}
                       className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1"
                     />
@@ -303,7 +374,7 @@ export function PhotoEditModal({
                   <label className="block">
                     <span className="text-xs text-[#495867]">Description FR</span>
                     <textarea
-                      value={draft.descriptionFr}
+                      value={draft?.descriptionFr ?? ""}
                       onChange={(e) =>
                         patchDraft({ descriptionFr: e.target.value })
                       }
@@ -314,7 +385,7 @@ export function PhotoEditModal({
                   <label className="block">
                     <span className="text-xs text-[#495867]">Description EN</span>
                     <textarea
-                      value={draft.descriptionEn}
+                      value={draft?.descriptionEn ?? ""}
                       onChange={(e) =>
                         patchDraft({ descriptionEn: e.target.value })
                       }
@@ -328,7 +399,7 @@ export function PhotoEditModal({
                   <input
                     type="date"
                     value={
-                      draft.takenAt
+                      draft?.takenAt
                         ? (typeof draft.takenAt === "string"
                             ? draft.takenAt
                             : draft.takenAt.toISOString()
@@ -357,7 +428,7 @@ export function PhotoEditModal({
                       min={0}
                       max={1}
                       step={0.01}
-                      value={draft.focusX}
+                      value={draft?.focusX ?? 0.5}
                       onChange={(e) =>
                         patchDraft({ focusX: Number(e.target.value) })
                       }
@@ -371,7 +442,7 @@ export function PhotoEditModal({
                       min={0}
                       max={1}
                       step={0.01}
-                      value={draft.focusY}
+                      value={draft?.focusY ?? 0.5}
                       onChange={(e) =>
                         patchDraft({ focusY: Number(e.target.value) })
                       }
@@ -385,7 +456,7 @@ export function PhotoEditModal({
                       min={0.5}
                       max={3}
                       step={0.05}
-                      value={draft.zoom}
+                      value={draft?.zoom ?? 1}
                       onChange={(e) =>
                         patchDraft({ zoom: Number(e.target.value) })
                       }
@@ -395,7 +466,7 @@ export function PhotoEditModal({
                   <label className="flex items-center gap-2">
                     <span className="w-20 text-xs">Rotation</span>
                     <select
-                      value={draft.rotation}
+                      value={draft?.rotation ?? 0}
                       onChange={(e) =>
                         patchDraft({ rotation: Number(e.target.value) })
                       }
@@ -411,10 +482,10 @@ export function PhotoEditModal({
                   <div className="grid grid-cols-2 gap-2">
                     {(
                       [
-                        ["cropX", draft.cropX],
-                        ["cropY", draft.cropY],
-                        ["cropW", draft.cropW],
-                        ["cropH", draft.cropH],
+                        ["cropX", draft?.cropX ?? 0],
+                        ["cropY", draft?.cropY ?? 0],
+                        ["cropW", draft?.cropW ?? 1],
+                        ["cropH", draft?.cropH ?? 1],
                       ] as const
                     ).map(([key, val]) => (
                       <label key={key} className="flex items-center gap-1">
@@ -448,7 +519,7 @@ export function PhotoEditModal({
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) void uploadFile(file);
+              if (file) queueFile(file);
               e.target.value = "";
             }}
           />
@@ -470,7 +541,7 @@ export function PhotoEditModal({
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => void handleClose()}
+              onClick={discard}
               disabled={busy}
               className="rounded border border-[#d4dde6] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
             >
@@ -478,8 +549,8 @@ export function PhotoEditModal({
             </button>
             <button
               type="button"
-              onClick={() => void saveMeta()}
-              disabled={busy || !draft?.id || !dirty}
+              onClick={() => void save()}
+              disabled={busy || !canSave}
               className="rounded bg-[#495867] px-4 py-1.5 text-sm text-white hover:bg-[#3a4654] disabled:opacity-50"
             >
               Enregistrer

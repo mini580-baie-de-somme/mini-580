@@ -76,6 +76,7 @@ export function mediaAsPostImage(
   media: {
     id: string;
     kind?: string;
+    mimeType?: string;
     urlOrigin: string;
     urlPicto: string | null;
     urlPetite: string | null;
@@ -101,6 +102,7 @@ export function mediaAsPostImage(
     id: media.id,
     postId: link.postId ?? "",
     kind: media.kind ?? "IMAGE",
+    mimeType: media.mimeType ?? null,
     urlOrigin: media.urlOrigin,
     urlPicto: media.urlPicto,
     urlPetite: media.urlPetite,
