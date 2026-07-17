@@ -5,6 +5,7 @@ import {
   contentTypeFromFilename,
   getMediaBucket,
   isAllowedContentType,
+  kindFromContentType,
   normalizeContentType,
 } from "@/lib/media-bucket";
 import { MediaKind } from "@/generated/prisma/client";
@@ -50,6 +51,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
       existing.urlGrande,
     ];
 
+    const kindHint = kindFromContentType(contentType);
+    if (!kindHint) {
+      return NextResponse.json({ error: "Unsupported type" }, { status: 415 });
+    }
+
     let urls: {
       urlOrigin: string;
       urlPicto: string | null;
@@ -58,7 +64,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       urlGrande: string | null;
     };
 
-    if (existing.kind === MediaKind.IMAGE && contentType.startsWith("image/")) {
+    if (kindHint === "IMAGE") {
       urls = await storeOriginAndVariants(buffer, contentType, file.name);
     } else {
       const bucket = getMediaBucket();
@@ -79,6 +85,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const updated = await prisma.media.update({
       where: { id },
       data: {
+        kind: MediaKind[kindHint],
         mimeType: contentType,
         byteSize: buffer.byteLength,
         urlOrigin: urls.urlOrigin,

@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PhotoCanvasEditor } from "./PhotoCanvasEditor";
 import { FullscreenEditorModal } from "./FullscreenEditorModal";
+import { MediaPreview } from "./MediaPreview";
 import {
   type GalleryEditorImage,
   toEditorImage,
@@ -12,22 +13,43 @@ import {
   layoutFromLegacy,
   type ImageLayoutParams,
 } from "@/lib/image-layout";
+import {
+  MEDIA_ACCEPT,
+  isAllowedMediaFile,
+  kindFromFile,
+  mediaFileFromDataTransfer,
+  resolveFileMime,
+  type MediaKindClient,
+} from "@/lib/media-file-client";
+import {
+  formatMaxMb,
+  maxBytesForMime,
+  MEDIA_MAX_BYTES,
+  MEDIA_VIDEO_MAX_BYTES,
+} from "@/lib/media-limits";
 
 type Props = {
   postId: string;
   lang: "fr" | "en";
   mode: "add" | "edit";
   image: GalleryEditorImage | null;
+  /** Cover picker — images only. Post gallery allows photo/PDF/video. */
+  imagesOnly?: boolean;
   onClose: () => void;
   onSaved: (image: GalleryEditorImage) => void;
   onDeleted?: (id: string) => void;
 };
 
-function emptyDraft(): GalleryEditorImage {
+function emptyDraft(kind: MediaKindClient = "IMAGE"): GalleryEditorImage {
   return {
     id: "",
-    kind: "IMAGE",
-    mimeType: "image/jpeg",
+    kind,
+    mimeType:
+      kind === "VIDEO"
+        ? "video/mp4"
+        : kind === "DOCUMENT"
+          ? "application/pdf"
+          : "image/jpeg",
     urlOrigin: "",
     urlPicto: null,
     urlPetite: null,
@@ -50,18 +72,12 @@ function emptyDraft(): GalleryEditorImage {
   };
 }
 
-function imageFileFromClipboard(data: DataTransfer | null): File | null {
-  if (!data) return null;
-  for (const item of data.items) {
-    if (item.type.startsWith("image/")) {
-      const file = item.getAsFile();
-      if (file) return file;
-    }
-  }
-  for (const file of data.files) {
-    if (file.type.startsWith("image/")) return file;
-  }
-  return null;
+function sizeLimitsHint(lang: "fr" | "en"): string {
+  const photo = formatMaxMb(MEDIA_MAX_BYTES);
+  const video = formatMaxMb(MEDIA_VIDEO_MAX_BYTES);
+  return lang === "fr"
+    ? `Limites : photos & PDF ${photo} Mo · vidéos ${video} Mo.`
+    : `Limits: photos & PDF ${photo} MB · videos ${video} MB.`;
 }
 
 export function PhotoEditModal({
@@ -69,6 +85,7 @@ export function PhotoEditModal({
   lang,
   mode,
   image,
+  imagesOnly = false,
   onClose,
   onSaved,
   onDeleted,
@@ -105,69 +122,146 @@ export function PhotoEditModal({
     setDirty(true);
   }
 
-  const queueFile = useCallback((file: File) => {
-    if (!file.type.startsWith("image/")) {
-      setError("Fichier image requis");
-      return;
-    }
-    setError(null);
-    setPendingFile(file);
-    setDirty(true);
-    setDraft((prev) => prev ?? emptyDraft());
-  }, []);
+  const queueFile = useCallback(
+    (file: File) => {
+      if (imagesOnly) {
+        if (!file.type.startsWith("image/")) {
+          setError(
+            lang === "fr"
+              ? "La couverture doit être une photo."
+              : "Cover must be a photo."
+          );
+          return;
+        }
+      } else if (!isAllowedMediaFile(file)) {
+        setError(
+          lang === "fr"
+            ? "Type non supporté. Photo, PDF, MP4 ou WebM uniquement."
+            : "Unsupported type. Photo, PDF, MP4 or WebM only."
+        );
+        return;
+      }
+
+      const mime = resolveFileMime(file) ?? file.type;
+      const max = maxBytesForMime(mime);
+      if (file.size > max) {
+        const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+        const maxMb = formatMaxMb(max);
+        setError(
+          mime.startsWith("video/")
+            ? lang === "fr"
+              ? `Cette vidéo fait ${sizeMb} Mo. Les vidéos sont limitées à ${maxMb} Mo.`
+              : `This video is ${sizeMb} MB. Videos are limited to ${maxMb} MB.`
+            : lang === "fr"
+              ? `Fichier trop volumineux (${sizeMb} Mo). Maximum : ${maxMb} Mo.`
+              : `File too large (${sizeMb} MB). Maximum: ${maxMb} MB.`
+        );
+        return;
+      }
+
+      const kind = kindFromFile(file) ?? "IMAGE";
+      setError(null);
+      setPendingFile(file);
+      setDirty(true);
+      setDraft((prev) => {
+        const base = prev ?? emptyDraft(kind);
+        return {
+          ...base,
+          kind,
+          mimeType: mime,
+        };
+      });
+    },
+    [imagesOnly, lang]
+  );
 
   useEffect(() => {
     function onPaste(e: ClipboardEvent) {
       if (busy) return;
-      const file = imageFileFromClipboard(e.clipboardData);
+      const file = imagesOnly
+        ? (() => {
+            const data = e.clipboardData;
+            if (!data) return null;
+            for (const item of data.items) {
+              if (item.type.startsWith("image/")) {
+                const f = item.getAsFile();
+                if (f) return f;
+              }
+            }
+            return null;
+          })()
+        : mediaFileFromDataTransfer(e.clipboardData);
       if (!file) return;
       e.preventDefault();
       queueFile(file);
     }
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
-  }, [busy, queueFile]);
+  }, [busy, imagesOnly, queueFile]);
 
   function discard() {
-    // Do not persist: pending file stays local until Enregistrer.
     setPendingFile(null);
     onClose();
   }
 
+  const effectiveKind: MediaKindClient = useMemo(() => {
+    if (pendingFile) return kindFromFile(pendingFile) ?? "IMAGE";
+    const k = draft?.kind;
+    if (k === "DOCUMENT" || k === "VIDEO" || k === "IMAGE") return k;
+    return "IMAGE";
+  }, [pendingFile, draft?.kind]);
+
+  const isImage = effectiveKind === "IMAGE";
+
   async function save() {
     if (!draft && !pendingFile) {
-      setError("Ajoute d’abord une image");
+      setError(
+        lang === "fr"
+          ? "Ajoute d’abord un fichier."
+          : "Add a file first."
+      );
       return;
     }
     if (!draft?.id && !pendingFile) {
-      setError("Ajoute d’abord une image");
+      setError(
+        lang === "fr"
+          ? "Ajoute d’abord un fichier."
+          : "Add a file first."
+      );
       return;
     }
 
     setBusy(true);
     setError(null);
     try {
-      let current = draft ? { ...draft } : emptyDraft();
+      let current = draft ? { ...draft } : emptyDraft(effectiveKind);
 
       if (pendingFile) {
         const body = new FormData();
         body.append("file", pendingFile);
+        body.append("titleFr", current.titleFr);
+        body.append("titleEn", current.titleEn);
+        body.append("descriptionFr", current.descriptionFr);
+        body.append("descriptionEn", current.descriptionEn);
+
         if (current.id) {
-          const res = await fetch(
-            `/api/posts/${postId}/images/${current.id}/replace`,
-            { method: "POST", body }
-          );
-          if (!res.ok) throw new Error("replace failed");
-          current = toEditorImage(await res.json());
+          // Library replace handles image bake and PDF/video put
+          const rep = await fetch(`/api/media-library/${current.id}/replace`, {
+            method: "POST",
+            body,
+          });
+          if (!rep.ok) throw new Error("replace failed");
+          current = toEditorImage(await rep.json());
         } else {
-          const res = await fetch(`/api/posts/${postId}/images`, {
+          // Post media create accepts all kinds
+          const res = await fetch(`/api/posts/${postId}/media`, {
             method: "POST",
             body,
           });
           if (!res.ok) throw new Error("upload failed");
           current = toEditorImage(await res.json());
         }
-        // Keep meta edited locally before upload
+
         if (draft) {
           current = {
             ...current,
@@ -176,35 +270,31 @@ export function PhotoEditModal({
             descriptionFr: draft.descriptionFr,
             descriptionEn: draft.descriptionEn,
             takenAt: draft.takenAt,
-            focusX: draft.focusX,
-            focusY: draft.focusY,
-            zoom: draft.zoom,
-            rotation: draft.rotation,
-            cropX: draft.cropX,
-            cropY: draft.cropY,
-            cropW: draft.cropW,
-            cropH: draft.cropH,
           };
         }
       }
 
       if (!current.id) throw new Error("missing id");
 
+      const patchBody: Record<string, unknown> = {
+        titleFr: current.titleFr,
+        titleEn: current.titleEn,
+        descriptionFr: current.descriptionFr,
+        descriptionEn: current.descriptionEn,
+        takenAt: current.takenAt
+          ? typeof current.takenAt === "string"
+            ? current.takenAt
+            : current.takenAt.toISOString()
+          : null,
+      };
+      if (isImage) {
+        Object.assign(patchBody, layout);
+      }
+
       const res = await fetch(`/api/posts/${postId}/images/${current.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          titleFr: current.titleFr,
-          titleEn: current.titleEn,
-          descriptionFr: current.descriptionFr,
-          descriptionEn: current.descriptionEn,
-          takenAt: current.takenAt
-            ? typeof current.takenAt === "string"
-              ? current.takenAt
-              : current.takenAt.toISOString()
-            : null,
-          ...layout,
-        }),
+        body: JSON.stringify(patchBody),
       });
       if (!res.ok) throw new Error("patch failed");
       const updated = toEditorImage(await res.json());
@@ -213,7 +303,11 @@ export function PhotoEditModal({
       onSaved(updated);
       onClose();
     } catch {
-      setError("Échec de l’enregistrement");
+      setError(
+        lang === "fr"
+          ? "Échec de l’enregistrement"
+          : "Save failed"
+      );
     } finally {
       setBusy(false);
     }
@@ -221,9 +315,11 @@ export function PhotoEditModal({
 
   async function remove() {
     if (!draft?.id) return;
-    if (!confirm("Supprimer cette photo de l’article et de la médiathèque ?")) {
-      return;
-    }
+    const msg =
+      lang === "fr"
+        ? "Supprimer ce média de l’article et de la médiathèque ?"
+        : "Remove this media from the post and library?";
+    if (!confirm(msg)) return;
     setBusy(true);
     setError(null);
     try {
@@ -234,28 +330,42 @@ export function PhotoEditModal({
       onDeleted?.(draft.id);
       onClose();
     } catch {
-      setError("Échec de la suppression");
+      setError(lang === "fr" ? "Échec de la suppression" : "Delete failed");
     } finally {
       setBusy(false);
     }
   }
 
-  const title = mode === "add" ? "Ajouter une photo" : "Éditer la photo";
-  const previewDraft =
-    draft && localPreviewUrl
-      ? {
-          ...draft,
-          urlOrigin: localPreviewUrl,
-          urlPicto: localPreviewUrl,
-          urlPetite: localPreviewUrl,
-          urlMoyenne: localPreviewUrl,
-          urlGrande: localPreviewUrl,
-        }
-      : draft;
+  const title =
+    mode === "add"
+      ? imagesOnly
+        ? lang === "fr"
+          ? "Ajouter une couverture"
+          : "Add cover"
+        : lang === "fr"
+          ? "Ajouter un média"
+          : "Add media"
+      : imagesOnly
+        ? lang === "fr"
+          ? "Éditer la couverture"
+          : "Edit cover"
+        : lang === "fr"
+          ? "Éditer le média"
+          : "Edit media";
+
+  const previewSrc =
+    localPreviewUrl ||
+    draft?.urlOrigin ||
+    draft?.urlMoyenne ||
+    draft?.urlGrande ||
+    "";
+  const hasPreview = Boolean(draft || pendingFile) && Boolean(previewSrc);
   const canSave =
     Boolean(draft?.id || pendingFile) && (dirty || Boolean(pendingFile));
-  const canvasSrc =
-    localPreviewUrl || draft?.urlOrigin || previewDraft?.urlOrigin || "";
+
+  const acceptAttr = imagesOnly
+    ? "image/jpeg,image/png,image/webp,image/gif"
+    : MEDIA_ACCEPT;
 
   return (
     <FullscreenEditorModal
@@ -271,7 +381,7 @@ export function PhotoEditModal({
             disabled={busy}
             className="rounded border border-red-300 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
           >
-            Supprimer
+            {lang === "fr" ? "Supprimer" : "Delete"}
           </button>
         ) : null
       }
@@ -283,7 +393,7 @@ export function PhotoEditModal({
             disabled={busy}
             className="rounded border border-[#d4dde6] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
           >
-            Annuler
+            {lang === "fr" ? "Annuler" : "Cancel"}
           </button>
           <button
             type="button"
@@ -291,16 +401,24 @@ export function PhotoEditModal({
             disabled={busy || !canSave}
             className="rounded bg-[#495867] px-4 py-1.5 text-sm text-white hover:bg-[#3a4654] disabled:opacity-50"
           >
-            {busy ? "…" : "Enregistrer"}
+            {busy ? "…" : lang === "fr" ? "Enregistrer" : "Save"}
           </button>
         </>
       }
     >
       <div className="flex h-full min-h-0 flex-col md:flex-row">
-        <section className="flex min-h-[42vh] flex-1 items-center justify-center bg-[#eef3f7] md:min-h-0">
-          {previewDraft && canvasSrc ? (
+        <section
+          className={`flex min-h-[42vh] flex-1 bg-[#eef3f7] md:min-h-0 ${
+            hasPreview && isImage
+              ? "items-center justify-center"
+              : hasPreview
+                ? "min-h-0 items-stretch p-0"
+                : "items-center justify-center"
+          }`}
+        >
+          {hasPreview && isImage ? (
             <PhotoCanvasEditor
-              imageSrc={canvasSrc}
+              imageSrc={previewSrc}
               value={layout}
               onChange={(next) => {
                 setLayout(next);
@@ -310,6 +428,19 @@ export function PhotoEditModal({
               fillStage
               showControls={false}
             />
+          ) : hasPreview ? (
+            <div className="flex h-full min-h-0 w-full p-2 sm:p-3">
+              <MediaPreview
+                kind={effectiveKind}
+                src={previewSrc}
+                title={
+                  (lang === "fr" ? draft?.titleFr : draft?.titleEn) ||
+                  pendingFile?.name
+                }
+                openLabel={lang === "fr" ? "Ouvrir" : "Open"}
+                fill
+              />
+            </div>
           ) : (
             <div
               ref={dropRef}
@@ -325,7 +456,9 @@ export function PhotoEditModal({
               onDrop={(e) => {
                 e.preventDefault();
                 setDragOver(false);
-                const file = e.dataTransfer.files?.[0];
+                const file = imagesOnly
+                  ? e.dataTransfer.files?.[0]
+                  : mediaFileFromDataTransfer(e.dataTransfer);
                 if (file) queueFile(file);
               }}
               className={`mx-4 w-full max-w-md rounded-lg border-2 border-dashed px-4 py-12 text-center ${
@@ -335,7 +468,13 @@ export function PhotoEditModal({
               }`}
             >
               <p className="text-sm text-[#495867]">
-                Glisser-déposer, coller (Ctrl/⌘+V), ou
+                {imagesOnly
+                  ? lang === "fr"
+                    ? "Glisser-déposer une photo, coller, ou"
+                    : "Drag-drop a photo, paste, or"
+                  : lang === "fr"
+                    ? "Glisser-déposer photo / PDF / vidéo, coller, ou"
+                    : "Drag-drop photo / PDF / video, paste, or"}
               </p>
               <button
                 type="button"
@@ -343,8 +482,13 @@ export function PhotoEditModal({
                 disabled={busy}
                 className="mt-2 rounded-md border border-[#495867] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
               >
-                Choisir un fichier
+                {lang === "fr" ? "Choisir un fichier" : "Choose a file"}
               </button>
+              {!imagesOnly && (
+                <p className="mt-2 text-xs text-[#495867]">
+                  {sizeLimitsHint(lang)}
+                </p>
+              )}
             </div>
           )}
         </section>
@@ -352,6 +496,11 @@ export function PhotoEditModal({
         <aside className="flex w-full shrink-0 flex-col overflow-y-auto border-t border-[#d4dde6] md:w-[min(100%,24rem)] md:border-l md:border-t-0">
           <div className="space-y-3 p-3 sm:p-4">
             <div className="space-y-1.5">
+              {!imagesOnly && (
+                <p className="rounded-md bg-[#eef3f7] px-2.5 py-1.5 text-[11px] leading-snug text-[#495867]">
+                  {sizeLimitsHint(lang)}
+                </p>
+              )}
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
@@ -359,18 +508,26 @@ export function PhotoEditModal({
                 className="w-full rounded border border-[#d4dde6] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
               >
                 {draft?.id
-                  ? "Remplacer le fichier"
-                  : previewDraft
-                    ? "Changer de fichier"
-                    : "Choisir un fichier"}
+                  ? lang === "fr"
+                    ? "Remplacer le fichier"
+                    : "Replace file"
+                  : hasPreview
+                    ? lang === "fr"
+                      ? "Changer de fichier"
+                      : "Change file"
+                    : lang === "fr"
+                      ? "Choisir un fichier"
+                      : "Choose a file"}
               </button>
               {pendingFile && (
                 <p className="truncate text-[11px] text-[#495867]">
-                  En attente : {pendingFile.name}
+                  {lang === "fr" ? "En attente" : "Pending"}: {pendingFile.name}
                 </p>
               )}
               <p className="text-[11px] text-[#495867]">
-                Coller Ctrl/⌘+V · rien n’est sauvé avant Enregistrer
+                {lang === "fr"
+                  ? `Type : ${effectiveKind} · rien n’est sauvé avant Enregistrer`
+                  : `Type: ${effectiveKind} · nothing saved until Save`}
               </p>
             </div>
 
@@ -413,37 +570,39 @@ export function PhotoEditModal({
                   className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
                 />
               </label>
-              <label className="col-span-2 block">
-                <span className="text-[11px] text-[#495867]">Date</span>
-                <input
-                  type="date"
-                  value={
-                    draft?.takenAt
-                      ? (typeof draft.takenAt === "string"
-                          ? draft.takenAt
-                          : draft.takenAt.toISOString()
-                        ).slice(0, 10)
-                      : ""
-                  }
-                  onChange={(e) =>
-                    patchDraft({
-                      takenAt: e.target.value
-                        ? new Date(e.target.value).toISOString()
-                        : null,
-                    })
-                  }
-                  className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
-                />
-              </label>
+              {isImage && (
+                <label className="col-span-2 block">
+                  <span className="text-[11px] text-[#495867]">Date</span>
+                  <input
+                    type="date"
+                    value={
+                      draft?.takenAt
+                        ? (typeof draft.takenAt === "string"
+                            ? draft.takenAt
+                            : draft.takenAt.toISOString()
+                          ).slice(0, 10)
+                        : ""
+                    }
+                    onChange={(e) =>
+                      patchDraft({
+                        takenAt: e.target.value
+                          ? new Date(e.target.value).toISOString()
+                          : null,
+                      })
+                    }
+                    className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
+                  />
+                </label>
+              )}
             </div>
 
-            {previewDraft && canvasSrc && (
+            {hasPreview && isImage && (
               <div className="border-t border-[#eef3f7] pt-3">
                 <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-[#495867]">
                   {lang === "fr" ? "Mise en page" : "Layout"}
                 </p>
                 <PhotoCanvasEditor
-                  imageSrc={canvasSrc}
+                  imageSrc={previewSrc}
                   value={layout}
                   onChange={(next) => {
                     setLayout(next);
@@ -461,8 +620,8 @@ export function PhotoEditModal({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
-        capture="environment"
+        accept={acceptAttr}
+        capture={imagesOnly ? "environment" : undefined}
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];

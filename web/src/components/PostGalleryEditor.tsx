@@ -305,13 +305,14 @@ export function PostGalleryEditor({
           </p>
         )}
         {selected && coverImage?.id !== selected.id && (
-          <button
-            type="button"
-            onClick={useSelectedAsCover}
-            className="rounded-md bg-[#eef3f7] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#e0e8ef]"
-          >
-            Utiliser la photo sélectionnée comme couverture
-          </button>
+            <button
+              type="button"
+              onClick={useSelectedAsCover}
+              disabled={(selected.kind || "IMAGE") !== "IMAGE"}
+              className="rounded-md bg-[#eef3f7] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#e0e8ef] disabled:opacity-40"
+            >
+              Utiliser la photo sélectionnée comme couverture
+            </button>
         )}
       </div>
 
@@ -500,6 +501,9 @@ export function PostGalleryEditor({
           lang={lang}
           mode={
             modal.kind === "add" || modal.kind === "add-cover" ? "add" : "edit"
+          }
+          imagesOnly={
+            modal.kind === "add-cover" || modal.kind === "edit-cover"
           }
           image={
             modal.kind === "edit" || modal.kind === "edit-cover"

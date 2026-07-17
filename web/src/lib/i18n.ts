@@ -267,6 +267,22 @@ const messages = {
     fr: "Type non supporté. Photo, PDF, MP4 ou WebM uniquement.",
     en: "Unsupported type. Photo, PDF, MP4 or WebM only.",
   },
+  "media.sizeLimits": {
+    fr: "Limites de taille : photos & PDF {photoMax} Mo · vidéos {videoMax} Mo.",
+    en: "Size limits: photos & PDF {photoMax} MB · videos {videoMax} MB.",
+  },
+  "media.fileTooLarge": {
+    fr: "Fichier trop volumineux ({size} Mo). Maximum autorisé : {max} Mo.",
+    en: "File too large ({size} MB). Maximum allowed: {max} MB.",
+  },
+  "media.fileTooLargeVideo": {
+    fr: "Cette vidéo fait {size} Mo. Les vidéos sont limitées à {max} Mo.",
+    en: "This video is {size} MB. Videos are limited to {max} MB.",
+  },
+  "media.uploadRejected": {
+    fr: "Upload refusé : fichier trop volumineux (vidéos max {videoMax} Mo, photos/PDF max {photoMax} Mo) ou erreur réseau.",
+    en: "Upload rejected: file too large (videos max {videoMax} MB, photos/PDF max {photoMax} MB) or network error.",
+  },
   "media.dropHint": {
     fr: "Glisser-déposer un fichier, coller (Ctrl/⌘+V), ou",
     en: "Drag and drop a file, paste (Ctrl/⌘+V), or",

@@ -2,6 +2,13 @@ import { createHash, randomUUID } from "node:crypto";
 import { createReadStream, promises as fs } from "node:fs";
 import path from "node:path";
 import type { Readable } from "node:stream";
+import {
+  MEDIA_MAX_BYTES,
+  MEDIA_VIDEO_MAX_BYTES,
+  maxBytesForMime,
+} from "@/lib/media-limits";
+
+export { MEDIA_MAX_BYTES, MEDIA_VIDEO_MAX_BYTES };
 
 /** S3-inspired object storage contract (no third-party SDK). */
 export type MediaObjectMeta = {
@@ -55,11 +62,6 @@ const EXT_TO_CONTENT_TYPE: Record<string, string> = {
   webm: "video/webm",
 };
 
-/** Max size for images / documents (bytes). */
-export const MEDIA_MAX_BYTES = 10 * 1024 * 1024;
-/** Max size for videos (bytes). */
-export const MEDIA_VIDEO_MAX_BYTES = 100 * 1024 * 1024;
-
 const KEY_RE =
   /^[a-zA-Z0-9][a-zA-Z0-9/_ .-]*\.(jpe?g|png|webp|gif|pdf|mp4|webm)$/i;
 
@@ -74,9 +76,7 @@ export function kindFromContentType(contentType: string): MediaKindHint | null {
 }
 
 export function maxBytesForContentType(contentType: string): number {
-  return kindFromContentType(contentType) === "VIDEO"
-    ? MEDIA_VIDEO_MAX_BYTES
-    : MEDIA_MAX_BYTES;
+  return maxBytesForMime(contentType);
 }
 
 export function isAllowedContentType(contentType: string): boolean {
@@ -174,15 +174,13 @@ export class LocalDiskBucket implements MediaBucket {
     if (body.byteLength === 0) {
       throw new MediaBucketError("Empty object body", 400);
     }
-    if (body.byteLength > MEDIA_MAX_BYTES) {
-      throw new MediaBucketError(
-        `Object exceeds ${MEDIA_MAX_BYTES} bytes`,
-        413
-      );
-    }
     const ct = normalizeContentType(contentType);
     if (!isAllowedContentType(ct)) {
       throw new MediaBucketError("Unsupported Content-Type", 415);
+    }
+    const max = maxBytesForContentType(ct);
+    if (body.byteLength > max) {
+      throw new MediaBucketError(`Object exceeds ${max} bytes`, 413);
     }
 
     const full = this.resolvePath(key);

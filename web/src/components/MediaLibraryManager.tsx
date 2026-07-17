@@ -15,8 +15,15 @@ import {
   isAllowedMediaFile,
   kindFromFile,
   mediaFileFromDataTransfer,
+  resolveFileMime,
   type MediaKindClient,
 } from "@/lib/media-file-client";
+import {
+  formatMaxMb,
+  maxBytesForMime,
+  MEDIA_MAX_BYTES,
+  MEDIA_VIDEO_MAX_BYTES,
+} from "@/lib/media-limits";
 import {
   DEFAULT_IMAGE_LAYOUT,
   layoutFromLegacy,
@@ -103,6 +110,33 @@ function previewSrcForMedia(m: MediaItem): string {
   return m.urlOrigin;
 }
 
+function withSizeLimits(template: string): string {
+  return template
+    .replace("{photoMax}", String(formatMaxMb(MEDIA_MAX_BYTES)))
+    .replace("{videoMax}", String(formatMaxMb(MEDIA_VIDEO_MAX_BYTES)));
+}
+
+async function readApiJson(
+  res: Response
+): Promise<{ error?: string; kind?: string; id?: string; [k: string]: unknown }> {
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text) as {
+      error?: string;
+      kind?: string;
+      id?: string;
+    };
+  } catch {
+    if (res.status === 413) {
+      return { error: "PAYLOAD_TOO_LARGE" };
+    }
+    return {
+      error: `HTTP ${res.status}`,
+    };
+  }
+}
+
 export function MediaLibraryManager() {
   const { locale, t } = useLocale();
   const [q, setQ] = useState("");
@@ -158,6 +192,20 @@ export function MediaLibraryManager() {
       }
       if (!isAllowedMediaFile(next)) {
         setLocalError(t("media.fileInvalid"));
+        return;
+      }
+      const mime = resolveFileMime(next) ?? next.type;
+      const max = maxBytesForMime(mime);
+      if (next.size > max) {
+        const sizeMb = (next.size / (1024 * 1024)).toFixed(1);
+        const maxMb = String(formatMaxMb(max));
+        const isVideo = mime.toLowerCase().startsWith("video/");
+        setLocalError(
+          (isVideo ? t("media.fileTooLargeVideo") : t("media.fileTooLarge"))
+            .replace("{size}", sizeMb)
+            .replace("{max}", maxMb)
+        );
+        setFile(null);
         return;
       }
       setFile(next);
@@ -232,8 +280,14 @@ export function MediaLibraryManager() {
           fd.set("takenAt", new Date(form.takenAt).toISOString());
         }
         const res = await fetch("/api/media-library", { method: "POST", body: fd });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? t("media.saveError"));
+        const data = await readApiJson(res);
+        if (!res.ok) {
+          throw new Error(
+            data.error === "PAYLOAD_TOO_LARGE" || res.status === 413
+              ? withSizeLimits(t("media.uploadRejected"))
+              : data.error || t("media.saveError")
+          );
+        }
         if (data.kind === "IMAGE" && data.id) {
           const layoutRes = await fetch(`/api/media-library/${data.id}`, {
             method: "PATCH",
@@ -265,14 +319,21 @@ export function MediaLibraryManager() {
             method: "POST",
             body: fd,
           });
-          if (!rep.ok) throw new Error(t("media.saveError"));
+          if (!rep.ok) {
+            const repData = await readApiJson(rep);
+            throw new Error(
+              repData.error === "PAYLOAD_TOO_LARGE" || rep.status === 413
+                ? withSizeLimits(t("media.uploadRejected"))
+                : repData.error || t("media.saveError")
+            );
+          }
         }
         const res = await fetch(`/api/media-library/${editingId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(patchBody),
         });
-        const data = await res.json();
+        const data = await readApiJson(res);
         if (!res.ok) throw new Error(data.error ?? t("media.saveError"));
       }
       cancelEdit();
@@ -408,7 +469,18 @@ export function MediaLibraryManager() {
           }
         >
           <div className="flex h-full min-h-0 flex-col md:flex-row">
-            <section className="flex min-h-[38vh] flex-1 items-center justify-center bg-[#eef3f7] p-3 md:min-h-0">
+            <section
+              className={`flex min-h-[38vh] flex-1 bg-[#eef3f7] md:min-h-0 ${
+                (previewKind === "IMAGE" || editingMedia?.kind === "IMAGE") &&
+                (filePreviewUrl ||
+                  (editingMedia &&
+                    (editingMedia.urlOrigin || editingMedia.urlGrande)))
+                  ? "items-center justify-center p-3"
+                  : previewKind && previewSrc
+                    ? "min-h-0 items-stretch justify-stretch p-0"
+                    : "items-center justify-center p-3"
+              }`}
+            >
               {(previewKind === "IMAGE" || editingMedia?.kind === "IMAGE") &&
               (filePreviewUrl ||
                 (editingMedia &&
@@ -426,7 +498,7 @@ export function MediaLibraryManager() {
                   showControls={false}
                 />
               ) : previewKind && previewSrc ? (
-                <div className="w-full max-w-lg">
+                <div className="flex h-full min-h-0 w-full p-2 sm:p-3">
                   <MediaPreview
                     kind={previewKind}
                     src={previewSrc}
@@ -435,6 +507,7 @@ export function MediaLibraryManager() {
                       file?.name
                     }
                     openLabel={t("media.open")}
+                    fill
                   />
                 </div>
               ) : (
@@ -473,6 +546,9 @@ export function MediaLibraryManager() {
                   <p className="mt-2 text-xs text-[#495867]">
                     {t("media.pasteHint")}
                   </p>
+                  <p className="mt-2 text-xs text-[#495867]">
+                    {withSizeLimits(t("media.sizeLimits"))}
+                  </p>
                 </div>
               )}
             </section>
@@ -482,6 +558,9 @@ export function MediaLibraryManager() {
                 <div className="space-y-1.5">
                   <p className="text-[11px] font-medium text-[#495867]">
                     {t("media.file")}
+                  </p>
+                  <p className="rounded-md bg-[#eef3f7] px-2.5 py-1.5 text-[11px] leading-snug text-[#495867]">
+                    {withSizeLimits(t("media.sizeLimits"))}
                   </p>
                   <button
                     type="button"
@@ -495,12 +574,19 @@ export function MediaLibraryManager() {
                   </button>
                   {file && (
                     <p className="truncate text-[11px] text-[#0D131A]">
-                      {file.name} ({Math.round(file.size / 1024)} Ko)
+                      {file.name} (
+                      {file.size >= 1024 * 1024
+                        ? `${(file.size / (1024 * 1024)).toFixed(1)} Mo`
+                        : `${Math.round(file.size / 1024)} Ko`}
+                      )
                     </p>
                   )}
                   {previewKind && (
                     <p className="text-[11px] text-[#495867]">
                       {t("media.detectedKind")}: {kindLabel(previewKind)}
+                      {previewKind === "VIDEO"
+                        ? ` · max ${formatMaxMb(MEDIA_VIDEO_MAX_BYTES)} Mo`
+                        : ` · max ${formatMaxMb(MEDIA_MAX_BYTES)} Mo`}
                     </p>
                   )}
                   <input

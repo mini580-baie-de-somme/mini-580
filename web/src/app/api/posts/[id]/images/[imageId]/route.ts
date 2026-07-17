@@ -92,7 +92,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       urlGrande: string;
     } | null = null;
 
-    if (transformChanged) {
+    if (transformChanged && existing.kind === "IMAGE") {
       const merged = layoutFromLegacy({ ...existing, ...data });
       bakedUrls = await bakeVariantsFromOrigin(existing.urlOrigin, merged, [
         existing.urlPicto,
