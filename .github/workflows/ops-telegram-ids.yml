@@ -26,8 +26,10 @@ jobs:
               echo "TELEGRAM_ALLOWED_USER_IDS=${ALLOWED:-<empty>}"
               TOKEN=$(grep -E '^TELEGRAM_BOT_TOKEN=' "$ENV_FILE" | cut -d= -f2- | tr -d '"')
               if [[ -n "$TOKEN" ]]; then
-                curl -fsS "https://api.telegram.org/bot${TOKEN}/getMe" | jq -c '{ok,username:.result.username,name:.result.first_name}'
-                curl -fsS "https://api.telegram.org/bot${TOKEN}/getUpdates?limit=20" | jq -c '[.result[]? | {update_id, user_id: (.message.from.id // .callback_query.from.id), username: (.message.from.username // .callback_query.from.username), first_name: (.message.from.first_name // .callback_query.from.first_name), text: (.message.text // .callback_query.data)}]'
+                curl -fsS "https://api.telegram.org/bot${TOKEN}/getMe"
+                echo
+                curl -fsS "https://api.telegram.org/bot${TOKEN}/getUpdates?limit=20"
+                echo
               fi
               COMPOSE="/opt/mini580/$env/docker-compose.yml"
               if [[ -f "$COMPOSE" ]]; then
