@@ -1,0 +1,104 @@
+name: Ops — Create editor user
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Stack (test or prod)"
+        required: true
+        type: choice
+        options:
+          - test
+          - prod
+      email:
+        description: "Editor email"
+        required: true
+        type: string
+      name:
+        description: "Display name"
+        required: true
+        type: string
+      password_hash:
+        description: "bcrypt hash (cost 12) — never the plain password"
+        required: true
+        type: string
+
+jobs:
+  create-editor:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create editor on VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          timeout: 60s
+          command_timeout: 5m
+          script: |
+            set -euo pipefail
+            SCRIPT="/tmp/ops-create-editor.sh"
+            cat > "$SCRIPT" <<'SCRIPT_EOF'
+            #!/usr/bin/env bash
+            set -euo pipefail
+            ENV="${1:?env required (test|prod)}"
+            EMAIL="${2:?email required}"
+            NAME="${3:?name required}"
+            HASH="${4:?bcrypt hash required}"
+            COMPOSE="/opt/mini580/${ENV}/docker-compose.yml"
+            ENVF="/opt/mini580/${ENV}/.env"
+            if [[ ! -f "$COMPOSE" || ! -f "$ENVF" ]]; then
+              echo "Missing stack files for $ENV" >&2
+              exit 1
+            fi
+            EMAIL_LOWER="$(printf '%s' "$EMAIL" | tr '[:upper:]' '[:lower:]')"
+            POSTGRES_USER="$(grep -E '^POSTGRES_USER=' "$ENVF" | cut -d= -f2- | tr -d '"' || true)"
+            POSTGRES_DB="$(grep -E '^POSTGRES_DB=' "$ENVF" | cut -d= -f2- | tr -d '"' || true)"
+            POSTGRES_USER="${POSTGRES_USER:-mini580}"
+            if [[ "$ENV" == "prod" ]]; then
+              POSTGRES_DB="${POSTGRES_DB:-mini580_prod}"
+            else
+              POSTGRES_DB="${POSTGRES_DB:-mini580_test}"
+            fi
+            USER_ID="c$(openssl rand -hex 12)"
+            NAME_SQL="${NAME//\'/\'\'}"
+            HASH_SQL="$(printf '%s' "$HASH" | sed "s/'/''/g")"
+            docker compose -f "$COMPOSE" --env-file "$ENVF" exec -T db \
+              psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -c \
+              "INSERT INTO \"User\" (id, email, name, \"passwordHash\", \"createdAt\")
+               VALUES ('${USER_ID}', '${EMAIL_LOWER}', '${NAME_SQL}', '${HASH_SQL}', NOW())
+               ON CONFLICT (email) DO UPDATE
+                 SET name = EXCLUDED.name,
+                     \"passwordHash\" = EXCLUDED.\"passwordHash\";"
+            echo "User upserted: ${EMAIL_LOWER}"
+            CURRENT="$(grep -E '^EDITORS_ALLOWLIST=' "$ENVF" | cut -d= -f2- | tr -d '"' || true)"
+            if printf '%s' "$CURRENT" | tr ',' '\n' | tr '[:upper:]' '[:lower:]' | grep -Fxq "$EMAIL_LOWER"; then
+              echo "EDITORS_ALLOWLIST already contains ${EMAIL_LOWER}"
+            else
+              if [[ -n "$CURRENT" ]]; then
+                NEW_LIST="${CURRENT},${EMAIL_LOWER}"
+              else
+                NEW_LIST="${EMAIL_LOWER}"
+              fi
+              grep -v '^EDITORS_ALLOWLIST=' "$ENVF" > "${ENVF}.tmp" || true
+              printf 'EDITORS_ALLOWLIST=%s\n' "$NEW_LIST" >> "${ENVF}.tmp"
+              mv "${ENVF}.tmp" "$ENVF"
+              chmod 600 "$ENVF"
+              echo "EDITORS_ALLOWLIST updated"
+              docker compose -f "$COMPOSE" --env-file "$ENVF" up -d web
+              echo "web container restarted"
+            fi
+            docker compose -f "$COMPOSE" --env-file "$ENVF" exec -T db \
+              psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc \
+              "SELECT id, email, name FROM \"User\" WHERE email = '${EMAIL_LOWER}';"
+            SCRIPT_EOF
+            chmod +x "$SCRIPT"
+            bash "$SCRIPT" \
+              "${{ inputs.environment }}" \
+              "${{ inputs.email }}" \
+              "${{ inputs.name }}" \
+              "${{ inputs.password_hash }}"
