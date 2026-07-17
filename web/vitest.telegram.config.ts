@@ -8,8 +8,8 @@ export default defineConfig({
     setupFiles: ["src/test/setup.ts"],
     fileParallelism: false,
     pool: "forks",
-    testTimeout: 60_000,
-    hookTimeout: 60_000,
+    testTimeout: 300_000,
+    hookTimeout: 120_000,
     env: {
       // Loaded fully in setup.ts from .env.test
     },

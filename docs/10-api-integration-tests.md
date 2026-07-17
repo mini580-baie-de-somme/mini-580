@@ -56,12 +56,20 @@ FSM locale (`processTelegramUpdate`) avec API Telegram mockée.
 cd web && npm run test:telegram
 ```
 
-Scénarios déjà présents :
-- 1 photo + texte + **nouveau tag** + approve FR + `/traduire`
-- **plusieurs photos** puis finish
-- utilisateur non allowlisté
+Scénarios (`npm run test:telegram` — **7/7**) :
 
-À étendre : jalon existant vs nouveau, modifier avant valider, ordre photos, meta photo FR/EN, publier vs brouillon.
+| Scénario | Couverture |
+|----------|------------|
+| User non allowlisté | rejet |
+| 1 photo + **nouveau tag** + edit FR + `/traduire` retardé | |
+| **Tag + jalon existants** | binding catalogue |
+| **Plusieurs photos** → reorder → meta FR/EN → **brouillon** | |
+| Parcours complet → **publier** | |
+| Jalon ajouté plus tard (edit REVIEW_FR) | |
+| `/statut` + `/annuler` | |
+
+Sans `CURSOR_API_KEY` : les tests Telegram/IA **échouent** (clé obligatoire).
+Fournir via `web/.env.cursor.local` ou `/tmp/mini580-cursor.env` (jamais committer).
 
 ## Photo — comportement produit
 

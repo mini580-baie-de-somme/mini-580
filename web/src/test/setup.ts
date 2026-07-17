@@ -4,7 +4,7 @@ import { vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-function loadEnvFile(file: string) {
+function loadEnvFile(file: string, { override = true }: { override?: boolean } = {}) {
   if (!existsSync(file)) return;
   const text = readFileSync(file, "utf8");
   for (const line of text.split("\n")) {
@@ -20,12 +20,16 @@ function loadEnvFile(file: string) {
     ) {
       val = val.slice(1, -1);
     }
-    // .env.test wins for integration suite
+    if (!override && process.env[key]) continue;
     process.env[key] = val;
   }
 }
 
+// Base IT DB / auth
 loadEnvFile(resolve(process.cwd(), ".env.test"));
+// Cursor key for real IA translation (never commit — .env.* gitignored except .env.test)
+loadEnvFile(resolve(process.cwd(), ".env.cursor.local"));
+loadEnvFile("/tmp/mini580-cursor.env");
 
 process.env.MEDIA_ROOT =
   process.env.MEDIA_ROOT || resolve(process.cwd(), "data/media-it");
