@@ -65,7 +65,7 @@ describe("API integration — Tags / Themes / Jalons CRUD FR/EN", () => {
     expect(patchRes.status).toBe(200);
     expect((await patchRes.json()).labelEn).toBe("Nav electronics");
 
-    const list = await GET();
+    const list = await GET(jsonRequest("http://localhost/api/tags"));
     expect(list.status).toBe(200);
     expect((await list.json()).some((t: { id: string }) => t.id === tag.id)).toBe(
       true
@@ -133,7 +133,7 @@ describe("API integration — Tags / Themes / Jalons CRUD FR/EN", () => {
     expect(patchRes.status).toBe(200);
     expect((await patchRes.json()).labelFr).toBe("Chantier");
 
-    const list = await GET();
+    const list = await GET(jsonRequest("http://localhost/api/themes"));
     expect((await list.json()).some((t: { id: string }) => t.id === theme.id)).toBe(
       true
     );
@@ -191,7 +191,7 @@ describe("API integration — Tags / Themes / Jalons CRUD FR/EN", () => {
     expect(patched.titleEn).toBe("Keel set");
     expect(patched.descriptionEn).toBe("Updated EN");
 
-    const list = await GET();
+    const list = await GET(jsonRequest("http://localhost/api/milestones"));
     expect((await list.json()).some((x: { id: string }) => x.id === m.id)).toBe(
       true
     );
