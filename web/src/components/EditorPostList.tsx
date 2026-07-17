@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import type { HullId } from "@/lib/types";
-import { EDITOR_POSTS_PAGE_SIZE } from "@/lib/constants";
+import { isListFiltered } from "@/lib/editor-list";
 import { useLocale } from "./LocaleProvider";
 import { HullBadgeList } from "./HullBadge";
 import { EditorPostFilters } from "./EditorPostFilters";
+import { EditorListCount } from "./EditorListCount";
+import { useEditorInfiniteList } from "./useEditorInfiniteList";
 
 type EditorPostListItem = {
   id: string;
@@ -20,100 +22,36 @@ type EditorPostListItem = {
   onProd?: boolean;
 };
 
-type PostsPage = {
-  items: EditorPostListItem[];
-  total: number;
-  limit: number;
-  offset: number;
-};
-
 type FilterOptions = {
   themes: { slug: string; labelFr: string; labelEn: string }[];
   tags: { name: string; labelFr: string; labelEn: string }[];
 };
 
+const FILTER_KEYS = ["q", "status", "hull", "theme", "tag"];
+
 export function EditorPostList({ filterOptions }: { filterOptions: FilterOptions }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { locale, t } = useLocale();
-  const [posts, setPosts] = useState<EditorPostListItem[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const offsetRef = useRef(0);
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const fetchGenRef = useRef(0);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const queryString = searchParams.toString();
+  const filtered = isListFiltered(searchParams, FILTER_KEYS);
 
-  const fetchPage = useCallback(
-    async (reset: boolean) => {
-      const gen = ++fetchGenRef.current;
-      if (reset) {
-        setLoading(true);
-        setError(null);
-        offsetRef.current = 0;
-      } else {
-        setLoadingMore(true);
-      }
-
-      const params = new URLSearchParams(queryString);
-      params.set("limit", String(EDITOR_POSTS_PAGE_SIZE));
-      params.set("offset", String(reset ? 0 : offsetRef.current));
-
-      try {
-        const res = await fetch(`/api/posts?${params.toString()}`);
-        if (!res.ok) throw new Error("fetch failed");
-        const data = (await res.json()) as PostsPage;
-        if (gen !== fetchGenRef.current) return;
-
-        if (reset) {
-          setPosts(data.items);
-        } else {
-          setPosts((prev) => [...prev, ...data.items]);
-        }
-        offsetRef.current = data.offset + data.items.length;
-        setTotal(data.total);
-      } catch {
-        if (gen === fetchGenRef.current) {
-          setError(t("editor.loadError"));
-        }
-      } finally {
-        if (gen === fetchGenRef.current) {
-          setLoading(false);
-          setLoadingMore(false);
-        }
-      }
-    },
-    [queryString, t]
-  );
-
-  useEffect(() => {
-    void fetchPage(true);
-  }, [fetchPage]);
-
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (
-          entries[0]?.isIntersecting &&
-          !loading &&
-          !loadingMore &&
-          offsetRef.current < total
-        ) {
-          void fetchPage(false);
-        }
-      },
-      { rootMargin: "200px" }
-    );
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [fetchPage, loading, loadingMore, total]);
+  const {
+    items: posts,
+    total,
+    totalAll,
+    loading,
+    loadingMore,
+    error,
+    setError,
+    sentinelRef,
+    reload,
+  } = useEditorInfiniteList<EditorPostListItem>({
+    endpoint: "/api/posts",
+    queryString,
+  });
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -131,6 +69,22 @@ export function EditorPostList({ filterOptions }: { filterOptions: FilterOptions
     if (status === "PUBLISHED") return "bg-emerald-100 text-emerald-800";
     if (status === "ARCHIVED") return "bg-slate-200 text-slate-700";
     return "bg-amber-100 text-amber-800";
+  }
+
+  async function remove(post: EditorPostListItem) {
+    const title = locale === "fr" ? post.titleFr : post.titleEn || post.titleFr;
+    if (!confirm(t("editor.deleteConfirm").replace("{title}", title))) return;
+    setBusyId(post.id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/posts/${post.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(t("editor.deleteFailed"));
+      await reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("editor.deleteFailed"));
+    } finally {
+      setBusyId(null);
+    }
   }
 
   return (
@@ -157,9 +111,13 @@ export function EditorPostList({ filterOptions }: { filterOptions: FilterOptions
       <EditorPostFilters options={filterOptions} />
 
       {!loading && !error && (
-        <p className="mb-3 text-sm text-[#495867]">
-          {t("editor.count").replace("{n}", String(total))}
-        </p>
+        <EditorListCount
+          total={total}
+          totalAll={totalAll}
+          filtered={filtered}
+          totalLabel={t("list.count")}
+          filteredLabel={t("list.countFiltered")}
+        />
       )}
 
       <div className="overflow-hidden rounded-lg border border-[#d4dde6] bg-white">
@@ -170,6 +128,7 @@ export function EditorPostList({ filterOptions }: { filterOptions: FilterOptions
               <th className="hidden px-4 py-3 font-medium sm:table-cell">{t("editor.colHulls")}</th>
               <th className="px-4 py-3 font-medium">{t("editor.colStatus")}</th>
               <th className="hidden px-4 py-3 font-medium md:table-cell">{t("editor.colUpdated")}</th>
+              <th className="px-4 py-3 font-medium">{t("list.colActions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -179,34 +138,49 @@ export function EditorPostList({ filterOptions }: { filterOptions: FilterOptions
               const href = `/editeur/${post.id}`;
 
               return (
-                <tr key={post.id} className="border-b border-[#eef3f7] last:border-0">
-                  <td colSpan={4} className="p-0">
-                    <Link
-                      href={href}
-                      className="grid cursor-pointer grid-cols-1 gap-1 px-4 py-3 hover:bg-[#f8fafc] sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto_auto]"
-                    >
-                      <span className="font-medium text-[#0D131A]">
-                        {title}
-                        {post.onProd === false && (
-                          <span className="ml-2 rounded bg-orange-100 px-1.5 py-0.5 text-[10px] text-orange-800">
-                            {t("editor.notOnProd")}
-                          </span>
-                        )}
+                <tr
+                  key={post.id}
+                  className="cursor-pointer border-b border-[#eef3f7] last:border-0 hover:bg-[#f8fafc]"
+                  onClick={() => router.push(href)}
+                >
+                  <td className="px-4 py-3 font-medium text-[#0D131A]">
+                    {title}
+                    {post.onProd === false && (
+                      <span className="ml-2 rounded bg-orange-100 px-1.5 py-0.5 text-[10px] text-orange-800">
+                        {t("editor.notOnProd")}
                       </span>
-                      <span className="hidden sm:block">
-                        <HullBadgeList hulls={post.hulls} />
-                      </span>
-                      <span>
-                        <span className={`rounded px-2 py-0.5 text-xs ${statusClass(post.status)}`}>
-                          {statusLabel(post.status)}
-                        </span>
-                      </span>
-                      <span className="hidden text-[#495867] md:block">
-                        {new Date(post.updatedAt).toLocaleDateString(
-                          locale === "fr" ? "fr-FR" : "en-GB"
-                        )}
-                      </span>
-                    </Link>
+                    )}
+                  </td>
+                  <td className="hidden px-4 py-3 sm:table-cell">
+                    <HullBadgeList hulls={post.hulls} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`rounded px-2 py-0.5 text-xs ${statusClass(post.status)}`}>
+                      {statusLabel(post.status)}
+                    </span>
+                  </td>
+                  <td className="hidden px-4 py-3 text-[#495867] md:table-cell">
+                    {new Date(post.updatedAt).toLocaleDateString(
+                      locale === "fr" ? "fr-FR" : "en-GB"
+                    )}
+                  </td>
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex flex-wrap gap-2">
+                      <Link
+                        href={href}
+                        className="text-xs text-[#495867] hover:underline"
+                      >
+                        {t("list.edit")}
+                      </Link>
+                      <button
+                        type="button"
+                        disabled={busyId === post.id}
+                        onClick={() => void remove(post)}
+                        className="text-xs text-red-700 hover:underline disabled:opacity-50"
+                      >
+                        {t("editor.delete")}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -218,7 +192,7 @@ export function EditorPostList({ filterOptions }: { filterOptions: FilterOptions
           <p className="px-4 py-8 text-center text-[#495867]">{t("editor.loading")}</p>
         )}
         {error && (
-          <p className="px-4 py-8 text-center text-red-700">{error}</p>
+          <p className="px-4 py-8 text-center text-red-700">{t("editor.loadError")}</p>
         )}
         {!loading && !error && posts.length === 0 && (
           <p className="px-4 py-8 text-center text-[#495867]">{t("editor.empty")}</p>

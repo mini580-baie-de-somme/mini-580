@@ -1,30 +1,72 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
+import { parseListPagination } from "@/lib/editor-list";
 import { slugify } from "@/lib/utils";
 
-export async function GET() {
-  const milestones = await prisma.milestone.findMany({
-    orderBy: [{ milestoneDate: "asc" }, { sortOrder: "asc" }],
+const milestoneInclude = {
+  posts: {
     include: {
-      posts: {
-        include: {
-          post: {
-            select: {
-              id: true,
-              slug: true,
-              titleFr: true,
-              titleEn: true,
-              status: true,
-              publishedAt: true,
-            },
-          },
+      post: {
+        select: {
+          id: true,
+          slug: true,
+          titleFr: true,
+          titleEn: true,
+          status: true,
+          publishedAt: true,
         },
       },
     },
-  });
-  return NextResponse.json(milestones);
+  },
+} satisfies Prisma.MilestoneInclude;
+
+function milestoneWhere(q?: string): Prisma.MilestoneWhereInput {
+  if (!q) return {};
+  return {
+    OR: [
+      { slug: { contains: q, mode: "insensitive" } },
+      { titleFr: { contains: q, mode: "insensitive" } },
+      { titleEn: { contains: q, mode: "insensitive" } },
+      { descriptionFr: { contains: q, mode: "insensitive" } },
+      { descriptionEn: { contains: q, mode: "insensitive" } },
+    ],
+  };
+}
+
+export async function GET(request?: NextRequest) {
+  const searchParams = request?.nextUrl.searchParams ?? new URLSearchParams();
+  const { limit, offset, q, paginated } = parseListPagination(searchParams);
+  const where = milestoneWhere(q);
+  const orderBy = [
+    { milestoneDate: "asc" as const },
+    { sortOrder: "asc" as const },
+  ];
+
+  if (!paginated) {
+    const milestones = await prisma.milestone.findMany({
+      where,
+      orderBy,
+      include: milestoneInclude,
+    });
+    return NextResponse.json(milestones);
+  }
+
+  const [items, total, totalAll] = await Promise.all([
+    prisma.milestone.findMany({
+      where,
+      orderBy,
+      include: milestoneInclude,
+      take: limit,
+      skip: offset,
+    }),
+    prisma.milestone.count({ where }),
+    prisma.milestone.count(),
+  ]);
+
+  return NextResponse.json({ items, total, totalAll, limit, offset });
 }
 
 const createSchema = z.object({

@@ -186,6 +186,15 @@ const messages = {
   "editor.publishProdFailed": { fr: "Échec publication PROD", en: "PROD publish failed" },
   "editor.dangerZone": { fr: "Zone sensible", en: "Danger zone" },
 
+  "list.count": { fr: "{n} ligne(s)", en: "{n} row(s)" },
+  "list.countFiltered": { fr: "{result} / {total} ligne(s)", en: "{result} / {total} row(s)" },
+  "list.colActions": { fr: "Actions", en: "Actions" },
+  "list.edit": { fr: "Éditer", en: "Edit" },
+  "list.search": { fr: "Rechercher…", en: "Search…" },
+  "list.filter": { fr: "Filtrer", en: "Filter" },
+  "list.loadingMore": { fr: "Chargement…", en: "Loading more…" },
+  "list.loadError": { fr: "Chargement impossible.", en: "Failed to load." },
+
   "themes.title": { fr: "Thématiques", en: "Themes" },
   "themes.subtitle": {
     fr: "Catégories bilingues FR/EN — filtres blog et galerie.",
@@ -211,6 +220,7 @@ const messages = {
     en: "Delete theme “{name}”?",
   },
   "themes.delete": { fr: "Supprimer", en: "Delete" },
+  "themes.search": { fr: "Rechercher une thématique…", en: "Search themes…" },
 
   "tags.title": { fr: "Tags", en: "Tags" },
   "tags.subtitle": {
@@ -237,6 +247,29 @@ const messages = {
     en: "Delete tag “{name}”?",
   },
   "tags.delete": { fr: "Supprimer", en: "Delete" },
+  "tags.search": { fr: "Rechercher un tag…", en: "Search tags…" },
+
+  "milestones.title": { fr: "Jalons timeline", en: "Timeline milestones" },
+  "milestones.subtitle": {
+    fr: "Roadmap bilingue FR/EN — visible sur /timeline",
+    en: "Bilingual FR/EN roadmap — shown on /timeline",
+  },
+  "milestones.new": { fr: "Nouveau jalon", en: "New milestone" },
+  "milestones.edit": { fr: "Modifier le jalon", en: "Edit milestone" },
+  "milestones.search": { fr: "Rechercher un jalon…", en: "Search milestones…" },
+  "milestones.empty": { fr: "Aucun jalon.", en: "No milestones yet." },
+  "milestones.colDate": { fr: "Date", en: "Date" },
+  "milestones.colTitle": { fr: "FR / EN", en: "FR / EN" },
+  "milestones.colOrder": { fr: "Ordre", en: "Order" },
+  "milestones.publishProd": { fr: "Publier PROD", en: "Publish to PROD" },
+  "milestones.pullProd": { fr: "Tirer depuis PROD", en: "Pull from PROD" },
+  "milestones.deleteConfirm": {
+    fr: "Supprimer le jalon « {name} » ?",
+    en: "Delete milestone “{name}”?",
+  },
+  "milestones.delete": { fr: "Supprimer", en: "Delete" },
+  "milestones.save": { fr: "Enregistrer", en: "Save" },
+  "milestones.cancel": { fr: "Annuler", en: "Cancel" },
 } as const satisfies Record<string, Record<Locale, string>>;
 
 export type MessageKey = keyof typeof messages;

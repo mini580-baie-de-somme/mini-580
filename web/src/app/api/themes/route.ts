@@ -1,12 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
+import { parseListPagination } from "@/lib/editor-list";
 import { slugify } from "@/lib/utils";
 
-export async function GET() {
-  const themes = await prisma.theme.findMany({ orderBy: { slug: "asc" } });
-  return NextResponse.json(themes);
+function themeWhere(q?: string): Prisma.ThemeWhereInput {
+  if (!q) return {};
+  return {
+    OR: [
+      { slug: { contains: q, mode: "insensitive" } },
+      { labelFr: { contains: q, mode: "insensitive" } },
+      { labelEn: { contains: q, mode: "insensitive" } },
+    ],
+  };
+}
+
+export async function GET(request?: NextRequest) {
+  const searchParams = request?.nextUrl.searchParams ?? new URLSearchParams();
+  const { limit, offset, q, paginated } = parseListPagination(searchParams);
+  const where = themeWhere(q);
+
+  if (!paginated) {
+    const themes = await prisma.theme.findMany({ where, orderBy: { slug: "asc" } });
+    return NextResponse.json(themes);
+  }
+
+  const [items, total, totalAll] = await Promise.all([
+    prisma.theme.findMany({
+      where,
+      orderBy: { slug: "asc" },
+      take: limit,
+      skip: offset,
+    }),
+    prisma.theme.count({ where }),
+    prisma.theme.count(),
+  ]);
+
+  return NextResponse.json({ items, total, totalAll, limit, offset });
 }
 
 const createThemeSchema = z.object({

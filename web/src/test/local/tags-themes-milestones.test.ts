@@ -71,6 +71,21 @@ describe("API integration — Tags / Themes / Jalons CRUD FR/EN", () => {
       true
     );
 
+    const page = await GET(
+      jsonRequest("http://localhost/api/tags", {
+        searchParams: { q: "Électronique", limit: "10", offset: "0" },
+      })
+    );
+    expect(page.status).toBe(200);
+    const pageBody = (await page.json()) as {
+      items: { id: string }[];
+      total: number;
+      totalAll: number;
+    };
+    expect(pageBody.total).toBeGreaterThanOrEqual(1);
+    expect(pageBody.totalAll).toBeGreaterThanOrEqual(pageBody.total);
+    expect(pageBody.items.some((t) => t.id === tag.id)).toBe(true);
+
     const del = await DELETE(
       jsonRequest(`http://localhost/api/tags/${tag.id}`, {
         method: "DELETE",

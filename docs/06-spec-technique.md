@@ -84,7 +84,10 @@ Phase 2 (VM dédiée) :
 | `/editeur` | Auth | Liste brouillons + publiés |
 | `/editeur/nouveau` | Auth | Créer article |
 | `/editeur/[id]` | Auth | Édition + autosave + publier |
+| `/editeur/tags` · `/themes` · `/jalons` | Auth | CRUD listes (même design system) |
 | `/apercu/[id]` | Auth | Prévisualisation brouillon |
+
+Listes éditeur (recherche, actions, clic ligne, infinite scroll, compteurs) : voir **[Design system listes éditeur](11-design-system-editeur.md)**.
 
 ## Stack
 

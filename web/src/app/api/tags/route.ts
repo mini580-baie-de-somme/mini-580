@@ -1,12 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
+import { parseListPagination } from "@/lib/editor-list";
 import { slugify } from "@/lib/utils";
 
-export async function GET() {
-  const tags = await prisma.tag.findMany({ orderBy: { name: "asc" } });
-  return NextResponse.json(tags);
+function tagWhere(q?: string): Prisma.TagWhereInput {
+  if (!q) return {};
+  return {
+    OR: [
+      { name: { contains: q, mode: "insensitive" } },
+      { labelFr: { contains: q, mode: "insensitive" } },
+      { labelEn: { contains: q, mode: "insensitive" } },
+    ],
+  };
+}
+
+export async function GET(request?: NextRequest) {
+  const searchParams = request?.nextUrl.searchParams ?? new URLSearchParams();
+  const { limit, offset, q, paginated } = parseListPagination(searchParams);
+  const where = tagWhere(q);
+
+  if (!paginated) {
+    const tags = await prisma.tag.findMany({ where, orderBy: { name: "asc" } });
+    return NextResponse.json(tags);
+  }
+
+  const [items, total, totalAll] = await Promise.all([
+    prisma.tag.findMany({
+      where,
+      orderBy: { name: "asc" },
+      take: limit,
+      skip: offset,
+    }),
+    prisma.tag.count({ where }),
+    prisma.tag.count(),
+  ]);
+
+  return NextResponse.json({ items, total, totalAll, limit, offset });
 }
 
 const createTagSchema = z.object({

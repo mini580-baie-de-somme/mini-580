@@ -1,7 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocale } from "./LocaleProvider";
+import { EditorListCount } from "./EditorListCount";
+import { EditorListSearch } from "./EditorListSearch";
+import { useEditorInfiniteList } from "./useEditorInfiniteList";
 
 type Milestone = {
   id: string;
@@ -39,52 +43,59 @@ function toDateInput(value: string) {
 }
 
 export function MilestoneManager({ isTestEnv = false }: { isTestEnv?: boolean }) {
-  const [items, setItems] = useState<Milestone[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { locale, t } = useLocale();
+  const [q, setQ] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [prodIds, setProdIds] = useState<Set<string>>(new Set());
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/milestones");
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Chargement impossible");
-      setItems(
-        (data as Milestone[]).map((m) => ({
-          ...m,
-          milestoneDate: m.milestoneDate,
-        }))
-      );
+  const queryString = useMemo(() => {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    return params.toString();
+  }, [q]);
 
-      if (isTestEnv) {
-        const statusRes = await fetch("/api/sync/status");
-        if (statusRes.ok) {
-          const status = await statusRes.json();
-          const onlyLocal = new Set(
-            (status.milestones?.onlyLocal ?? []).map((m: { id: string }) => m.id)
-          );
-          const onProd = new Set<string>();
-          for (const m of data as Milestone[]) {
-            if (!onlyLocal.has(m.id)) onProd.add(m.id);
-          }
-          setProdIds(onProd);
-        }
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur");
-    } finally {
-      setLoading(false);
-    }
-  }, [isTestEnv]);
+  const {
+    items,
+    total,
+    totalAll,
+    loading,
+    loadingMore,
+    error,
+    setError,
+    sentinelRef,
+    reload,
+  } = useEditorInfiniteList<Milestone>({
+    endpoint: "/api/milestones",
+    queryString,
+  });
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (!isTestEnv || loading) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const statusRes = await fetch("/api/sync/status");
+        if (!statusRes.ok) return;
+        const status = await statusRes.json();
+        const onlyLocal = new Set(
+          (status.milestones?.onlyLocal ?? []).map((m: { id: string }) => m.id)
+        );
+        if (cancelled) return;
+        const onProd = new Set<string>();
+        for (const m of items) {
+          if (!onlyLocal.has(m.id)) onProd.add(m.id);
+        }
+        setProdIds(onProd);
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isTestEnv, items, loading]);
 
   function startCreate() {
     setEditingId("new");
@@ -137,25 +148,27 @@ export function MilestoneManager({ isTestEnv = false }: { isTestEnv?: boolean })
             });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Enregistrement impossible");
+      if (!res.ok) throw new Error(data.error ?? t("list.loadError"));
       cancelEdit();
-      await load();
+      await reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur");
+      setError(e instanceof Error ? e.message : t("list.loadError"));
     } finally {
       setBusy(false);
     }
   }
 
   async function remove(m: Milestone) {
-    if (!confirm(`Supprimer le jalon « ${m.titleFr} » ?`)) return;
+    const name = locale === "fr" ? m.titleFr : m.titleEn;
+    if (!confirm(t("milestones.deleteConfirm").replace("{name}", name))) return;
     setBusy(true);
+    setError(null);
     try {
       const res = await fetch(`/api/milestones/${m.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Suppression impossible");
-      await load();
+      if (!res.ok) throw new Error(t("list.loadError"));
+      await reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur");
+      setError(e instanceof Error ? e.message : t("list.loadError"));
     } finally {
       setBusy(false);
     }
@@ -173,7 +186,7 @@ export function MilestoneManager({ isTestEnv = false }: { isTestEnv?: boolean })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Publication PROD impossible");
-      await load();
+      await reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
     } finally {
@@ -192,7 +205,7 @@ export function MilestoneManager({ isTestEnv = false }: { isTestEnv?: boolean })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Pull PROD impossible");
-      await load();
+      await reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur");
     } finally {
@@ -200,27 +213,27 @@ export function MilestoneManager({ isTestEnv = false }: { isTestEnv?: boolean })
     }
   }
 
+  const onSearch = useCallback((next: string) => setQ(next), []);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-[#0D131A]">Jalons timeline</h1>
-          <p className="mt-1 text-sm text-[#495867]">
-            Roadmap bilingue FR/EN — visible sur /timeline
-          </p>
+          <h1 className="text-2xl font-semibold text-[#0D131A]">{t("milestones.title")}</h1>
+          <p className="mt-1 text-sm text-[#495867]">{t("milestones.subtitle")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
             href="/editeur"
             className="rounded-md border border-[#d4dde6] px-3 py-2 text-sm text-[#495867]"
           >
-            ← Articles
+            ← {t("nav.editor")}
           </Link>
           <Link
             href="/editeur/sync"
             className="rounded-md border border-[#d4dde6] px-3 py-2 text-sm text-[#495867]"
           >
-            Sync
+            {t("nav.sync")}
           </Link>
           {isTestEnv && (
             <button
@@ -229,7 +242,7 @@ export function MilestoneManager({ isTestEnv = false }: { isTestEnv?: boolean })
               onClick={() => void pullFromProd()}
               className="rounded-md border border-[#d4dde6] px-3 py-2 text-sm text-[#495867] hover:bg-[#f4f7fa] disabled:opacity-50"
             >
-              Tirer depuis PROD
+              {t("milestones.pullProd")}
             </button>
           )}
           <button
@@ -238,19 +251,21 @@ export function MilestoneManager({ isTestEnv = false }: { isTestEnv?: boolean })
             onClick={startCreate}
             className="rounded-md bg-[#495867] px-3 py-2 text-sm text-white hover:bg-[#3a4654] disabled:opacity-50"
           >
-            Nouveau jalon
+            {t("milestones.new")}
           </button>
         </div>
       </div>
 
       {error && (
-        <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p>
+        <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-800">
+          {error === "LOAD_FAILED" ? t("list.loadError") : error}
+        </p>
       )}
 
       {editingId && (
         <div className="rounded-lg border border-[#d4dde6] bg-white p-4 sm:p-6">
           <h2 className="mb-4 text-lg font-semibold text-[#0D131A]">
-            {editingId === "new" ? "Nouveau jalon" : "Modifier le jalon"}
+            {editingId === "new" ? t("milestones.new") : t("milestones.edit")}
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block text-sm">
@@ -324,7 +339,7 @@ export function MilestoneManager({ isTestEnv = false }: { isTestEnv?: boolean })
               onClick={() => void save()}
               className="rounded-md bg-[#495867] px-4 py-2 text-sm text-white disabled:opacity-50"
             >
-              Enregistrer
+              {t("milestones.save")}
             </button>
             <button
               type="button"
@@ -332,37 +347,62 @@ export function MilestoneManager({ isTestEnv = false }: { isTestEnv?: boolean })
               onClick={cancelEdit}
               className="rounded-md border border-[#d4dde6] px-4 py-2 text-sm"
             >
-              Annuler
+              {t("milestones.cancel")}
             </button>
           </div>
         </div>
       )}
 
+      <EditorListSearch
+        value={q}
+        placeholder={t("milestones.search")}
+        submitLabel={t("list.filter")}
+        onSubmit={onSearch}
+      />
+
+      {!loading && (
+        <EditorListCount
+          total={total}
+          totalAll={totalAll}
+          filtered={Boolean(q)}
+          totalLabel={t("list.count")}
+          filteredLabel={t("list.countFiltered")}
+        />
+      )}
+
       {loading ? (
-        <p className="text-sm text-[#495867]">Chargement…</p>
+        <p className="text-sm text-[#495867]">{t("editor.loading")}</p>
       ) : (
         <div className="overflow-hidden rounded-lg border border-[#d4dde6] bg-white">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-[#d4dde6] bg-[#f4f7fa]">
               <tr>
-                <th className="px-4 py-3 font-medium">Date</th>
-                <th className="px-4 py-3 font-medium">FR / EN</th>
-                <th className="hidden px-4 py-3 font-medium md:table-cell">Ordre</th>
-                <th className="px-4 py-3 font-medium">Actions</th>
+                <th className="px-4 py-3 font-medium">{t("milestones.colDate")}</th>
+                <th className="px-4 py-3 font-medium">{t("milestones.colTitle")}</th>
+                <th className="hidden px-4 py-3 font-medium md:table-cell">
+                  {t("milestones.colOrder")}
+                </th>
+                <th className="px-4 py-3 font-medium">{t("list.colActions")}</th>
               </tr>
             </thead>
             <tbody>
               {items.map((m) => (
-                <tr key={m.id} className="border-b border-[#eef3f7] last:border-0">
+                <tr
+                  key={m.id}
+                  className="cursor-pointer border-b border-[#eef3f7] last:border-0 hover:bg-[#f8fafc]"
+                  onClick={() => startEdit(m)}
+                >
                   <td className="px-4 py-3 whitespace-nowrap text-[#495867]">
-                    {new Date(m.milestoneDate).toLocaleDateString("fr-FR")}
+                    {new Date(m.milestoneDate).toLocaleDateString(
+                      locale === "fr" ? "fr-FR" : "en-GB"
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-[#0D131A]">{m.titleFr}</div>
                     <div className="text-xs text-[#495867]">{m.titleEn}</div>
                   </td>
                   <td className="hidden px-4 py-3 md:table-cell">{m.sortOrder}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
@@ -370,7 +410,7 @@ export function MilestoneManager({ isTestEnv = false }: { isTestEnv?: boolean })
                         onClick={() => startEdit(m)}
                         className="text-xs text-[#495867] hover:underline"
                       >
-                        Éditer
+                        {t("list.edit")}
                       </button>
                       {isTestEnv && !prodIds.has(m.id) && (
                         <button
@@ -379,7 +419,7 @@ export function MilestoneManager({ isTestEnv = false }: { isTestEnv?: boolean })
                           onClick={() => void publishToProd(m)}
                           className="text-xs text-emerald-700 hover:underline"
                         >
-                          Publier PROD
+                          {t("milestones.publishProd")}
                         </button>
                       )}
                       <button
@@ -388,7 +428,7 @@ export function MilestoneManager({ isTestEnv = false }: { isTestEnv?: boolean })
                         onClick={() => void remove(m)}
                         className="text-xs text-red-700 hover:underline"
                       >
-                        Supprimer
+                        {t("milestones.delete")}
                       </button>
                     </div>
                   </td>
@@ -397,9 +437,14 @@ export function MilestoneManager({ isTestEnv = false }: { isTestEnv?: boolean })
             </tbody>
           </table>
           {items.length === 0 && (
-            <p className="px-4 py-8 text-center text-[#495867]">Aucun jalon.</p>
+            <p className="px-4 py-8 text-center text-[#495867]">{t("milestones.empty")}</p>
           )}
         </div>
+      )}
+
+      <div ref={sentinelRef} className="h-4" aria-hidden />
+      {loadingMore && (
+        <p className="mt-2 text-center text-sm text-[#495867]">{t("list.loadingMore")}</p>
       )}
     </div>
   );

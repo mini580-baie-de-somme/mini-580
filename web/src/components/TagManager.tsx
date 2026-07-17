@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useLocale } from "./LocaleProvider";
+import { EditorListCount } from "./EditorListCount";
+import { EditorListSearch } from "./EditorListSearch";
+import { useEditorInfiniteList } from "./useEditorInfiniteList";
 
 type Tag = {
   id: string;
@@ -25,31 +28,31 @@ const emptyForm: FormState = {
 
 export function TagManager() {
   const { locale, t } = useLocale();
-  const [items, setItems] = useState<Tag[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/tags");
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? t("tags.loadError"));
-      setItems(data as Tag[]);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t("tags.loadError"));
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
+  const queryString = useMemo(() => {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    return params.toString();
+  }, [q]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const {
+    items,
+    total,
+    totalAll,
+    loading,
+    loadingMore,
+    error,
+    setError,
+    sentinelRef,
+    reload,
+  } = useEditorInfiniteList<Tag>({
+    endpoint: "/api/tags",
+    queryString,
+  });
 
   function startCreate() {
     setEditingId("new");
@@ -96,7 +99,7 @@ export function TagManager() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? t("tags.saveError"));
       cancelEdit();
-      await load();
+      await reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("tags.saveError"));
     } finally {
@@ -108,16 +111,19 @@ export function TagManager() {
     const label = locale === "fr" ? tag.labelFr : tag.labelEn;
     if (!confirm(t("tags.deleteConfirm").replace("{name}", label))) return;
     setBusy(true);
+    setError(null);
     try {
       const res = await fetch(`/api/tags/${tag.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error(t("tags.deleteError"));
-      await load();
+      await reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("tags.deleteError"));
     } finally {
       setBusy(false);
     }
   }
+
+  const onSearch = useCallback((next: string) => setQ(next), []);
 
   return (
     <div className="space-y-6">
@@ -145,7 +151,9 @@ export function TagManager() {
       </div>
 
       {error && (
-        <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p>
+        <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-800">
+          {error === "LOAD_FAILED" ? t("list.loadError") : error}
+        </p>
       )}
 
       {editingId && (
@@ -201,6 +209,23 @@ export function TagManager() {
         </div>
       )}
 
+      <EditorListSearch
+        value={q}
+        placeholder={t("tags.search")}
+        submitLabel={t("list.filter")}
+        onSubmit={onSearch}
+      />
+
+      {!loading && (
+        <EditorListCount
+          total={total}
+          totalAll={totalAll}
+          filtered={Boolean(q)}
+          totalLabel={t("list.count")}
+          filteredLabel={t("list.countFiltered")}
+        />
+      )}
+
       {loading ? (
         <p className="text-sm text-[#495867]">{t("editor.loading")}</p>
       ) : (
@@ -210,18 +235,22 @@ export function TagManager() {
               <tr>
                 <th className="px-4 py-3 font-medium">{t("tags.colLabel")}</th>
                 <th className="hidden px-4 py-3 font-medium sm:table-cell">{t("tags.colName")}</th>
-                <th className="px-4 py-3 font-medium">{t("tags.colActions")}</th>
+                <th className="px-4 py-3 font-medium">{t("list.colActions")}</th>
               </tr>
             </thead>
             <tbody>
               {items.map((tag) => (
-                <tr key={tag.id} className="border-b border-[#eef3f7] last:border-0">
+                <tr
+                  key={tag.id}
+                  className="cursor-pointer border-b border-[#eef3f7] last:border-0 hover:bg-[#f8fafc]"
+                  onClick={() => startEdit(tag)}
+                >
                   <td className="px-4 py-3">
                     <div className="font-medium text-[#0D131A]">{tag.labelFr}</div>
                     <div className="text-xs text-[#495867]">{tag.labelEn}</div>
                   </td>
                   <td className="hidden px-4 py-3 text-[#495867] sm:table-cell">{tag.name}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
@@ -229,7 +258,7 @@ export function TagManager() {
                         onClick={() => startEdit(tag)}
                         className="text-xs text-[#495867] hover:underline"
                       >
-                        {t("tags.edit")}
+                        {t("list.edit")}
                       </button>
                       <button
                         type="button"
@@ -249,6 +278,11 @@ export function TagManager() {
             <p className="px-4 py-8 text-center text-[#495867]">{t("tags.empty")}</p>
           )}
         </div>
+      )}
+
+      <div ref={sentinelRef} className="h-4" aria-hidden />
+      {loadingMore && (
+        <p className="mt-2 text-center text-sm text-[#495867]">{t("list.loadingMore")}</p>
       )}
     </div>
   );

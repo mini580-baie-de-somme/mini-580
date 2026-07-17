@@ -173,8 +173,10 @@ describe("API integration — Posts CRUD + FR/EN", () => {
     const searchBody = (await searchRes.json()) as {
       items: { id: string }[];
       total: number;
+      totalAll: number;
     };
     expect(searchBody.total).toBe(1);
+    expect(searchBody.totalAll).toBeGreaterThanOrEqual(2);
     expect(searchBody.items[0]?.id).toBe(postA.id);
 
     const pageRes = await GET(

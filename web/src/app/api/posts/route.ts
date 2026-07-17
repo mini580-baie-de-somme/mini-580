@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     const offset = Math.max(0, Number.parseInt(searchParams.get("offset") ?? "0", 10) || 0);
     const where = editorPostWhere({ q, status, hull, theme, tag });
 
-    const [posts, total] = await Promise.all([
+    const [posts, total, totalAll] = await Promise.all([
       prisma.post.findMany({
         where,
         include: postInclude,
@@ -57,6 +57,7 @@ export async function GET(request: NextRequest) {
         skip: offset,
       }),
       prisma.post.count({ where }),
+      prisma.post.count(),
     ]);
 
     let prodIds = new Set<string>();
@@ -84,6 +85,7 @@ export async function GET(request: NextRequest) {
         ...(prodIds.size > 0 ? { onProd: prodIds.has(p.id) } : {}),
       })),
       total,
+      totalAll,
       limit,
       offset,
     });
