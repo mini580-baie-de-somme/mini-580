@@ -44,32 +44,37 @@ describe("API integration — Posts CRUD + FR/EN", () => {
 
   it("creates, reads, updates FR/EN, deletes with Bearer", async () => {
     const { POST, GET } = await import("@/app/api/posts/route");
-    const slug = uniqueSlug(PREFIX);
+    // Title marker ensures auto-slug starts with PREFIX (cleanup + assertion).
+    const marker = uniqueSlug(PREFIX);
+    const ignoredClientSlug = uniqueSlug(`${PREFIX}-ignored`);
 
     const createRes = await POST(
       jsonRequest("http://localhost/api/posts", {
         method: "POST",
         headers: bearerHeaders(),
         body: JSON.stringify({
-          titleFr: "Coque FR",
+          titleFr: marker,
           titleEn: "Hull EN",
           excerptFr: "Extrait FR",
           excerptEn: "Excerpt EN",
           bodyFr: "Corps **FR**",
           bodyEn: "Body **EN**",
-          slug,
+          slug: ignoredClientSlug,
         }),
       })
     );
     expect(createRes.status).toBe(201);
     const created = await createRes.json();
-    expect(created.titleFr).toBe("Coque FR");
+    expect(created.titleFr).toBe(marker);
     expect(created.titleEn).toBe("Hull EN");
     expect(created.bodyFr).toContain("FR");
     expect(created.bodyEn).toContain("EN");
     expect(created.status).toBe("DRAFT");
     expect(created.authorId).toBe(adminId);
     expect(created.author.email).toBe(ADMIN_EMAIL);
+    // Slug is auto-generated from titleFr — client slug is ignored.
+    expect(created.slug).toBe(marker);
+    expect(created.slug).not.toBe(ignoredClientSlug);
 
     const { GET: getOne, PATCH, DELETE } = await import(
       "@/app/api/posts/[id]/route"
@@ -85,26 +90,58 @@ describe("API integration — Posts CRUD + FR/EN", () => {
     expect(getRes.status).toBe(200);
     const got = await getRes.json();
     expect(got.slug).toBe(created.slug);
-    expect(created.slug).toContain(PREFIX);
 
+    const updatedTitle = uniqueSlug(`${PREFIX}-upd`);
     const patchRes = await PATCH(
       jsonRequest(`http://localhost/api/posts/${created.id}`, {
         method: "PATCH",
         headers: bearerHeaders(),
         body: JSON.stringify({
-          titleFr: "Titre mis à jour",
+          titleFr: updatedTitle,
           titleEn: "Updated title",
           bodyEn: "Updated body EN",
+          slug: "manual-slug-should-be-ignored",
         }),
       }),
       ctx
     );
     expect(patchRes.status).toBe(200);
     const patched = await patchRes.json();
-    expect(patched.titleFr).toBe("Titre mis à jour");
+    expect(patched.titleFr).toBe(updatedTitle);
     expect(patched.titleEn).toBe("Updated title");
     expect(patched.bodyEn).toBe("Updated body EN");
     expect(patched.bodyFr).toContain("FR");
+    // DRAFT: slug stays in sync with titleFr; client slug ignored.
+    expect(patched.slug).toBe(updatedTitle);
+    expect(patched.slug).not.toBe("manual-slug-should-be-ignored");
+
+    // Publish freezes the slug even if titleFr changes.
+    const { POST: publish } = await import(
+      "@/app/api/posts/[id]/publish/route"
+    );
+    const statusRes = await publish(
+      jsonRequest(`http://localhost/api/posts/${created.id}/publish`, {
+        method: "POST",
+        headers: bearerHeaders(),
+      }),
+      ctx
+    );
+    expect(statusRes.status).toBe(200);
+
+    const frozenSlug = patched.slug;
+    const afterPublish = await PATCH(
+      jsonRequest(`http://localhost/api/posts/${created.id}`, {
+        method: "PATCH",
+        headers: bearerHeaders(),
+        body: JSON.stringify({
+          titleFr: uniqueSlug(`${PREFIX}-frozen`),
+        }),
+      }),
+      ctx
+    );
+    expect(afterPublish.status).toBe(200);
+    const frozen = await afterPublish.json();
+    expect(frozen.slug).toBe(frozenSlug);
 
     const delRes = await DELETE(
       jsonRequest(`http://localhost/api/posts/${created.id}`, {
@@ -133,31 +170,31 @@ describe("API integration — Posts CRUD + FR/EN", () => {
 
   it("filters and paginates editor list server-side", async () => {
     const { POST, GET } = await import("@/app/api/posts/route");
-    const slugA = uniqueSlug(`${PREFIX}-a`);
-    const slugB = uniqueSlug(`${PREFIX}-b`);
+    const markerA = uniqueSlug(`${PREFIX}-a`);
+    const markerB = uniqueSlug(`${PREFIX}-b`);
+    const searchToken = `zoulou${Date.now().toString(36)}`;
 
     const createA = await POST(
       jsonRequest("http://localhost/api/posts", {
         method: "POST",
         headers: bearerHeaders(),
         body: JSON.stringify({
-          titleFr: "Alpha zoulou",
+          titleFr: `${markerA} Alpha ${searchToken}`,
           titleEn: "Alpha zulu",
-          slug: slugA,
         }),
       })
     );
     expect(createA.status).toBe(201);
     const postA = await createA.json();
+    expect(postA.slug.startsWith(markerA)).toBe(true);
 
     const createB = await POST(
       jsonRequest("http://localhost/api/posts", {
         method: "POST",
         headers: bearerHeaders(),
         body: JSON.stringify({
-          titleFr: "Bravo charlie",
+          titleFr: `${markerB} Bravo charlie`,
           titleEn: "Bravo charlie",
-          slug: slugB,
         }),
       })
     );
@@ -166,7 +203,7 @@ describe("API integration — Posts CRUD + FR/EN", () => {
     const searchRes = await GET(
       jsonRequest("http://localhost/api/posts", {
         headers: bearerHeaders(),
-        searchParams: { q: "zoulou", limit: "10", offset: "0" },
+        searchParams: { q: searchToken, limit: "10", offset: "0" },
       })
     );
     expect(searchRes.status).toBe(200);

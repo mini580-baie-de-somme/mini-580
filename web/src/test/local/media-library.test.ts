@@ -32,9 +32,8 @@ describe("API integration — Media library", () => {
         method: "POST",
         headers: bearerHeaders(),
         body: JSON.stringify({
-          titleFr: "Media A",
+          titleFr: uniqueSlug(PREFIX),
           titleEn: "Media A",
-          slug: uniqueSlug(PREFIX),
         }),
       })
     );
@@ -45,9 +44,8 @@ describe("API integration — Media library", () => {
         method: "POST",
         headers: bearerHeaders(),
         body: JSON.stringify({
-          titleFr: "Media B",
+          titleFr: uniqueSlug(PREFIX),
           titleEn: "Media B",
-          slug: uniqueSlug(PREFIX),
         }),
       })
     );

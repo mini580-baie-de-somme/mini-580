@@ -29,6 +29,10 @@ import {
   layoutFromLegacy,
   type ImageLayoutParams,
 } from "@/lib/image-layout";
+import {
+  fromDatetimeLocalValue,
+  toDatetimeLocalValue,
+} from "@/lib/utils";
 
 type MediaKind = MediaKindClient;
 
@@ -110,19 +114,12 @@ function mediaVisibility(
 }
 
 function formFromMedia(m: MediaItem): FormState {
-  const taken =
-    m.takenAt == null
-      ? ""
-      : (typeof m.takenAt === "string"
-          ? m.takenAt
-          : new Date(m.takenAt).toISOString()
-        ).slice(0, 10);
   return {
     titleFr: m.titleFr,
     titleEn: m.titleEn,
     descriptionFr: m.descriptionFr,
     descriptionEn: m.descriptionEn,
-    takenAt: taken,
+    takenAt: toDatetimeLocalValue(m.takenAt),
     layout: layoutFromLegacy(m),
   };
 }
@@ -303,7 +300,8 @@ export function MediaLibraryManager() {
         fd.set("descriptionFr", form.descriptionFr);
         fd.set("descriptionEn", form.descriptionEn);
         if (form.takenAt) {
-          fd.set("takenAt", new Date(form.takenAt).toISOString());
+          const iso = fromDatetimeLocalValue(form.takenAt);
+          if (iso) fd.set("takenAt", iso);
         }
         const res = await fetch("/api/media-library", { method: "POST", body: fd });
         const data = await readApiJson(res);
@@ -328,9 +326,7 @@ export function MediaLibraryManager() {
           titleEn: form.titleEn,
           descriptionFr: form.descriptionFr,
           descriptionEn: form.descriptionEn,
-          takenAt: form.takenAt
-            ? new Date(form.takenAt).toISOString()
-            : null,
+          takenAt: fromDatetimeLocalValue(form.takenAt),
         };
         const effectiveKind = file
           ? kindFromFile(file)
@@ -715,22 +711,22 @@ export function MediaLibraryManager() {
                       }
                     />
                   </label>
-                  {(previewKind === "IMAGE" ||
-                    editingMedia?.kind === "IMAGE") && (
-                    <label className="col-span-2 block">
-                      <span className="text-[11px] text-[#495867]">
-                        {t("media.takenAt")}
-                      </span>
-                      <input
-                        type="date"
-                        className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
-                        value={form.takenAt}
-                        onChange={(e) =>
-                          setForm({ ...form, takenAt: e.target.value })
-                        }
-                      />
-                    </label>
-                  )}
+                  <label className="col-span-2 block">
+                    <span className="text-[11px] text-[#495867]">
+                      {t("media.takenAt")}
+                    </span>
+                    <input
+                      type="datetime-local"
+                      className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
+                      value={form.takenAt}
+                      onChange={(e) =>
+                        setForm({ ...form, takenAt: e.target.value })
+                      }
+                    />
+                    <span className="mt-1 block text-[10px] text-[#495867]">
+                      {t("media.takenAtHint")}
+                    </span>
+                  </label>
                 </div>
 
                 {(previewKind === "IMAGE" || editingMedia?.kind === "IMAGE") &&

@@ -110,9 +110,8 @@ export async function POST(request: NextRequest) {
     const data = createPostSchema.parse(raw ?? {});
     const titleFr = data.titleFr?.trim() || "Nouvel article";
     const titleEn = data.titleEn?.trim() || "New article";
-    const slug = data.slug
-      ? await uniqueSlug(data.slug)
-      : await uniqueSlug(titleFr);
+    // Slug is always auto-generated from title — never taken from the client.
+    const slug = await uniqueSlug(titleFr);
 
     const post = await prisma.post.create({
       data: {

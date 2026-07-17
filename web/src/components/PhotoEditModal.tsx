@@ -27,6 +27,10 @@ import {
   MEDIA_MAX_BYTES,
   MEDIA_VIDEO_MAX_BYTES,
 } from "@/lib/media-limits";
+import {
+  fromDatetimeLocalValue,
+  toDatetimeLocalValue,
+} from "@/lib/utils";
 
 type Props = {
   postId: string;
@@ -243,6 +247,13 @@ export function PhotoEditModal({
         body.append("titleEn", current.titleEn);
         body.append("descriptionFr", current.descriptionFr);
         body.append("descriptionEn", current.descriptionEn);
+        if (current.takenAt) {
+          const iso =
+            typeof current.takenAt === "string"
+              ? current.takenAt
+              : current.takenAt.toISOString();
+          body.append("takenAt", iso);
+        }
 
         if (current.id) {
           // Library replace handles image bake and PDF/video put
@@ -570,30 +581,28 @@ export function PhotoEditModal({
                   className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
                 />
               </label>
-              {isImage && (
-                <label className="col-span-2 block">
-                  <span className="text-[11px] text-[#495867]">Date</span>
-                  <input
-                    type="date"
-                    value={
-                      draft?.takenAt
-                        ? (typeof draft.takenAt === "string"
-                            ? draft.takenAt
-                            : draft.takenAt.toISOString()
-                          ).slice(0, 10)
-                        : ""
-                    }
-                    onChange={(e) =>
-                      patchDraft({
-                        takenAt: e.target.value
-                          ? new Date(e.target.value).toISOString()
-                          : null,
-                      })
-                    }
-                    className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
-                  />
-                </label>
-              )}
+              <label className="col-span-2 block">
+                <span className="text-[11px] text-[#495867]">
+                  {lang === "fr"
+                    ? "Date (galerie / chronologie)"
+                    : "Date (gallery / chronology)"}
+                </span>
+                <input
+                  type="datetime-local"
+                  value={toDatetimeLocalValue(draft?.takenAt)}
+                  onChange={(e) =>
+                    patchDraft({
+                      takenAt: fromDatetimeLocalValue(e.target.value),
+                    })
+                  }
+                  className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
+                />
+                <span className="mt-1 block text-[10px] text-[#495867]">
+                  {lang === "fr"
+                    ? "Permet de rétro-dater le média pour l’ordre en galerie."
+                    : "Backdate the media for gallery ordering."}
+                </span>
+              </label>
             </div>
 
             {hasPreview && isImage && (

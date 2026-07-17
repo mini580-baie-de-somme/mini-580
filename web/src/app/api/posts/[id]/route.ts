@@ -56,9 +56,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const data = updateSchema.parse(body);
 
     let slug = existing.slug;
-    if (data.slug && data.slug !== existing.slug) {
-      slug = await uniqueSlug(data.slug, id);
-    } else if (data.titleFr && !data.slug) {
+    // Slug is never manually editable. While DRAFT, keep it in sync with titleFr.
+    // Once published/archived, freeze to avoid broken public URLs / SEO 404s.
+    if (
+      existing.status === "DRAFT" &&
+      data.titleFr !== undefined &&
+      data.titleFr.trim()
+    ) {
       slug = await uniqueSlug(data.titleFr, id);
     }
 

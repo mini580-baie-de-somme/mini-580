@@ -95,6 +95,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         return NextResponse.json({ error: "Unsupported type" }, { status: 415 });
       }
 
+      const takenRaw = form.get("takenAt");
       const media = await createMediaFromUpload({
         buffer,
         contentType,
@@ -104,6 +105,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
           titleEn: String(form.get("titleEn") ?? ""),
           descriptionFr: String(form.get("descriptionFr") ?? ""),
           descriptionEn: String(form.get("descriptionEn") ?? ""),
+          takenAt:
+            typeof takenRaw === "string" && takenRaw
+              ? new Date(takenRaw)
+              : null,
         },
       });
       await attachMediaToPost(postId, [media.id], { setCoverFirst: !post.coverImageUrl });

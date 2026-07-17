@@ -32,9 +32,8 @@ describe("API integration — public gallery", () => {
           method: "POST",
           headers: bearerHeaders(),
           body: JSON.stringify({
-            titleFr: `Publié ${searchToken}`,
+            titleFr: `${uniqueSlug(PREFIX)} Publié ${searchToken}`,
             titleEn: `Published ${searchToken}`,
-            slug: uniqueSlug(PREFIX),
           }),
         })
       )
@@ -47,9 +46,8 @@ describe("API integration — public gallery", () => {
           method: "POST",
           headers: bearerHeaders(),
           body: JSON.stringify({
-            titleFr: `Brouillon ${searchToken}`,
+            titleFr: `${uniqueSlug(PREFIX)} Brouillon ${searchToken}`,
             titleEn: `Draft ${searchToken}`,
-            slug: uniqueSlug(PREFIX),
           }),
         })
       )

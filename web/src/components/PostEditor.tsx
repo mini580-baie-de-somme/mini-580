@@ -8,6 +8,10 @@ import { LangToggle } from "./LangToggle";
 import { PostGalleryEditor } from "./PostGalleryEditor";
 import { useLocale } from "./LocaleProvider";
 import type { GalleryEditorImage } from "@/lib/gallery-editor";
+import {
+  fromDatetimeLocalValue,
+  toDatetimeLocalValue,
+} from "@/lib/utils";
 
 type Tag = { id: string; name: string; labelFr: string; labelEn: string };
 type Theme = { id: string; slug: string; labelFr: string; labelEn: string };
@@ -23,6 +27,7 @@ export type EditorPost = {
   bodyFr: string;
   bodyEn: string;
   status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  publishedAt: string | Date | null;
   coverImageUrl: string | null;
   hulls: { hull: HullId }[];
   tags: { tag: Tag }[];
@@ -60,13 +65,14 @@ export function PostEditor({
     excerptEn: post.excerptEn,
     bodyFr: post.bodyFr,
     bodyEn: post.bodyEn,
-    slug: post.slug,
     coverImageUrl: post.coverImageUrl ?? "",
+    publishedAt: toDatetimeLocalValue(post.publishedAt),
     hulls: post.hulls.map((h) => h.hull),
     tagIds: post.tags.map((t) => t.tag.id),
     themeIds: post.themes.map((t) => t.theme.id),
     milestoneIds: post.milestones.map((m) => m.milestone.id),
   });
+  const [slug, setSlug] = useState(post.slug);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [newTagFr, setNewTagFr] = useState("");
   const [newTagEn, setNewTagEn] = useState("");
@@ -79,15 +85,19 @@ export function PostEditor({
   const save = useCallback(async () => {
     setSaveState("saving");
     try {
+      const payload = {
+        ...formRef.current,
+        coverImageUrl: formRef.current.coverImageUrl || null,
+        publishedAt: fromDatetimeLocalValue(formRef.current.publishedAt),
+      };
       const res = await fetch(`/api/posts/${post.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formRef.current,
-          coverImageUrl: formRef.current.coverImageUrl || null,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("Save failed");
+      const updated = (await res.json()) as { slug?: string };
+      if (updated.slug) setSlug(updated.slug);
       setSaveState("saved");
     } catch {
       setSaveState("error");
@@ -293,12 +303,37 @@ export function PostEditor({
           placeholder={lang === "fr" ? "Titre (FR)" : "Title (EN)"}
           className="w-full rounded-md border border-[#d4dde6] px-4 py-3 text-xl font-semibold"
         />
-        <input
-          value={form.slug}
-          onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
-          placeholder="slug-url"
-          className="w-full rounded-md border border-[#d4dde6] px-3 py-2 text-sm font-mono"
-        />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block text-sm">
+            <span className="mb-1 block text-[#495867]">{t("editor.slug")}</span>
+            <input
+              value={slug}
+              readOnly
+              className="w-full cursor-default rounded-md border border-[#d4dde6] bg-[#f4f7fa] px-3 py-2 font-mono text-sm text-[#495867]"
+            />
+            <span className="mt-1 block text-[11px] text-[#495867]">
+              {post.status === "DRAFT"
+                ? t("editor.slugHintDraft")
+                : t("editor.slugHintFrozen")}
+            </span>
+          </label>
+          <label className="block text-sm">
+            <span className="mb-1 block text-[#495867]">
+              {t("editor.publishedAt")}
+            </span>
+            <input
+              type="datetime-local"
+              value={form.publishedAt}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, publishedAt: e.target.value }))
+              }
+              className="w-full rounded-md border border-[#d4dde6] px-3 py-2 text-sm"
+            />
+            <span className="mt-1 block text-[11px] text-[#495867]">
+              {t("editor.publishedAtHint")}
+            </span>
+          </label>
+        </div>
         <textarea
           value={lang === "fr" ? form.excerptFr : form.excerptEn}
           onChange={(e) =>

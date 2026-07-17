@@ -150,10 +150,10 @@ export function GalleryPageContent({
           </span>
           {(
             [
-              ["", "Tous"],
-              ["IMAGE", "Photos"],
-              ["DOCUMENT", "Documents"],
-              ["VIDEO", "Vidéos"],
+              ["", t("media.kind.all")],
+              ["IMAGE", t("gallery.kind.image")],
+              ["DOCUMENT", t("gallery.kind.document")],
+              ["VIDEO", t("gallery.kind.video")],
             ] as const
           ).map(([value, label]) => (
             <button

@@ -45,9 +45,8 @@ describe("API integration — Photos CRUD + transforms + 4 sizes", () => {
         method: "POST",
         headers: bearerHeaders(),
         body: JSON.stringify({
-          titleFr: "Photos FR",
+          titleFr: uniqueSlug(PREFIX),
           titleEn: "Photos EN",
-          slug: uniqueSlug(PREFIX),
         }),
       })
     );

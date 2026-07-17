@@ -85,7 +85,7 @@ export function PreviewArticle({
 
       {post.images.length > 0 && (
         <section className="mt-10">
-          <h2 className="mb-4 text-xl font-semibold">Galerie</h2>
+          <h2 className="mb-4 text-xl font-semibold">Médias</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             {post.images.map((img, i) => (
               <GalleryImage key={i} image={img} locale={lang} />

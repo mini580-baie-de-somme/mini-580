@@ -82,13 +82,12 @@ describe("API integration — IA tools full capacity (Bearer)", () => {
         method: "POST",
         headers: bearerHeaders(),
         body: JSON.stringify({
-          titleFr: "IA Article FR",
+          titleFr: uniqueSlug(PREFIX),
           titleEn: "AI Article EN",
           excerptFr: "Ex FR",
           excerptEn: "Ex EN",
           bodyFr: "Corps FR assisté",
           bodyEn: "EN body assisted",
-          slug: uniqueSlug(PREFIX),
         }),
       })
     );

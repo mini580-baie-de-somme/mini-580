@@ -92,11 +92,10 @@ describe("API integration — Sync PROD↔TEST", () => {
         method: "POST",
         headers: bearerHeaders(),
         body: JSON.stringify({
-          titleFr: "Sync FR",
+          titleFr: slug,
           titleEn: "Sync EN",
           bodyFr: "Corps",
           bodyEn: "Body",
-          slug,
         }),
       })
     );

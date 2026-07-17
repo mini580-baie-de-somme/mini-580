@@ -40,7 +40,7 @@ const messages = {
     en: "Les vieux fourneaux document the build of three ocean-racing plywood-epoxy sailboats from the Baie de Somme. Bilingual FR/EN blog — transparent, with a touch of swing manouche.",
   },
   "home.readBlog": { fr: "Lire le blog", en: "Read the blog" },
-  "home.galleryCta": { fr: "Galerie photos", en: "Photo gallery" },
+  "home.galleryCta": { fr: "Galerie médias", en: "Media gallery" },
   "home.timelineCta": { fr: "Timeline chantier", en: "Build timeline" },
   "home.teamTitle": { fr: "L'équipe", en: "The crew" },
   "home.teamIntro": {
@@ -119,14 +119,15 @@ const messages = {
     fr: "Aucun média pour ces filtres.",
     en: "No media match these filters.",
   },
+  "gallery.kind.image": { fr: "Photo", en: "Photo" },
   "gallery.kind.document": { fr: "Document", en: "Document" },
   "gallery.kind.video": { fr: "Vidéo", en: "Video" },
   "gallery.openPdf": { fr: "Ouvrir le PDF", en: "Open PDF" },
   "gallery.untitled": { fr: "Sans titre", en: "Untitled" },
   "gallery.slideshow": { fr: "Diaporama", en: "Slideshow" },
   "gallery.startSlideshow": { fr: "Lancer le diaporama", en: "Start slideshow" },
-  "gallery.prev": { fr: "Précédente", en: "Previous" },
-  "gallery.next": { fr: "Suivante", en: "Next" },
+  "gallery.prev": { fr: "Précédent", en: "Previous" },
+  "gallery.next": { fr: "Suivant", en: "Next" },
   "gallery.play": { fr: "Auto (5 s)", en: "Auto (5 s)" },
   "gallery.pause": { fr: "Pause", en: "Pause" },
   "gallery.close": { fr: "Fermer", en: "Close" },
@@ -150,7 +151,7 @@ const messages = {
   "login.failed": { fr: "Connexion impossible", en: "Sign-in failed" },
   "login.network": { fr: "Erreur réseau", en: "Network error" },
 
-  "article.gallery": { fr: "Galerie photos", en: "Photo gallery" },
+  "article.gallery": { fr: "Médias", en: "Media" },
   "article.back": { fr: "Retour au blog", en: "Back to blog" },
 
   "editor.title": { fr: "Éditeur", en: "Editor" },
@@ -172,6 +173,23 @@ const messages = {
   "editor.loadingMore": { fr: "Chargement…", en: "Loading more…" },
   "editor.loadError": { fr: "Impossible de charger les articles.", en: "Failed to load posts." },
   "editor.count": { fr: "{n} article(s)", en: "{n} post(s)" },
+  "editor.slug": { fr: "Slug (URL)", en: "Slug (URL)" },
+  "editor.slugHintDraft": {
+    fr: "Généré automatiquement depuis le titre FR. Figé à la publication.",
+    en: "Auto-generated from the FR title. Frozen on publish.",
+  },
+  "editor.slugHintFrozen": {
+    fr: "Figé après publication — évite les 404 et préserve le référencement.",
+    en: "Frozen after publish — avoids 404s and preserves SEO.",
+  },
+  "editor.publishedAt": {
+    fr: "Date de publication / timeline",
+    en: "Publish / timeline date",
+  },
+  "editor.publishedAtHint": {
+    fr: "Permet de rétro-dater ou placer l’article précisément sur la timeline.",
+    en: "Backdate or place the post precisely on the timeline.",
+  },
   "editor.notOnProd": { fr: "hors PROD", en: "not on PROD" },
   "editor.archive": { fr: "Archiver", en: "Archive" },
   "editor.unarchive": { fr: "Désarchiver", en: "Unarchive" },
@@ -256,8 +274,8 @@ const messages = {
 
   "media.title": { fr: "Galerie — médiathèque", en: "Media library" },
   "media.subtitle": {
-    fr: "Photos, PDF et vidéos. Seuls les médias liés à un article publié apparaissent dans la galerie publique.",
-    en: "Photos, PDFs and videos. Only media linked to a published post appear in the public gallery.",
+    fr: "Photos, documents PDF et vidéos. Seuls les médias liés à un article publié apparaissent dans la galerie publique.",
+    en: "Photos, PDF documents and videos. Only media linked to a published post appear in the public gallery.",
   },
   "media.new": { fr: "Ajouter un média", en: "Add media" },
   "media.edit": { fr: "Modifier le média", en: "Edit media" },
@@ -296,7 +314,14 @@ const messages = {
   },
   "media.preview": { fr: "Aperçu", en: "Preview" },
   "media.detectedKind": { fr: "Type détecté", en: "Detected type" },
-  "media.takenAt": { fr: "Date", en: "Date" },
+  "media.takenAt": {
+    fr: "Date (galerie / chronologie)",
+    en: "Date (gallery / chronology)",
+  },
+  "media.takenAtHint": {
+    fr: "Permet de rétro-dater le média pour l’ordre en galerie.",
+    en: "Backdate the media for gallery ordering.",
+  },
   "media.transforms": { fr: "Transformations", en: "Transforms" },
   "media.titleFr": { fr: "Titre FR", en: "French title" },
   "media.titleEn": { fr: "Titre EN", en: "English title" },

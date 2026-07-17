@@ -252,7 +252,7 @@ export function PostGalleryEditor({
       <div className="space-y-3 rounded-lg border border-[#d4dde6] p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-medium text-[#0D131A]">
-            Image de couverture
+            {lang === "fr" ? "Photo de couverture" : "Cover photo"}
           </h2>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -261,8 +261,12 @@ export function PostGalleryEditor({
               className="rounded-md border border-[#495867] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7]"
             >
               {coverImage || coverImageUrl
-                ? "Éditer la couverture"
-                : "Ajouter une couverture"}
+                ? lang === "fr"
+                  ? "Éditer la couverture"
+                  : "Edit cover"
+                : lang === "fr"
+                  ? "Ajouter une couverture"
+                  : "Add cover"}
             </button>
             {(coverImage || coverImageUrl) && (
               <button
@@ -270,14 +274,15 @@ export function PostGalleryEditor({
                 onClick={clearCoverOnly}
                 className="rounded-md border border-[#d4dde6] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7]"
               >
-                Retirer
+                {lang === "fr" ? "Retirer" : "Remove"}
               </button>
             )}
           </div>
         </div>
         <p className="text-xs text-[#495867]">
-          Enregistrée dans la médiathèque comme les autres photos — crop, meta,
-          variantes et galerie publique.
+          {lang === "fr"
+            ? "Cette photo est enregistrée dans la médiathèque comme les autres médias — cadrage, meta, variantes et galerie publique."
+            : "This photo is stored in the media library like other media — crop, meta, variants and public gallery."}
         </p>
         {coverImage || coverImageUrl ? (
           <button
@@ -300,26 +305,31 @@ export function PostGalleryEditor({
           </button>
         ) : (
           <p className="rounded-lg border border-dashed border-[#d4dde6] bg-[#fafbfc] px-4 py-6 text-center text-sm text-[#495867]">
-            Aucune couverture — ajoute une image ou choisis une photo de
-            l’article ci-dessous.
+            {lang === "fr"
+              ? "Aucune couverture — ajoute une photo ou choisis une photo parmi les médias de l’article ci-dessous."
+              : "No cover — add a photo or pick a photo from the post media below."}
           </p>
         )}
         {selected && coverImage?.id !== selected.id && (
-            <button
-              type="button"
-              onClick={useSelectedAsCover}
-              disabled={(selected.kind || "IMAGE") !== "IMAGE"}
-              className="rounded-md bg-[#eef3f7] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#e0e8ef] disabled:opacity-40"
-            >
-              Utiliser la photo sélectionnée comme couverture
-            </button>
+          <button
+            type="button"
+            onClick={useSelectedAsCover}
+            disabled={(selected.kind || "IMAGE") !== "IMAGE"}
+            className="rounded-md bg-[#eef3f7] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#e0e8ef] disabled:opacity-40"
+          >
+            {lang === "fr"
+              ? "Utiliser la photo sélectionnée comme couverture"
+              : "Use selected photo as cover"}
+          </button>
         )}
       </div>
 
       <div className="space-y-4 rounded-lg border border-[#d4dde6] p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-medium text-[#0D131A]">
-            Médias de l’article ({images.length})
+            {lang === "fr"
+              ? `Médias de l’article (${images.length})`
+              : `Post media (${images.length})`}
           </h2>
           <div className="flex flex-wrap items-center gap-2">
             {busy && <span className="text-xs text-[#495867]">…</span>}
@@ -329,14 +339,14 @@ export function PostGalleryEditor({
               onClick={() => void openLibraryPicker()}
               className="rounded-md border border-[#d4dde6] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7]"
             >
-              Depuis la médiathèque
+              {lang === "fr" ? "Depuis la médiathèque" : "From media library"}
             </button>
             <button
               type="button"
               onClick={() => setModal({ kind: "add" })}
               className="rounded-md border border-[#495867] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7]"
             >
-              Ajouter fichier
+              {lang === "fr" ? "Ajouter un média" : "Add media"}
             </button>
             <button
               type="button"
@@ -347,14 +357,16 @@ export function PostGalleryEditor({
               disabled={!selected}
               className="rounded-md bg-[#495867] px-3 py-1.5 text-sm text-white hover:bg-[#3a4654] disabled:opacity-50"
             >
-              Éditer
+              {lang === "fr" ? "Éditer" : "Edit"}
             </button>
           </div>
         </div>
 
         {images.length === 0 ? (
           <p className="rounded-lg border border-dashed border-[#d4dde6] bg-[#fafbfc] px-4 py-8 text-center text-sm text-[#495867]">
-            Aucun média — uploade un fichier ou choisis depuis la médiathèque.
+            {lang === "fr"
+              ? "Aucun média — uploade un fichier ou choisis depuis la médiathèque."
+              : "No media yet — upload a file or pick from the library."}
           </p>
         ) : (
           <div className="flex gap-2 overflow-x-auto pb-1">
@@ -387,7 +399,7 @@ export function PostGalleryEditor({
                   </button>
                   {isCover && (
                     <span className="absolute -top-1 left-0 rounded bg-[#495867] px-1 text-[9px] font-medium text-white">
-                      Cover
+                      {lang === "fr" ? "Couv." : "Cover"}
                     </span>
                   )}
                   <div className="mt-1 flex justify-center gap-0.5">
@@ -419,7 +431,11 @@ export function PostGalleryEditor({
 
       {modal.kind === "pick-library" && (
         <FullscreenEditorModal
-          title="Médias de la bibliothèque"
+          title={
+            lang === "fr"
+              ? "Médias de la médiathèque"
+              : "Media library items"
+          }
           onClose={() => setModal({ kind: "closed" })}
           busy={busy}
           footerRight={
@@ -429,7 +445,7 @@ export function PostGalleryEditor({
                 onClick={() => setModal({ kind: "closed" })}
                 className="rounded-md border border-[#d4dde6] px-3 py-2 text-sm"
               >
-                Annuler
+                {lang === "fr" ? "Annuler" : "Cancel"}
               </button>
               <button
                 type="button"
@@ -437,7 +453,9 @@ export function PostGalleryEditor({
                 onClick={() => void attachFromLibrary()}
                 className="rounded-md bg-[#495867] px-3 py-2 text-sm text-white disabled:opacity-50"
               >
-                Associer ({librarySelected.size})
+                {lang === "fr"
+                  ? `Associer (${librarySelected.size})`
+                  : `Attach (${librarySelected.size})`}
               </button>
             </>
           }
@@ -445,7 +463,9 @@ export function PostGalleryEditor({
           <div className="h-full overflow-y-auto p-4">
             {libraryItems.length === 0 ? (
               <p className="text-sm text-[#495867]">
-                Aucun média disponible à associer.
+                {lang === "fr"
+                  ? "Aucun média disponible à associer."
+                  : "No media available to attach."}
               </p>
             ) : (
               <ul className="mx-auto grid max-w-3xl gap-2 sm:grid-cols-2">
