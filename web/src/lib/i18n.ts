@@ -217,7 +217,7 @@ const messages = {
   "list.countFiltered": { fr: "{result} / {total} ligne(s)", en: "{result} / {total} row(s)" },
   "list.colActions": { fr: "Actions", en: "Actions" },
   "list.edit": { fr: "Éditer", en: "Edit" },
-  "list.search": { fr: "Rechercher…", en: "Search…" },
+  "list.search": { fr: "Rechercher", en: "Search" },
   "list.filter": { fr: "Filtrer", en: "Filter" },
   "list.loadingMore": { fr: "Chargement…", en: "Loading more…" },
   "list.loadError": { fr: "Chargement impossible.", en: "Failed to load." },

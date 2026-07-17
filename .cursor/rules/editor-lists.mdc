@@ -1,0 +1,26 @@
+---
+description: Design system des listes CRUD /editeur (recherche, actions, clic ligne, infinite scroll, compteurs)
+globs: web/src/components/*Manager.tsx,web/src/components/EditorPost*.tsx,web/src/components/EditorList*.tsx,web/src/components/useEditorInfiniteList.ts,web/src/app/editeur/**/*.tsx,web/src/app/api/{posts,tags,themes,milestones,media-library}/**/*.ts
+alwaysApply: false
+---
+
+# Listes éditeur — design system
+
+Toute liste CRUD sous `/editeur` doit respecter `docs/11-design-system-editeur.md`.
+
+## Obligatoire
+
+1. **Toolbar** `[Rechercher] [barre] [Filtres ▼]` via `EditorListToolbar` (chips actifs sous la barre + ×)
+2. **Compteur** : `EditorListCount` — total seul, ou `{result} / {total}` si recherche/filtre
+3. **Clic ligne** → édition (page ou formulaire inline) ; Actions en `stopPropagation`
+4. **Colonne Actions** (Éditer + Supprimer au minimum)
+5. **Infinite scroll** via `useEditorInfiniteList` + API `{ items, total, totalAll, limit, offset }`
+6. **Table alignée** : un `<td>` par `<th>` (jamais `colSpan` + CSS grid pour les colonnes)
+
+## Ne pas faire
+
+- Barre de recherche avec bouton à droite / chips de filtre toujours visibles hors panneau
+- Charger toute la liste sans pagination côté éditeur
+- Lignes non cliquables alors que l’édition existe
+- Actions uniquement hors tableau (toolbar seule)
+- Mélanger largeurs `<th>` et layout grid interne dans une seule cellule

@@ -356,7 +356,7 @@ export function MilestoneManager({ isTestEnv = false }: { isTestEnv?: boolean })
       <EditorListSearch
         value={q}
         placeholder={t("milestones.search")}
-        submitLabel={t("list.filter")}
+        submitLabel={t("list.search")}
         onSubmit={onSearch}
       />
 

@@ -212,7 +212,7 @@ export function ThemeManager() {
       <EditorListSearch
         value={q}
         placeholder={t("themes.search")}
-        submitLabel={t("list.filter")}
+        submitLabel={t("list.search")}
         onSubmit={onSearch}
       />
 

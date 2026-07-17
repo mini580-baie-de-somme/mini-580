@@ -212,7 +212,7 @@ export function TagManager() {
       <EditorListSearch
         value={q}
         placeholder={t("tags.search")}
-        submitLabel={t("list.filter")}
+        submitLabel={t("list.search")}
         onSubmit={onSearch}
       />
 

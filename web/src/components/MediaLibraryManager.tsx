@@ -5,6 +5,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale } from "./LocaleProvider";
 import { EditorListCount } from "./EditorListCount";
 import { EditorListSearch } from "./EditorListSearch";
+import {
+  EditorFilterChip,
+  EditorFilterGroup,
+  type EditorListActiveChip,
+} from "./EditorListToolbar";
 import { useEditorInfiniteList } from "./useEditorInfiniteList";
 import { MediaPreview } from "./MediaPreview";
 import { MediaKindThumb } from "./MediaKindThumb";
@@ -163,6 +168,7 @@ export function MediaLibraryManager() {
   const [q, setQ] = useState("");
   const [kind, setKind] = useState<"ALL" | MediaKind>("ALL");
   const [visibility, setVisibility] = useState<VisibilityFilter>("ALL");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingMedia, setEditingMedia] = useState<MediaItem | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -759,43 +765,77 @@ export function MediaLibraryManager() {
       <EditorListSearch
         value={q}
         placeholder={t("media.search")}
-        submitLabel={t("list.filter")}
+        submitLabel={t("list.search")}
         onSubmit={onSearch}
+        filtersOpen={filtersOpen}
+        onFiltersOpenChange={setFiltersOpen}
+        activeFilterCount={
+          (q ? 1 : 0) +
+          (kind !== "ALL" ? 1 : 0) +
+          (visibility !== "ALL" ? 1 : 0)
+        }
+        activeChips={((): EditorListActiveChip[] => {
+          const chips: EditorListActiveChip[] = [];
+          if (q) {
+            chips.push({
+              key: "q",
+              prefix: t("editor.filters.search"),
+              label: q,
+            });
+          }
+          if (kind !== "ALL") {
+            chips.push({
+              key: "kind",
+              prefix: t("media.colKind"),
+              label: kindLabel(kind),
+            });
+          }
+          if (visibility !== "ALL") {
+            chips.push({
+              key: "visibility",
+              prefix: t("media.colVisibility"),
+              label: visibilityLabel(visibility),
+            });
+          }
+          return chips;
+        })()}
+        onRemoveChip={(key) => {
+          if (key === "q") setQ("");
+          if (key === "kind") setKind("ALL");
+          if (key === "visibility") setVisibility("ALL");
+        }}
+        onClearAll={() => {
+          setQ("");
+          setKind("ALL");
+          setVisibility("ALL");
+        }}
+        filterPanel={
+          <>
+            <EditorFilterGroup label={t("media.colKind")}>
+              {KIND_FILTERS.map((k) => (
+                <EditorFilterChip
+                  key={k}
+                  active={kind === k}
+                  onClick={() => setKind(k)}
+                >
+                  {kindLabel(k)}
+                </EditorFilterChip>
+              ))}
+            </EditorFilterGroup>
+            <EditorFilterGroup label={t("media.colVisibility")}>
+              {VISIBILITY_FILTERS.map((v) => (
+                <EditorFilterChip
+                  key={v}
+                  active={visibility === v}
+                  onClick={() => setVisibility(v)}
+                >
+                  {visibilityLabel(v)}
+                </EditorFilterChip>
+              ))}
+            </EditorFilterGroup>
+          </>
+        }
       />
-
-      <div className="mb-3 flex flex-wrap gap-2">
-        {KIND_FILTERS.map((k) => (
-          <button
-            key={k}
-            type="button"
-            onClick={() => setKind(k)}
-            className={`rounded border px-2 py-1 text-xs ${
-              kind === k
-                ? "border-[#495867] bg-[#495867] text-white"
-                : "border-[#d4dde6] bg-white text-[#495867]"
-            }`}
-          >
-            {kindLabel(k)}
-          </button>
-        ))}
-      </div>
-
-      <div className="mb-3 flex flex-wrap gap-2">
-        {VISIBILITY_FILTERS.map((v) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => setVisibility(v)}
-            className={`rounded border px-2 py-1 text-xs ${
-              visibility === v
-                ? "border-[#495867] bg-[#495867] text-white"
-                : "border-[#d4dde6] bg-white text-[#495867]"
-            }`}
-          >
-            {visibilityLabel(v)}
-          </button>
-        ))}
-      </div>
 
       {!loading && (
         <EditorListCount

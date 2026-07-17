@@ -1,6 +1,6 @@
 # Design system — listes éditeur (`/editeur`)
 
-Règles UI obligatoires pour **toutes** les listes CRUD de l’espace éditeur : articles, tags, thématiques, jalons.
+Règles UI obligatoires pour **toutes** les listes CRUD de l’espace éditeur : articles, tags, thématiques, jalons, médiathèque.
 
 ## Règles déjà en place (chrome / produit)
 
@@ -21,12 +21,35 @@ Règles UI obligatoires pour **toutes** les listes CRUD de l’espace éditeur :
 
 ## Règles listes (obligatoires)
 
-### 1. Recherche en haut de liste
+### 1. Recherche et filtrage (toolbar standard)
 
-- Champ recherche + bouton filtrer **au-dessus** du compteur et de la table
-- Articles : recherche + filtres (statut, coque, thème, tag) — `EditorPostFilters`
-- Autres modules : au minimum recherche texte — `EditorListSearch`
-- Filtrage côté API (`q`, plus filtres métier si besoin)
+Composant : **`EditorListToolbar`** (ou `EditorListSearch` / `EditorPostFilters` qui l’utilisent).
+
+Disposition **obligatoire** (une seule ligne, wrap si besoin) :
+
+```
+[ Rechercher ]  [======== barre de recherche ========]  [ Filtres ▼ ]
+```
+
+- **Rechercher** (`list.search`) : à **gauche** de la barre — soumet la recherche texte
+- **Barre** : champ `type="search"`, placeholder métier (`editor.search`, `media.search`, …)
+- **Filtres** (`editor.filters.toggle`) : à **droite** — ouvre/ferme le panneau des chips de filtrage ; badge compteur si filtres actifs ; chevron ▼/▲
+- Sans filtres métier (tags / thèmes / jalons) : pas de bouton Filtres
+
+**Chips actifs** (sous la ligne recherche, toujours visibles s’il y en a) :
+
+- Une pastille par filtre actif : `Préfixe: valeur ×`
+- Clic sur la pastille (ou ×) retire ce filtre
+- Si ≥ 2 chips : lien « Tout effacer » (`editor.filters.clearAll`)
+- Inclure la recherche `q` comme chip (`Recherche: …`)
+
+**Panneau Filtres** (sous la toolbar, bordure haute) :
+
+- Groupes de chips via `EditorFilterGroup` + `EditorFilterChip`
+- Style actif : fond `#495867` texte blanc ; inactif : bordure `#d4dde6`
+- Filtrage côté API (`q` + clés métier)
+
+Référence articles : `EditorPostFilters` · médiathèque : `MediaLibraryManager`
 
 ### 2. Compteur de lignes
 
@@ -67,16 +90,21 @@ Règles UI obligatoires pour **toutes** les listes CRUD de l’espace éditeur :
 
 | Élément | Fichier |
 |---------|---------|
+| Toolbar recherche / filtres | `web/src/components/EditorListToolbar.tsx` |
+| Recherche simple | `web/src/components/EditorListSearch.tsx` |
+| Filtres articles | `web/src/components/EditorPostFilters.tsx` |
 | Hook infinite scroll | `web/src/components/useEditorInfiniteList.ts` |
-| Recherche | `web/src/components/EditorListSearch.tsx` |
 | Compteur | `web/src/components/EditorListCount.tsx` |
 | Helpers API | `web/src/lib/editor-list.ts` |
 | Articles | `web/src/components/EditorPostList.tsx` |
+| Médiathèque | `web/src/components/MediaLibraryManager.tsx` |
 | Tags / thèmes / jalons | `TagManager` / `ThemeManager` / `MilestoneManager` |
 
 ## Checklist nouvelle liste éditeur
 
-- [ ] Recherche en tête
+- [ ] Toolbar `[Rechercher] [barre] [Filtres ▼]` via `EditorListToolbar`
+- [ ] Chips actifs sous la barre + × pour retirer
+- [ ] Panneau Filtres collapsible (si filtres métier)
 - [ ] Compteur total + `result / total` si filtré
 - [ ] Clic ligne → édition
 - [ ] Colonne Actions (éditer / supprimer + stopPropagation)
