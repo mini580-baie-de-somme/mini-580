@@ -35,6 +35,7 @@ export const postMediaInclude = {
 export function mediaWhere(filters?: {
   q?: string;
   kind?: string;
+  visibility?: string;
 }): Prisma.MediaWhereInput {
   const where: Prisma.MediaWhereInput = {};
   if (filters?.kind && filters.kind !== "ALL") {
@@ -42,6 +43,17 @@ export function mediaWhere(filters?: {
     if (Object.values(MediaKind).includes(kind)) {
       where.kind = kind;
     }
+  }
+  const visibility = filters?.visibility?.trim().toLowerCase();
+  if (visibility === "public") {
+    where.posts = { some: { post: { status: "PUBLISHED" } } };
+  } else if (visibility === "draft") {
+    where.AND = [
+      { posts: { some: {} } },
+      { posts: { none: { post: { status: "PUBLISHED" } } } },
+    ];
+  } else if (visibility === "orphan") {
+    where.posts = { none: {} };
   }
   const q = filters?.q?.trim();
   if (q) {
@@ -59,6 +71,7 @@ export function mediaWhere(filters?: {
 export function parseMediaListParams(searchParams: URLSearchParams) {
   const q = searchParams.get("q")?.trim() || undefined;
   const kind = searchParams.get("kind") ?? undefined;
+  const visibility = searchParams.get("visibility") ?? undefined;
   const limit = Math.min(
     100,
     Math.max(
@@ -68,7 +81,7 @@ export function parseMediaListParams(searchParams: URLSearchParams) {
     )
   );
   const offset = Math.max(0, Number.parseInt(searchParams.get("offset") ?? "0", 10) || 0);
-  return { q, kind, limit, offset };
+  return { q, kind, visibility, limit, offset };
 }
 
 /** Shape expected by legacy post image consumers (includes sortOrder from link). */

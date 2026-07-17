@@ -21,8 +21,8 @@ export const runtime = "nodejs";
 export async function GET(request: NextRequest) {
   const editor = await getEditorOrService(request);
   const { searchParams } = request.nextUrl;
-  const { q, kind, limit, offset } = parseMediaListParams(searchParams);
-  const where = mediaWhere({ q, kind });
+  const { q, kind, visibility, limit, offset } = parseMediaListParams(searchParams);
+  const where = mediaWhere({ q, kind, visibility: editor ? visibility : undefined });
 
   // Public: only media linked to at least one published post (for discovery)
   if (!editor) {

@@ -62,8 +62,17 @@ type MediaItem = {
   cropY?: number;
   cropW?: number;
   cropH?: number;
-  posts?: { post: { id: string; titleFr: string; slug: string } }[];
+  posts?: {
+    post: {
+      id: string;
+      titleFr: string;
+      slug: string;
+      status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+    };
+  }[];
 };
+
+type VisibilityFilter = "ALL" | "public" | "draft" | "orphan";
 
 type FormState = {
   titleFr: string;
@@ -84,6 +93,21 @@ const emptyForm: FormState = {
 };
 
 const KIND_FILTERS: Array<"ALL" | MediaKind> = ["ALL", "IMAGE", "DOCUMENT", "VIDEO"];
+const VISIBILITY_FILTERS: VisibilityFilter[] = [
+  "ALL",
+  "public",
+  "draft",
+  "orphan",
+];
+
+function mediaVisibility(
+  m: MediaItem
+): "public" | "draft" | "orphan" {
+  const posts = m.posts ?? [];
+  if (posts.length === 0) return "orphan";
+  if (posts.some((p) => p.post.status === "PUBLISHED")) return "public";
+  return "draft";
+}
 
 function formFromMedia(m: MediaItem): FormState {
   const taken =
@@ -141,6 +165,7 @@ export function MediaLibraryManager() {
   const { locale, t } = useLocale();
   const [q, setQ] = useState("");
   const [kind, setKind] = useState<"ALL" | MediaKind>("ALL");
+  const [visibility, setVisibility] = useState<VisibilityFilter>("ALL");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingMedia, setEditingMedia] = useState<MediaItem | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -155,8 +180,9 @@ export function MediaLibraryManager() {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     if (kind !== "ALL") params.set("kind", kind);
+    if (visibility !== "ALL") params.set("visibility", visibility);
     return params.toString();
-  }, [q, kind]);
+  }, [q, kind, visibility]);
 
   const {
     items,
@@ -382,6 +408,43 @@ export function MediaLibraryManager() {
     if (k === "IMAGE") return t("media.kind.image");
     if (k === "DOCUMENT") return t("media.kind.document");
     return t("media.kind.video");
+  }
+
+  function visibilityLabel(v: VisibilityFilter) {
+    if (v === "ALL") return t("media.visibility.all");
+    if (v === "public") return t("media.visibility.public");
+    if (v === "draft") return t("media.visibility.draft");
+    return t("media.visibility.orphan");
+  }
+
+  function visibilityBadge(m: MediaItem) {
+    const v = mediaVisibility(m);
+    const label =
+      v === "public"
+        ? t("media.visibility.public")
+        : v === "draft"
+          ? t("media.visibility.draft")
+          : t("media.visibility.orphan");
+    const hint =
+      v === "public"
+        ? t("media.visibility.publicHint")
+        : v === "draft"
+          ? t("media.visibility.draftHint")
+          : t("media.visibility.orphanHint");
+    const cls =
+      v === "public"
+        ? "bg-emerald-100 text-emerald-800"
+        : v === "draft"
+          ? "bg-amber-100 text-amber-800"
+          : "bg-[#eef3f7] text-[#495867]";
+    return (
+      <span
+        title={hint}
+        className={`inline-block rounded px-2 py-0.5 text-[11px] font-medium ${cls}`}
+      >
+        {label}
+      </span>
+    );
   }
 
   function thumb(m: MediaItem) {
@@ -721,11 +784,28 @@ export function MediaLibraryManager() {
         ))}
       </div>
 
+      <div className="mb-3 flex flex-wrap gap-2">
+        {VISIBILITY_FILTERS.map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setVisibility(v)}
+            className={`rounded border px-2 py-1 text-xs ${
+              visibility === v
+                ? "border-[#495867] bg-[#495867] text-white"
+                : "border-[#d4dde6] bg-white text-[#495867]"
+            }`}
+          >
+            {visibilityLabel(v)}
+          </button>
+        ))}
+      </div>
+
       {!loading && (
         <EditorListCount
           total={total}
           totalAll={totalAll}
-          filtered={Boolean(q) || kind !== "ALL"}
+          filtered={Boolean(q) || kind !== "ALL" || visibility !== "ALL"}
           totalLabel={t("list.count")}
           filteredLabel={t("list.countFiltered")}
         />
@@ -744,6 +824,9 @@ export function MediaLibraryManager() {
                   {t("media.colKind")}
                 </th>
                 <th className="hidden px-4 py-3 font-medium md:table-cell">
+                  {t("media.colVisibility")}
+                </th>
+                <th className="hidden px-4 py-3 font-medium lg:table-cell">
                   {t("media.colLinks")}
                 </th>
                 <th className="px-4 py-3 font-medium">{t("list.colActions")}</th>
@@ -764,8 +847,18 @@ export function MediaLibraryManager() {
                     <div className="text-xs text-[#495867]">{m.mimeType}</div>
                   </td>
                   <td className="hidden px-4 py-3 sm:table-cell">{kindLabel(m.kind)}</td>
-                  <td className="hidden px-4 py-3 text-[#495867] md:table-cell">
+                  <td className="hidden px-4 py-3 md:table-cell">
+                    {visibilityBadge(m)}
+                  </td>
+                  <td className="hidden px-4 py-3 text-[#495867] lg:table-cell">
                     {m.posts?.length ?? 0}
+                    {m.posts && m.posts.length > 0 && (
+                      <div className="mt-0.5 max-w-[12rem] truncate text-[10px] text-[#495867]">
+                        {m.posts
+                          .map((p) => p.post.titleFr || p.post.slug)
+                          .join(", ")}
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex flex-wrap gap-2">

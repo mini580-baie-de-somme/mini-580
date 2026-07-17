@@ -37,7 +37,7 @@ export function GalleryPageContent({
   const [search, setSearch] = useState(searchParams.get("search") ?? "");
   const [slideshowOpen, setSlideshowOpen] = useState(false);
   const [index, setIndex] = useState(0);
-  const [autoPlay, setAutoPlay] = useState(true);
+  const [autoPlay, setAutoPlay] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const sort = searchParams.get("sort") === "milestone" ? "milestone" : "date";
@@ -57,11 +57,20 @@ export function GalleryPageContent({
     update("search", search.trim());
   }
 
-  const openAt = useCallback((i: number) => {
+  /** Open viewer without autoplay (manual browse). */
+  const openViewer = useCallback((i: number) => {
     setIndex(i);
+    setAutoPlay(false);
     setSlideshowOpen(true);
-    setAutoPlay(true);
   }, []);
+
+  /** Explicit slideshow mode — user opted in via Diaporama button. */
+  const startSlideshow = useCallback((fromIndex = 0) => {
+    if (photos.length === 0) return;
+    setIndex(fromIndex);
+    setAutoPlay(true);
+    setSlideshowOpen(true);
+  }, [photos.length]);
 
   const go = useCallback(
     (delta: number) => {
@@ -291,9 +300,20 @@ export function GalleryPageContent({
         )}
       </div>
 
-      <p className="mt-4 text-sm text-[#495867]">
-        {t("gallery.count").replace("{n}", String(photos.length))}
-      </p>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-[#495867]">
+          {t("gallery.count").replace("{n}", String(photos.length))}
+        </p>
+        {photos.length > 0 && (
+          <button
+            type="button"
+            onClick={() => startSlideshow(0)}
+            className="rounded-md border border-[#495867] bg-[#495867] px-3 py-1.5 text-sm text-white hover:bg-[#3a4654]"
+          >
+            {t("gallery.startSlideshow")}
+          </button>
+        )}
+      </div>
 
       {emptyHint ? (
         <p className="mt-8 text-center text-[#495867]">{emptyHint}</p>
@@ -318,7 +338,7 @@ export function GalleryPageContent({
               <button
                 key={photo.id}
                 type="button"
-                onClick={() => openAt(i)}
+                onClick={() => openViewer(i)}
                 className="group overflow-hidden rounded-lg border border-[#d4dde6] bg-white text-left shadow-sm transition hover:border-[#495867]"
               >
                 <div className="aspect-square overflow-hidden bg-[#eef3f7]">
@@ -377,18 +397,24 @@ export function GalleryPageContent({
           <div className="flex items-center justify-between gap-3 px-4 py-3 text-white">
             <p className="text-sm">
               {index + 1} / {photos.length}
+              {autoPlay ? ` · ${t("gallery.slideshow")}` : ""}
             </p>
             <div className="flex items-center gap-2">
+              {photos.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setAutoPlay((v) => !v)}
+                  className="rounded border border-white/30 px-3 py-1 text-xs hover:bg-white/10"
+                >
+                  {autoPlay ? t("gallery.pause") : t("gallery.play")}
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => setAutoPlay((v) => !v)}
-                className="rounded border border-white/30 px-3 py-1 text-xs hover:bg-white/10"
-              >
-                {autoPlay ? t("gallery.pause") : t("gallery.play")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setSlideshowOpen(false)}
+                onClick={() => {
+                  setAutoPlay(false);
+                  setSlideshowOpen(false);
+                }}
                 className="rounded border border-white/30 px-3 py-1 text-xs hover:bg-white/10"
               >
                 {t("gallery.close")}

@@ -105,8 +105,8 @@ const messages = {
 
   "gallery.title": { fr: "Galerie chantier", en: "Yard gallery" },
   "gallery.subtitle": {
-    fr: "Tous les médias des articles publiés — tri par date ou jalon, filtres coque / thème / tag.",
-    en: "All media from published posts — sort by date or milestone, filter by hull / theme / tag.",
+    fr: "Médias liés à des articles publiés uniquement — tri par date ou jalon, filtres coque / thème / tag.",
+    en: "Only media linked to published posts — sort by date or milestone, filter by hull / theme / tag.",
   },
   "gallery.search": { fr: "Rechercher un média…", en: "Search media…" },
   "gallery.filter": { fr: "Filtrer", en: "Filter" },
@@ -124,6 +124,7 @@ const messages = {
   "gallery.openPdf": { fr: "Ouvrir le PDF", en: "Open PDF" },
   "gallery.untitled": { fr: "Sans titre", en: "Untitled" },
   "gallery.slideshow": { fr: "Diaporama", en: "Slideshow" },
+  "gallery.startSlideshow": { fr: "Lancer le diaporama", en: "Start slideshow" },
   "gallery.prev": { fr: "Précédente", en: "Previous" },
   "gallery.next": { fr: "Suivante", en: "Next" },
   "gallery.play": { fr: "Auto (5 s)", en: "Auto (5 s)" },
@@ -255,8 +256,8 @@ const messages = {
 
   "media.title": { fr: "Galerie — médiathèque", en: "Media library" },
   "media.subtitle": {
-    fr: "Photos, documents PDF et vidéos — associables à 0–N articles.",
-    en: "Photos, PDF documents and videos — linkable to 0–N posts.",
+    fr: "Photos, PDF et vidéos. Seuls les médias liés à un article publié apparaissent dans la galerie publique.",
+    en: "Photos, PDFs and videos. Only media linked to a published post appear in the public gallery.",
   },
   "media.new": { fr: "Ajouter un média", en: "Add media" },
   "media.edit": { fr: "Modifier le média", en: "Edit media" },
@@ -312,6 +313,23 @@ const messages = {
   "media.colTitle": { fr: "Titre", en: "Title" },
   "media.colKind": { fr: "Type", en: "Type" },
   "media.colLinks": { fr: "Articles", en: "Posts" },
+  "media.colVisibility": { fr: "Visibilité", en: "Visibility" },
+  "media.visibility.all": { fr: "Tous", en: "All" },
+  "media.visibility.public": { fr: "Sur le blog", en: "On the blog" },
+  "media.visibility.draft": { fr: "Brouillon", en: "Draft" },
+  "media.visibility.orphan": { fr: "Non lié", en: "Unlinked" },
+  "media.visibility.publicHint": {
+    fr: "Visible dans la galerie publique (article publié)",
+    en: "Visible in the public gallery (published post)",
+  },
+  "media.visibility.draftHint": {
+    fr: "Lié à un brouillon — publier l’article pour l’afficher",
+    en: "Linked to a draft — publish the post to show it",
+  },
+  "media.visibility.orphanHint": {
+    fr: "Pas d’article — associer à un post publié pour l’afficher",
+    en: "No post — attach to a published post to show it",
+  },
   "media.kind.all": { fr: "Tous", en: "All" },
   "media.kind.image": { fr: "Photo", en: "Photo" },
   "media.kind.document": { fr: "Document", en: "Document" },
