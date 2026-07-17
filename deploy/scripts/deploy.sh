@@ -40,13 +40,25 @@ echo "    IMAGE=$IMAGE"
 echo "    DIR=$DIR"
 
 # Ensure host media bucket exists (bind mount ./media → /data/media)
+# Container runs as uid/gid 1001 (nextjs) — host dir must be writable by that user.
 MEDIA_DIR="$DIR/media"
 mkdir -p "$MEDIA_DIR"
-# Prefer container user ownership when running as root; otherwise leave as-is
-if [[ "$(id -u)" -eq 0 ]]; then
+if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+  sudo chown -R 1001:1001 "$MEDIA_DIR"
+  sudo chmod -R u+rwX,g+rX,o+rX "$MEDIA_DIR"
+elif [[ "$(id -u)" -eq 0 ]]; then
   chown -R 1001:1001 "$MEDIA_DIR"
+  chmod -R u+rwX,g+rX,o+rX "$MEDIA_DIR"
+else
+  echo "WARNING: cannot chown $MEDIA_DIR to 1001:1001 (no root/sudo)."
+  echo "         Media uploads will fail with EACCES until permissions are fixed."
+  ls -lad "$MEDIA_DIR" || true
 fi
-chmod 755 "$MEDIA_DIR" || true
+# Soft check: if we own the dir or can write, good; otherwise warn
+if [[ ! -w "$MEDIA_DIR" ]] && [[ "$(stat -c '%u' "$MEDIA_DIR" 2>/dev/null || echo x)" != "1001" ]]; then
+  echo "WARNING: $MEDIA_DIR may not be writable by container user 1001"
+  ls -lad "$MEDIA_DIR" || true
+fi
 
 # Persist IMAGE in .env for compose variable substitution
 if grep -q '^IMAGE=' "$ENV_FILE"; then

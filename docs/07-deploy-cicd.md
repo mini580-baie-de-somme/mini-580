@@ -162,6 +162,7 @@ Sur un VPS déjà bootstrapé :
 ```bash
 sudo mkdir -p /opt/mini580/{test,prod}/media
 sudo chown -R 1001:1001 /opt/mini580/{test,prod}/media
+sudo chmod -R u+rwX,g+rX,o+rX /opt/mini580/{test,prod}/media
 # Recopier compose + nginx puis reload
 sudo cp /chemin/repo/deploy/docker-compose.test.yml /opt/mini580/test/docker-compose.yml
 sudo cp /chemin/repo/deploy/docker-compose.prod.yml /opt/mini580/prod/docker-compose.yml
