@@ -143,5 +143,5 @@ Voir **[Déploiement & CI/CD](07-deploy-cicd.md)** :
 ## Contenu seed
 
 - 3 articles Blogger migrés (personnages, chantier, fournisseurs)
-- 14 jalons (pré-chantier + étapes classe obligatoires)
+- 22 jalons (pré-chantier + étapes classe obligatoires)
 - 4 thèmes + tags initiaux

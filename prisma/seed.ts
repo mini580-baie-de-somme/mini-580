@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt";
 import { PostStatus, Hull } from "../web/src/generated/prisma/client";
 import { createPrismaClient } from "../web/src/lib/prisma-client";
+import { classMilestones } from "./seed-data/milestones";
 
 const prisma = createPrismaClient();
 
@@ -57,135 +58,6 @@ async function main() {
     (await prisma.tag.findMany()).map((t) => [t.name, t.id])
   );
 
-  const classMilestones = [
-    {
-      slug: "project-start",
-      titleFr: "Lancement du projet",
-      titleEn: "Project launch",
-      descriptionFr: "Janvier 2025 — décision de construire trois Class Globe 5.80.",
-      descriptionEn: "January 2025 — decision to build three Class Globe 5.80 boats.",
-      milestoneDate: new Date("2025-01-15"),
-      sortOrder: 0,
-    },
-    {
-      slug: "workshop-found",
-      titleFr: "Atelier Class Mini 5.80 Baie de Somme trouvé",
-      titleEn: "Class Mini 5.80 Baie de Somme workshop secured",
-      descriptionFr: "Grange 250 m² — Baie de Somme.",
-      descriptionEn: "250 m² barn workshop — Baie de Somme.",
-      milestoneDate: new Date("2026-02-01"),
-      sortOrder: 1,
-    },
-    {
-      slug: "making-frames",
-      titleFr: "Montage des couples",
-      titleEn: "Making frames",
-      descriptionFr: "Étape classe — couples et lisses.",
-      descriptionEn: "Class step — frames and stringers.",
-      milestoneDate: new Date("2026-09-01"),
-      sortOrder: 10,
-    },
-    {
-      slug: "setting-up-frames",
-      titleFr: "Pose couples et lisses",
-      titleEn: "Setting up frames and stringers",
-      descriptionFr: "Étape classe obligatoire.",
-      descriptionEn: "Mandatory class build step.",
-      milestoneDate: new Date("2026-10-01"),
-      sortOrder: 11,
-    },
-    {
-      slug: "hull-plating",
-      titleFr: "Plaquage coque",
-      titleEn: "Hull plating",
-      descriptionFr: "Plaquage de la coque en contreplaqué.",
-      descriptionEn: "Plywood hull plating.",
-      milestoneDate: new Date("2026-11-01"),
-      sortOrder: 12,
-    },
-    {
-      slug: "hull-epoxy-fairing",
-      titleFr: "Stratification et ponçage coque",
-      titleEn: "Hull epoxy sheeting and fairing",
-      descriptionFr: "Imprégnation époxy et fairing.",
-      descriptionEn: "Epoxy sheeting and fairing.",
-      milestoneDate: new Date("2027-01-01"),
-      sortOrder: 13,
-    },
-    {
-      slug: "roll-hull-deck",
-      titleFr: "Retournement et pont",
-      titleEn: "Roll hull and deck plating",
-      descriptionFr: "Retournement, plaquage pont et fairing.",
-      descriptionEn: "Hull roll, deck plating and glass-fairing.",
-      milestoneDate: new Date("2027-03-01"),
-      sortOrder: 14,
-    },
-    {
-      slug: "internal-fit",
-      titleFr: "Aménagement intérieur",
-      titleEn: "Internal plywood fit and crash box",
-      descriptionFr: "Cloisons, crash box avant.",
-      descriptionEn: "Internal fit-out and forward crash box.",
-      milestoneDate: new Date("2027-05-01"),
-      sortOrder: 15,
-    },
-    {
-      slug: "keel-floors",
-      titleFr: "Sols de quille",
-      titleEn: "Keel floors",
-      descriptionFr: "Installation des sols de quille.",
-      descriptionEn: "Keel floor installation.",
-      milestoneDate: new Date("2027-06-01"),
-      sortOrder: 16,
-    },
-    {
-      slug: "weighing-hull",
-      titleFr: "Pesée coque",
-      titleEn: "Weighing hull",
-      descriptionFr: "Pesée officielle de la coque.",
-      descriptionEn: "Official hull weighing.",
-      milestoneDate: new Date("2027-07-01"),
-      sortOrder: 17,
-    },
-    {
-      slug: "rudder",
-      titleFr: "Construction gouvernail",
-      titleEn: "Rudder construction",
-      descriptionFr: "Fabrication du gouvernail.",
-      descriptionEn: "Rudder build.",
-      milestoneDate: new Date("2027-08-01"),
-      sortOrder: 18,
-    },
-    {
-      slug: "keel",
-      titleFr: "Construction quille",
-      titleEn: "Keel construction and weighing",
-      descriptionFr: "Quille lest plomb — pesée.",
-      descriptionEn: "Lead keel — construction and weighing.",
-      milestoneDate: new Date("2027-09-01"),
-      sortOrder: 19,
-    },
-    {
-      slug: "deck-hardware",
-      titleFr: "Trappes et équipement pont",
-      titleEn: "Companionway, hatches, deck hardware",
-      descriptionFr: "Trappe, portes étanches, hublots.",
-      descriptionEn: "Companionway hatch, watertight doors, deck hatches.",
-      milestoneDate: new Date("2027-10-01"),
-      sortOrder: 20,
-    },
-    {
-      slug: "safety-rails",
-      titleFr: "Pulpit, pushpit, sécurité",
-      titleEn: "Handrails, pushpit/pulpit, safety",
-      descriptionFr: "Main courante, bout de focs, points harnais.",
-      descriptionEn: "Handrails, bowsprit, safety harness attachments.",
-      milestoneDate: new Date("2027-11-01"),
-      sortOrder: 21,
-    },
-  ];
-
   for (const m of classMilestones) {
     await prisma.milestone.upsert({
       where: { slug: m.slug },
@@ -221,7 +93,7 @@ Hull numbers 268, 269 and 270 are assigned. The "Old Stoves" blog is registered 
       hulls: [Hull.HULL_268, Hull.HULL_269, Hull.HULL_270],
       themeSlugs: ["chantier"],
       tagNames: ["equipe"],
-      milestoneSlug: "project-start",
+      milestoneSlug: "team-roles-defined",
     },
     {
       slug: "preparation-du-chantier",
@@ -274,7 +146,7 @@ Lesson learned: always verify plan compliance before ordering. Transparency incl
       hulls: [Hull.HULL_268, Hull.HULL_269, Hull.HULL_270],
       themeSlugs: ["fournisseurs"],
       tagNames: ["okoume", "epoxy"],
-      milestoneSlug: "workshop-found",
+      milestoneSlug: "suppliers-chosen",
     },
   ];
 
