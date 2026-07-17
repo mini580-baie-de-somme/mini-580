@@ -7,6 +7,7 @@ import {
   deleteMediaUrls,
   type ImageTransformParams,
 } from "@/lib/media-variants";
+import { layoutFromLegacy } from "@/lib/image-layout";
 import { deleteMediaById, mediaInclude } from "@/lib/media-library";
 import { MediaKind } from "@/generated/prisma/client";
 
@@ -18,16 +19,45 @@ const patchSchema = z.object({
   descriptionFr: z.string().optional(),
   descriptionEn: z.string().optional(),
   takenAt: z.string().datetime().nullable().optional(),
+  // New layout editor
+  offsetX: z.number().min(-2).max(2).optional(),
+  offsetY: z.number().min(-2).max(2).optional(),
+  scaleX: z.number().min(0.1).max(8).optional(),
+  scaleY: z.number().min(0.1).max(8).optional(),
+  lockAspect: z.boolean().optional(),
+  rotation: z.number().optional(),
+  cropShape: z.enum(["RECT", "CIRCLE"]).optional(),
+  backgroundColor: z.string().max(32).optional(),
+  cropInset: z.number().min(0).max(0.4).optional(),
+  // Legacy
   focusX: z.number().min(0).max(1).optional(),
   focusY: z.number().min(0).max(1).optional(),
-  zoom: z.number().min(0.1).max(5).optional(),
-  rotation: z.number().int().optional(),
+  zoom: z.number().min(0.1).max(8).optional(),
   cropX: z.number().min(0).max(1).optional(),
   cropY: z.number().min(0).max(1).optional(),
   cropW: z.number().min(0).max(1).optional(),
   cropH: z.number().min(0).max(1).optional(),
   force: z.boolean().optional(),
 });
+
+const LAYOUT_KEYS = [
+  "offsetX",
+  "offsetY",
+  "scaleX",
+  "scaleY",
+  "lockAspect",
+  "rotation",
+  "cropShape",
+  "backgroundColor",
+  "cropInset",
+  "focusX",
+  "focusY",
+  "zoom",
+  "cropX",
+  "cropY",
+  "cropW",
+  "cropH",
+] as const;
 
 export async function GET(_request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
@@ -56,18 +86,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
     const body = await request.json();
     const data = patchSchema.parse(body);
-
-    const transformKeys = [
-      "focusX",
-      "focusY",
-      "zoom",
-      "rotation",
-      "cropX",
-      "cropY",
-      "cropW",
-      "cropH",
-    ] as const;
-    const transformChanged = transformKeys.some((k) => data[k] !== undefined);
+    const transformChanged = LAYOUT_KEYS.some((k) => data[k] !== undefined);
 
     const updated = await prisma.media.update({
       where: { id },
@@ -82,10 +101,18 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             : data.takenAt
               ? new Date(data.takenAt)
               : null,
+        offsetX: data.offsetX,
+        offsetY: data.offsetY,
+        scaleX: data.scaleX,
+        scaleY: data.scaleY,
+        lockAspect: data.lockAspect,
+        rotation: data.rotation,
+        cropShape: data.cropShape,
+        backgroundColor: data.backgroundColor,
+        cropInset: data.cropInset,
         focusX: data.focusX,
         focusY: data.focusY,
         zoom: data.zoom,
-        rotation: data.rotation,
         cropX: data.cropX,
         cropY: data.cropY,
         cropW: data.cropW,
@@ -95,18 +122,18 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     });
 
     if (transformChanged && updated.kind === MediaKind.IMAGE) {
-      const transform: ImageTransformParams = {
-        focusX: updated.focusX,
-        focusY: updated.focusY,
-        zoom: updated.zoom,
-        rotation: updated.rotation,
-        cropX: updated.cropX,
-        cropY: updated.cropY,
-        cropW: updated.cropW,
-        cropH: updated.cropH,
-      };
+      const transform: ImageTransformParams = layoutFromLegacy(updated);
       try {
-        const variants = await bakeVariantsFromOrigin(updated.urlOrigin, transform);
+        const variants = await bakeVariantsFromOrigin(
+          updated.urlOrigin,
+          transform,
+          [
+            updated.urlPicto,
+            updated.urlPetite,
+            updated.urlMoyenne,
+            updated.urlGrande,
+          ]
+        );
         const rebaked = await prisma.media.update({
           where: { id },
           data: {
@@ -117,15 +144,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           },
           include: mediaInclude,
         });
-        await deleteMediaUrls([
-          updated.urlPicto,
-          updated.urlPetite,
-          updated.urlMoyenne,
-          updated.urlGrande,
-        ]);
         return NextResponse.json(rebaked);
-      } catch {
-        // keep meta update even if rebake fails
+      } catch (err) {
+        console.error("layout rebake failed", err);
       }
     }
 

@@ -114,6 +114,17 @@ export function mediaAsPostImage(
     descriptionEn: media.descriptionEn,
     takenAt: media.takenAt,
     sortOrder: link.sortOrder,
+    offsetX: "offsetX" in media ? Number(media.offsetX ?? 0) : 0,
+    offsetY: "offsetY" in media ? Number(media.offsetY ?? 0) : 0,
+    scaleX: "scaleX" in media ? Number(media.scaleX ?? 1) : 1,
+    scaleY: "scaleY" in media ? Number(media.scaleY ?? 1) : 1,
+    lockAspect: "lockAspect" in media ? Boolean(media.lockAspect ?? true) : true,
+    cropShape: "cropShape" in media ? String(media.cropShape ?? "RECT") : "RECT",
+    backgroundColor:
+      "backgroundColor" in media
+        ? String(media.backgroundColor ?? "#000000")
+        : "#000000",
+    cropInset: "cropInset" in media ? Number(media.cropInset ?? 0.06) : 0.06,
     focusX: media.focusX,
     focusY: media.focusY,
     zoom: media.zoom,

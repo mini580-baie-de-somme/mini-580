@@ -64,6 +64,32 @@ export function kindFromFile(file: File): MediaKindClient | null {
   return mime ? kindFromMime(mime) : null;
 }
 
+function looksLikePdfUrl(src: string | null | undefined): boolean {
+  if (!src) return false;
+  const path = src.split("?")[0].toLowerCase();
+  return path.endsWith(".pdf");
+}
+
+function looksLikeVideoUrl(src: string | null | undefined): boolean {
+  if (!src) return false;
+  const path = src.split("?")[0].toLowerCase();
+  return path.endsWith(".mp4") || path.endsWith(".webm");
+}
+
+/** Prefer mimeType, then kind, then URL extension — never treat PDF/video as image. */
+export function resolveThumbKind(
+  kind?: string | null,
+  mimeType?: string | null,
+  src?: string | null
+): MediaKindClient {
+  const fromMime = mimeType ? kindFromMime(mimeType) : null;
+  if (fromMime) return fromMime;
+  if (kind === "DOCUMENT" || kind === "VIDEO" || kind === "IMAGE") return kind;
+  if (looksLikePdfUrl(src)) return "DOCUMENT";
+  if (looksLikeVideoUrl(src)) return "VIDEO";
+  return "IMAGE";
+}
+
 /** Prefer image, then pdf, then video from clipboard / dataTransfer. */
 export function mediaFileFromDataTransfer(data: DataTransfer | null): File | null {
   if (!data) return null;

@@ -8,6 +8,7 @@ import { EditorListSearch } from "./EditorListSearch";
 import { useEditorInfiniteList } from "./useEditorInfiniteList";
 import { MediaPreview } from "./MediaPreview";
 import { MediaKindThumb } from "./MediaKindThumb";
+import { PhotoCanvasEditor } from "./PhotoCanvasEditor";
 import {
   MEDIA_ACCEPT,
   isAllowedMediaFile,
@@ -15,6 +16,11 @@ import {
   mediaFileFromDataTransfer,
   type MediaKindClient,
 } from "@/lib/media-file-client";
+import {
+  DEFAULT_IMAGE_LAYOUT,
+  layoutFromLegacy,
+  type ImageLayoutParams,
+} from "@/lib/image-layout";
 
 type MediaKind = MediaKindClient;
 
@@ -32,14 +38,22 @@ type MediaItem = {
   descriptionFr: string;
   descriptionEn: string;
   takenAt: string | Date | null;
-  focusX: number;
-  focusY: number;
-  zoom: number;
+  offsetX?: number;
+  offsetY?: number;
+  scaleX?: number;
+  scaleY?: number;
+  lockAspect?: boolean;
   rotation: number;
-  cropX: number;
-  cropY: number;
-  cropW: number;
-  cropH: number;
+  cropShape?: string;
+  backgroundColor?: string;
+  cropInset?: number;
+  focusX?: number;
+  focusY?: number;
+  zoom?: number;
+  cropX?: number;
+  cropY?: number;
+  cropW?: number;
+  cropH?: number;
   posts?: { post: { id: string; titleFr: string; slug: string } }[];
 };
 
@@ -49,14 +63,7 @@ type FormState = {
   descriptionFr: string;
   descriptionEn: string;
   takenAt: string;
-  focusX: number;
-  focusY: number;
-  zoom: number;
-  rotation: number;
-  cropX: number;
-  cropY: number;
-  cropW: number;
-  cropH: number;
+  layout: ImageLayoutParams;
 };
 
 const emptyForm: FormState = {
@@ -65,14 +72,7 @@ const emptyForm: FormState = {
   descriptionFr: "",
   descriptionEn: "",
   takenAt: "",
-  focusX: 0.5,
-  focusY: 0.5,
-  zoom: 1,
-  rotation: 0,
-  cropX: 0,
-  cropY: 0,
-  cropW: 1,
-  cropH: 1,
+  layout: { ...DEFAULT_IMAGE_LAYOUT },
 };
 
 const KIND_FILTERS: Array<"ALL" | MediaKind> = ["ALL", "IMAGE", "DOCUMENT", "VIDEO"];
@@ -91,14 +91,7 @@ function formFromMedia(m: MediaItem): FormState {
     descriptionFr: m.descriptionFr,
     descriptionEn: m.descriptionEn,
     takenAt: taken,
-    focusX: m.focusX ?? 0.5,
-    focusY: m.focusY ?? 0.5,
-    zoom: m.zoom ?? 1,
-    rotation: m.rotation ?? 0,
-    cropX: m.cropX ?? 0,
-    cropY: m.cropY ?? 0,
-    cropW: m.cropW ?? 1,
-    cropH: m.cropH ?? 1,
+    layout: layoutFromLegacy(m),
   };
 }
 
@@ -240,6 +233,14 @@ export function MediaLibraryManager() {
         const res = await fetch("/api/media-library", { method: "POST", body: fd });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? t("media.saveError"));
+        if (data.kind === "IMAGE" && data.id) {
+          const layoutRes = await fetch(`/api/media-library/${data.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(form.layout),
+          });
+          if (!layoutRes.ok) throw new Error(t("media.saveError"));
+        }
       } else {
         const patchBody: Record<string, unknown> = {
           titleFr: form.titleFr,
@@ -254,24 +255,8 @@ export function MediaLibraryManager() {
           ? kindFromFile(file)
           : editingMedia?.kind ?? null;
         if (effectiveKind === "IMAGE") {
-          Object.assign(patchBody, {
-            focusX: form.focusX,
-            focusY: form.focusY,
-            zoom: form.zoom,
-            rotation: form.rotation,
-            cropX: form.cropX,
-            cropY: form.cropY,
-            cropW: form.cropW,
-            cropH: form.cropH,
-          });
+          Object.assign(patchBody, form.layout);
         }
-        const res = await fetch(`/api/media-library/${editingId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(patchBody),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? t("media.saveError"));
         if (file) {
           const fd = new FormData();
           fd.set("file", file);
@@ -281,6 +266,13 @@ export function MediaLibraryManager() {
           });
           if (!rep.ok) throw new Error(t("media.saveError"));
         }
+        const res = await fetch(`/api/media-library/${editingId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patchBody),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? t("media.saveError"));
       }
       cancelEdit();
       await reload();
@@ -354,8 +346,6 @@ export function MediaLibraryManager() {
     : editingMedia
       ? previewSrcForMedia(editingMedia)
       : null;
-  const showImageTransforms =
-    previewKind === "IMAGE" && editingId !== null && editingId !== "new";
 
   return (
     <div className="space-y-6">
@@ -530,98 +520,26 @@ export function MediaLibraryManager() {
             )}
           </div>
 
-          {showImageTransforms && (
-            <fieldset className="mt-4 space-y-2 rounded border border-[#d4dde6] p-3">
-              <legend className="px-1 text-xs font-medium text-[#495867]">
-                {t("media.transforms")}
-              </legend>
-              <label className="flex items-center gap-2 text-sm">
-                <span className="w-20 text-xs">Focus X</span>
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={form.focusX}
-                  onChange={(e) =>
-                    setForm({ ...form, focusX: Number(e.target.value) })
+          {(previewKind === "IMAGE" || editingMedia?.kind === "IMAGE") &&
+            (filePreviewUrl ||
+              (editingMedia &&
+                (editingMedia.urlOrigin || editingMedia.urlGrande))) && (
+              <div className="mt-4 rounded border border-[#d4dde6] p-3">
+                <p className="mb-3 text-xs font-medium text-[#495867]">
+                  {t("media.transforms")}
+                </p>
+                <PhotoCanvasEditor
+                  imageSrc={
+                    filePreviewUrl ||
+                    editingMedia!.urlOrigin ||
+                    editingMedia!.urlGrande!
                   }
-                  className="flex-1"
+                  value={form.layout}
+                  onChange={(layout) => setForm({ ...form, layout })}
+                  disabled={busy}
                 />
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <span className="w-20 text-xs">Focus Y</span>
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={form.focusY}
-                  onChange={(e) =>
-                    setForm({ ...form, focusY: Number(e.target.value) })
-                  }
-                  className="flex-1"
-                />
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <span className="w-20 text-xs">Zoom</span>
-                <input
-                  type="range"
-                  min={0.5}
-                  max={3}
-                  step={0.05}
-                  value={form.zoom}
-                  onChange={(e) =>
-                    setForm({ ...form, zoom: Number(e.target.value) })
-                  }
-                  className="flex-1"
-                />
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <span className="w-20 text-xs">Rotation</span>
-                <select
-                  value={form.rotation}
-                  onChange={(e) =>
-                    setForm({ ...form, rotation: Number(e.target.value) })
-                  }
-                  className="rounded border border-[#d4dde6] px-2 py-1"
-                >
-                  {[0, 90, 180, 270].map((d) => (
-                    <option key={d} value={d}>
-                      {d}°
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {(
-                  [
-                    ["cropX", form.cropX],
-                    ["cropY", form.cropY],
-                    ["cropW", form.cropW],
-                    ["cropH", form.cropH],
-                  ] as const
-                ).map(([key, val]) => (
-                  <label key={key} className="flex items-center gap-1 text-sm">
-                    <span className="w-10 text-[10px] uppercase text-[#495867]">
-                      {key.replace("crop", "")}
-                    </span>
-                    <input
-                      type="number"
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      value={val}
-                      onChange={(e) =>
-                        setForm({ ...form, [key]: Number(e.target.value) })
-                      }
-                      className="w-full rounded border border-[#d4dde6] px-1 py-0.5 text-xs"
-                    />
-                  </label>
-                ))}
               </div>
-            </fieldset>
-          )}
+            )}
 
           <div className="mt-4 flex gap-2">
             <button

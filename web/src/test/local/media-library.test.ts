@@ -162,6 +162,59 @@ describe("API integration — Media library", () => {
     await prisma.media.delete({ where: { id: media.id } }).catch(() => null);
   });
 
+  it("uploads IMAGE multipart then patches layout (rotation/scale/bg) and rebakes", async () => {
+    const { POST: createMedia } = await import("@/app/api/media-library/route");
+    const jpeg = await makeTestJpeg();
+    const form = new FormData();
+    form.append("file", new File([jpeg], "layout.jpg", { type: "image/jpeg" }));
+    form.append("titleFr", "Layout FR");
+
+    const createRes = await createMedia(
+      new (await import("next/server")).NextRequest(
+        "http://localhost/api/media-library",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${process.env.INGEST_API_KEY}` },
+          body: form,
+        }
+      )
+    );
+    expect(createRes.status).toBe(201);
+    const media = await createRes.json();
+    expect(media.kind).toBe("IMAGE");
+    expect(media.urlGrande).toMatch(/grande\.webp$/);
+    const before = media.urlMoyenne as string;
+
+    const { PATCH } = await import("@/app/api/media-library/[id]/route");
+    const patchRes = await PATCH(
+      jsonRequest(`http://localhost/api/media-library/${media.id}`, {
+        method: "PATCH",
+        headers: bearerHeaders(),
+        body: JSON.stringify({
+          rotation: 27,
+          scaleX: 1.25,
+          scaleY: 1.25,
+          lockAspect: true,
+          offsetX: 0.05,
+          cropShape: "CIRCLE",
+          backgroundColor: "#c2410c",
+          cropInset: 0.1,
+        }),
+      }),
+      { params: Promise.resolve({ id: media.id }) }
+    );
+    expect(patchRes.status).toBe(200);
+    const patched = await patchRes.json();
+    expect(patched.rotation).toBeCloseTo(27, 5);
+    expect(patched.scaleX).toBeCloseTo(1.25, 5);
+    expect(patched.cropShape).toBe("CIRCLE");
+    expect(patched.backgroundColor).toBe("#c2410c");
+    expect(patched.urlMoyenne).not.toBe(before);
+    expect(patched.urlOrigin).toBe(media.urlOrigin);
+
+    await prisma.media.delete({ where: { id: media.id } }).catch(() => null);
+  });
+
   it("attaches same media to two posts; detach keeps library item", async () => {
     const { POST: createMedia } = await import("@/app/api/media-library/route");
     const mediaRes = await createMedia(

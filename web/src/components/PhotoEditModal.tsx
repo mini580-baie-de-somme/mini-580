@@ -1,11 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { GalleryImage } from "./GalleryImage";
+import { PhotoCanvasEditor } from "./PhotoCanvasEditor";
 import {
   type GalleryEditorImage,
   toEditorImage,
 } from "@/lib/gallery-editor";
+import {
+  DEFAULT_IMAGE_LAYOUT,
+  layoutFromLegacy,
+  type ImageLayoutParams,
+} from "@/lib/image-layout";
 
 type Props = {
   postId: string;
@@ -69,6 +74,11 @@ export function PhotoEditModal({
 }: Props) {
   const [draft, setDraft] = useState<GalleryEditorImage | null>(
     mode === "edit" && image ? { ...image } : null
+  );
+  const [layout, setLayout] = useState<ImageLayoutParams>(() =>
+    mode === "edit" && image
+      ? layoutFromLegacy(image)
+      : { ...DEFAULT_IMAGE_LAYOUT }
   );
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
@@ -202,14 +212,7 @@ export function PhotoEditModal({
               ? current.takenAt
               : current.takenAt.toISOString()
             : null,
-          focusX: current.focusX,
-          focusY: current.focusY,
-          zoom: current.zoom,
-          rotation: current.rotation,
-          cropX: current.cropX,
-          cropY: current.cropY,
-          cropW: current.cropW,
-          cropH: current.cropH,
+          ...layout,
         }),
       });
       if (!res.ok) throw new Error("patch failed");
@@ -330,191 +333,115 @@ export function PhotoEditModal({
           )}
 
           {previewDraft && (
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="space-y-2">
-                <GalleryImage image={previewDraft} locale={lang} mode="edit" />
-                {pendingFile && (
-                  <p className="truncate text-xs text-[#495867]">
-                    Fichier en attente : {pendingFile.name}
+            <div className="space-y-4">
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={busy}
+                    className="w-full rounded border border-[#d4dde6] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
+                  >
+                    {draft?.id ? "Remplacer le fichier" : "Changer de fichier"}
+                  </button>
+                  {pendingFile && (
+                    <p className="truncate text-xs text-[#495867]">
+                      Fichier en attente : {pendingFile.name}
+                    </p>
+                  )}
+                  <p className="text-xs text-[#495867]">
+                    Ou coller (Ctrl/⌘+V). Rien n’est sauvé avant Enregistrer.
                   </p>
-                )}
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={busy}
-                  className="w-full rounded border border-[#d4dde6] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
-                >
-                  {draft?.id ? "Remplacer le fichier" : "Changer de fichier"}
-                </button>
-                <p className="text-xs text-[#495867]">
-                  Ou coller une image (Ctrl/⌘+V). Enregistrement à la validation.
-                </p>
-              </div>
-
-              <div className="space-y-3 text-sm">
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <label className="block">
-                    <span className="text-xs text-[#495867]">Titre FR</span>
-                    <input
-                      value={draft?.titleFr ?? ""}
-                      onChange={(e) => patchDraft({ titleFr: e.target.value })}
-                      className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1"
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="text-xs text-[#495867]">Title EN</span>
-                    <input
-                      value={draft?.titleEn ?? ""}
-                      onChange={(e) => patchDraft({ titleEn: e.target.value })}
-                      className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1"
-                    />
-                  </label>
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <label className="block">
-                    <span className="text-xs text-[#495867]">Description FR</span>
-                    <textarea
-                      value={draft?.descriptionFr ?? ""}
-                      onChange={(e) =>
-                        patchDraft({ descriptionFr: e.target.value })
-                      }
-                      rows={2}
-                      className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1"
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="text-xs text-[#495867]">Description EN</span>
-                    <textarea
-                      value={draft?.descriptionEn ?? ""}
-                      onChange={(e) =>
-                        patchDraft({ descriptionEn: e.target.value })
-                      }
-                      rows={2}
-                      className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1"
-                    />
-                  </label>
-                </div>
-                <label className="block">
-                  <span className="text-xs text-[#495867]">Date</span>
-                  <input
-                    type="date"
-                    value={
-                      draft?.takenAt
-                        ? (typeof draft.takenAt === "string"
-                            ? draft.takenAt
-                            : draft.takenAt.toISOString()
-                          ).slice(0, 10)
-                        : ""
-                    }
-                    onChange={(e) =>
-                      patchDraft({
-                        takenAt: e.target.value
-                          ? new Date(e.target.value).toISOString()
-                          : null,
-                      })
-                    }
-                    className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1"
-                  />
-                </label>
 
-                <fieldset className="space-y-2 rounded border border-[#d4dde6] p-3">
-                  <legend className="px-1 text-xs font-medium text-[#495867]">
-                    Transform
-                  </legend>
-                  <label className="flex items-center gap-2">
-                    <span className="w-20 text-xs">Focus X</span>
-                    <input
-                      type="range"
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      value={draft?.focusX ?? 0.5}
-                      onChange={(e) =>
-                        patchDraft({ focusX: Number(e.target.value) })
-                      }
-                      className="flex-1"
-                    />
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <span className="w-20 text-xs">Focus Y</span>
-                    <input
-                      type="range"
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      value={draft?.focusY ?? 0.5}
-                      onChange={(e) =>
-                        patchDraft({ focusY: Number(e.target.value) })
-                      }
-                      className="flex-1"
-                    />
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <span className="w-20 text-xs">Zoom</span>
-                    <input
-                      type="range"
-                      min={0.5}
-                      max={3}
-                      step={0.05}
-                      value={draft?.zoom ?? 1}
-                      onChange={(e) =>
-                        patchDraft({ zoom: Number(e.target.value) })
-                      }
-                      className="flex-1"
-                    />
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <span className="w-20 text-xs">Rotation</span>
-                    <select
-                      value={draft?.rotation ?? 0}
-                      onChange={(e) =>
-                        patchDraft({ rotation: Number(e.target.value) })
-                      }
-                      className="rounded border border-[#d4dde6] px-2 py-1"
-                    >
-                      {[0, 90, 180, 270].map((d) => (
-                        <option key={d} value={d}>
-                          {d}°
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(
-                      [
-                        ["cropX", draft?.cropX ?? 0],
-                        ["cropY", draft?.cropY ?? 0],
-                        ["cropW", draft?.cropW ?? 1],
-                        ["cropH", draft?.cropH ?? 1],
-                      ] as const
-                    ).map(([key, val]) => (
-                      <label key={key} className="flex items-center gap-1">
-                        <span className="w-12 text-[10px] uppercase text-[#495867]">
-                          {key.replace("crop", "")}
-                        </span>
-                        <input
-                          type="number"
-                          min={0}
-                          max={1}
-                          step={0.01}
-                          value={val}
-                          onChange={(e) =>
-                            patchDraft({ [key]: Number(e.target.value) })
-                          }
-                          className="w-full rounded border border-[#d4dde6] px-1 py-0.5 text-xs"
-                        />
-                      </label>
-                    ))}
+                <div className="space-y-3 text-sm">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="text-xs text-[#495867]">Titre FR</span>
+                      <input
+                        value={draft?.titleFr ?? ""}
+                        onChange={(e) => patchDraft({ titleFr: e.target.value })}
+                        className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs text-[#495867]">Title EN</span>
+                      <input
+                        value={draft?.titleEn ?? ""}
+                        onChange={(e) => patchDraft({ titleEn: e.target.value })}
+                        className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1"
+                      />
+                    </label>
                   </div>
-                </fieldset>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="text-xs text-[#495867]">Description FR</span>
+                      <textarea
+                        value={draft?.descriptionFr ?? ""}
+                        onChange={(e) =>
+                          patchDraft({ descriptionFr: e.target.value })
+                        }
+                        rows={2}
+                        className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs text-[#495867]">Description EN</span>
+                      <textarea
+                        value={draft?.descriptionEn ?? ""}
+                        onChange={(e) =>
+                          patchDraft({ descriptionEn: e.target.value })
+                        }
+                        rows={2}
+                        className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1"
+                      />
+                    </label>
+                  </div>
+                  <label className="block">
+                    <span className="text-xs text-[#495867]">Date</span>
+                    <input
+                      type="date"
+                      value={
+                        draft?.takenAt
+                          ? (typeof draft.takenAt === "string"
+                              ? draft.takenAt
+                              : draft.takenAt.toISOString()
+                            ).slice(0, 10)
+                          : ""
+                      }
+                      onChange={(e) =>
+                        patchDraft({
+                          takenAt: e.target.value
+                            ? new Date(e.target.value).toISOString()
+                            : null,
+                        })
+                      }
+                      className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1"
+                    />
+                  </label>
+                </div>
               </div>
+
+              <PhotoCanvasEditor
+                imageSrc={
+                  localPreviewUrl ||
+                  draft?.urlOrigin ||
+                  previewDraft.urlOrigin
+                }
+                value={layout}
+                onChange={(next) => {
+                  setLayout(next);
+                  setDirty(true);
+                }}
+                disabled={busy}
+              />
             </div>
           )}
 
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
+            accept="image/jpeg,image/png,image/webp"
             capture="environment"
             className="hidden"
             onChange={(e) => {

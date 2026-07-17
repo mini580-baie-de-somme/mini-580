@@ -1,6 +1,6 @@
 "use client";
 
-import { kindFromMime } from "@/lib/media-file-client";
+import { resolveThumbKind } from "@/lib/media-file-client";
 
 type MediaKindThumbProps = {
   kind?: "IMAGE" | "DOCUMENT" | "VIDEO" | string | null;
@@ -51,32 +51,6 @@ function VideoIcon({ className }: { className?: string }) {
   );
 }
 
-function looksLikePdfUrl(src: string | null | undefined): boolean {
-  if (!src) return false;
-  const path = src.split("?")[0].toLowerCase();
-  return path.endsWith(".pdf");
-}
-
-function looksLikeVideoUrl(src: string | null | undefined): boolean {
-  if (!src) return false;
-  const path = src.split("?")[0].toLowerCase();
-  return path.endsWith(".mp4") || path.endsWith(".webm");
-}
-
-/** Prefer mimeType, then kind, then URL extension — never treat PDF/video as <img>. */
-export function resolveThumbKind(
-  kind?: string | null,
-  mimeType?: string | null,
-  src?: string | null
-): "IMAGE" | "DOCUMENT" | "VIDEO" {
-  const fromMime = mimeType ? kindFromMime(mimeType) : null;
-  if (fromMime) return fromMime;
-  if (kind === "DOCUMENT" || kind === "VIDEO" || kind === "IMAGE") return kind;
-  if (looksLikePdfUrl(src)) return "DOCUMENT";
-  if (looksLikeVideoUrl(src)) return "VIDEO";
-  return "IMAGE";
-}
-
 export function MediaKindThumb({
   kind,
   mimeType,
@@ -87,6 +61,9 @@ export function MediaKindThumb({
   const box = size === "md" ? "h-16 w-16" : "h-10 w-10";
   const icon = size === "md" ? "h-8 w-8" : "h-5 w-5";
   const resolved = resolveThumbKind(kind, mimeType, src);
+  const path = (src ?? "").split("?")[0].toLowerCase();
+  const srcLooksLikeNonImage =
+    path.endsWith(".pdf") || path.endsWith(".mp4") || path.endsWith(".webm");
 
   if (resolved === "DOCUMENT") {
     return (
@@ -112,7 +89,7 @@ export function MediaKindThumb({
     );
   }
 
-  if (src && !looksLikePdfUrl(src) && !looksLikeVideoUrl(src)) {
+  if (src && !srcLooksLikeNonImage) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img

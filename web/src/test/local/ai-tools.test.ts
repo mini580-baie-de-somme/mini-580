@@ -146,10 +146,12 @@ describe("API integration — IA tools full capacity (Bearer)", () => {
           body: JSON.stringify({
             titleFr: "IA Photo",
             titleEn: "AI Photo",
-            zoom: 1.2,
+            scaleX: 1.2,
+            scaleY: 1.2,
             rotation: 180,
-            focusX: 0.4,
-            cropW: 0.9,
+            offsetX: -0.1,
+            cropShape: "RECT",
+            backgroundColor: "#000000",
           }),
         }
       ),

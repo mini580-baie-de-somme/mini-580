@@ -98,7 +98,7 @@ describe("API integration — Photos CRUD + transforms + 4 sizes", () => {
     expect(await mediaExists(image.urlGrande)).toBe(true);
   });
 
-  it("patches FR/EN meta and move/zoom/rotate/crop transforms, regenerating 4 sizes", async () => {
+  it("patches FR/EN meta and layout transforms, regenerating 4 fixed 3:4 sizes", async () => {
     const { GET } = await import("@/app/api/posts/[id]/images/route");
     const listRes = await GET(
       jsonRequest(`http://localhost/api/posts/${postId}/images`),
@@ -123,14 +123,18 @@ describe("API integration — Photos CRUD + transforms + 4 sizes", () => {
             titleEn: "Photo title EN",
             descriptionFr: "Légende FR",
             descriptionEn: "Caption EN",
+            offsetX: 0.15,
+            offsetY: -0.1,
+            scaleX: 1.35,
+            scaleY: 1.35,
+            lockAspect: true,
+            rotation: 12.5,
+            cropShape: "RECT",
+            backgroundColor: "#374151",
+            cropInset: 0.08,
+            // legacy fields still accepted
             focusX: 0.3,
-            focusY: 0.7,
             zoom: 1.5,
-            rotation: 90,
-            cropX: 0.1,
-            cropY: 0.1,
-            cropW: 0.8,
-            cropH: 0.8,
           }),
         }
       ),
@@ -141,16 +145,55 @@ describe("API integration — Photos CRUD + transforms + 4 sizes", () => {
     expect(patched.titleFr).toBe("Titre photo FR");
     expect(patched.titleEn).toBe("Photo title EN");
     expect(patched.descriptionEn).toBe("Caption EN");
-    expect(patched.focusX).toBe(0.3);
-    expect(patched.focusY).toBe(0.7);
-    expect(patched.zoom).toBe(1.5);
-    expect(patched.rotation).toBe(90);
-    expect(patched.cropW).toBe(0.8);
-    // Spec B: transform bake regenerates the 4 display sizes
+    expect(patched.offsetX).toBeCloseTo(0.15, 5);
+    expect(patched.scaleX).toBeCloseTo(1.35, 5);
+    expect(patched.rotation).toBeCloseTo(12.5, 5);
+    expect(patched.cropShape).toBe("RECT");
+    expect(patched.backgroundColor).toBe("#374151");
+    // Spec: transform bake regenerates the 4 display sizes
     expect(patched.urlMoyenne).not.toBe(beforeMoyenne);
     expect(await mediaExists(patched.urlPicto)).toBe(true);
     expect(await mediaExists(patched.urlPetite)).toBe(true);
     expect(await mediaExists(patched.urlMoyenne)).toBe(true);
+    expect(await mediaExists(patched.urlGrande)).toBe(true);
+  });
+
+  it("patches circular crop + transparent background via layout API", async () => {
+    const { GET } = await import("@/app/api/posts/[id]/images/route");
+    const listRes = await GET(
+      jsonRequest(`http://localhost/api/posts/${postId}/images`),
+      { params: Promise.resolve({ id: postId }) }
+    );
+    const images = await listRes.json();
+    const imageId = images[0].id as string;
+
+    const { PATCH } = await import(
+      "@/app/api/posts/[id]/images/[imageId]/route"
+    );
+    const res = await PATCH(
+      jsonRequest(
+        `http://localhost/api/posts/${postId}/images/${imageId}`,
+        {
+          method: "PATCH",
+          headers: bearerHeaders(),
+          body: JSON.stringify({
+            cropShape: "CIRCLE",
+            backgroundColor: "transparent",
+            scaleX: 1.1,
+            scaleY: 0.95,
+            lockAspect: false,
+            rotation: -20,
+          }),
+        }
+      ),
+      { params: Promise.resolve({ id: postId, imageId }) }
+    );
+    expect(res.status).toBe(200);
+    const patched = await res.json();
+    expect(patched.cropShape).toBe("CIRCLE");
+    expect(patched.backgroundColor).toBe("transparent");
+    expect(patched.lockAspect).toBe(false);
+    expect(patched.scaleY).toBeCloseTo(0.95, 5);
     expect(await mediaExists(patched.urlGrande)).toBe(true);
   });
 

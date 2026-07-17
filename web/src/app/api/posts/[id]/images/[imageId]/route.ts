@@ -3,10 +3,10 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
 import { bakeVariantsFromOrigin } from "@/lib/media-variants";
+import { layoutFromLegacy } from "@/lib/image-layout";
 import {
   detachMediaFromPost,
   deleteMediaById,
-  listPostMediaAsImages,
   mediaAsPostImage,
 } from "@/lib/media-library";
 
@@ -27,10 +27,18 @@ const patchSchema = z.object({
   captionEn: z.string().optional(),
   takenAt: z.string().datetime().nullable().optional(),
   sortOrder: z.number().int().optional(),
+  offsetX: z.number().min(-2).max(2).optional(),
+  offsetY: z.number().min(-2).max(2).optional(),
+  scaleX: z.number().min(0.1).max(8).optional(),
+  scaleY: z.number().min(0.1).max(8).optional(),
+  lockAspect: z.boolean().optional(),
+  rotation: z.number().optional(),
+  cropShape: z.enum(["RECT", "CIRCLE"]).optional(),
+  backgroundColor: z.string().max(32).optional(),
+  cropInset: z.number().min(0).max(0.4).optional(),
   focusX: z.number().min(0).max(1).optional(),
   focusY: z.number().min(0).max(1).optional(),
-  zoom: z.number().min(0.1).max(5).optional(),
-  rotation: z.number().int().optional(),
+  zoom: z.number().min(0.1).max(8).optional(),
   cropX: z.number().min(0).max(1).optional(),
   cropY: z.number().min(0).max(1).optional(),
   cropW: z.number().min(0).max(1).optional(),
@@ -38,10 +46,18 @@ const patchSchema = z.object({
 });
 
 const TRANSFORM_KEYS = [
+  "offsetX",
+  "offsetY",
+  "scaleX",
+  "scaleY",
+  "lockAspect",
+  "rotation",
+  "cropShape",
+  "backgroundColor",
+  "cropInset",
   "focusX",
   "focusY",
   "zoom",
-  "rotation",
   "cropX",
   "cropY",
   "cropW",
@@ -77,25 +93,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     } | null = null;
 
     if (transformChanged) {
-      bakedUrls = await bakeVariantsFromOrigin(
-        existing.urlOrigin,
-        {
-          focusX: data.focusX ?? existing.focusX,
-          focusY: data.focusY ?? existing.focusY,
-          zoom: data.zoom ?? existing.zoom,
-          rotation: data.rotation ?? existing.rotation,
-          cropX: data.cropX ?? existing.cropX,
-          cropY: data.cropY ?? existing.cropY,
-          cropW: data.cropW ?? existing.cropW,
-          cropH: data.cropH ?? existing.cropH,
-        },
-        [
-          existing.urlPicto,
-          existing.urlPetite,
-          existing.urlMoyenne,
-          existing.urlGrande,
-        ]
-      );
+      const merged = layoutFromLegacy({ ...existing, ...data });
+      bakedUrls = await bakeVariantsFromOrigin(existing.urlOrigin, merged, [
+        existing.urlPicto,
+        existing.urlPetite,
+        existing.urlMoyenne,
+        existing.urlGrande,
+      ]);
     }
 
     const media = await prisma.media.update({
@@ -126,10 +130,20 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         ...(data.takenAt !== undefined && {
           takenAt: data.takenAt ? new Date(data.takenAt) : null,
         }),
+        ...(data.offsetX !== undefined && { offsetX: data.offsetX }),
+        ...(data.offsetY !== undefined && { offsetY: data.offsetY }),
+        ...(data.scaleX !== undefined && { scaleX: data.scaleX }),
+        ...(data.scaleY !== undefined && { scaleY: data.scaleY }),
+        ...(data.lockAspect !== undefined && { lockAspect: data.lockAspect }),
+        ...(data.rotation !== undefined && { rotation: data.rotation }),
+        ...(data.cropShape !== undefined && { cropShape: data.cropShape }),
+        ...(data.backgroundColor !== undefined && {
+          backgroundColor: data.backgroundColor,
+        }),
+        ...(data.cropInset !== undefined && { cropInset: data.cropInset }),
         ...(data.focusX !== undefined && { focusX: data.focusX }),
         ...(data.focusY !== undefined && { focusY: data.focusY }),
         ...(data.zoom !== undefined && { zoom: data.zoom }),
-        ...(data.rotation !== undefined && { rotation: data.rotation }),
         ...(data.cropX !== undefined && { cropX: data.cropX }),
         ...(data.cropY !== undefined && { cropY: data.cropY }),
         ...(data.cropW !== undefined && { cropW: data.cropW }),
@@ -174,7 +188,6 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Legacy photos.delete: detach + delete media if orphaned (force)
   await detachMediaFromPost(postId, imageId);
   const remaining = await prisma.postMedia.count({ where: { mediaId: imageId } });
   if (remaining === 0) {

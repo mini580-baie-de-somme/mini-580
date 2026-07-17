@@ -141,13 +141,21 @@ model Media {
   descriptionFr String      @default("")
   descriptionEn String      @default("")
   takenAt       DateTime?
-  /// Focus point 0–1 (object-position) — IMAGE only
+  /// Layout editor — photo layer vs fixed 3:4 crop canvas (IMAGE only)
+  offsetX       Float       @default(0)
+  offsetY       Float       @default(0)
+  scaleX        Float       @default(1)
+  scaleY        Float       @default(1)
+  lockAspect    Boolean     @default(true)
+  /// Free rotation in degrees
+  rotation      Float       @default(0)
+  cropShape     String      @default("RECT") // RECT | CIRCLE
+  backgroundColor String    @default("#000000")
+  cropInset     Float       @default(0.06)
+  /// @deprecated legacy focus/zoom/crop — kept for compat, prefer offset/scale
   focusX        Float       @default(0.5)
   focusY        Float       @default(0.5)
   zoom          Float       @default(1)
-  /// Degrees: 0, 90, 180, 270
-  rotation      Int         @default(0)
-  /// Crop rectangle relative 0–1
   cropX         Float       @default(0)
   cropY         Float       @default(0)
   cropW         Float       @default(1)
