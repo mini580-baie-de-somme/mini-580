@@ -33,12 +33,18 @@ jobs:
 
       - name: Create editor on VPS
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          OPS_ENV: ${{ inputs.environment }}
+          OPS_EMAIL: ${{ inputs.email }}
+          OPS_NAME: ${{ inputs.name }}
+          OPS_PASSWORD_HASH: ${{ inputs.password_hash }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           timeout: 60s
           command_timeout: 5m
+          envs: OPS_ENV,OPS_EMAIL,OPS_NAME,OPS_PASSWORD_HASH
           script: |
             set -euo pipefail
             SCRIPT="/tmp/ops-create-editor.sh"
@@ -98,7 +104,7 @@ jobs:
             SCRIPT_EOF
             chmod +x "$SCRIPT"
             bash "$SCRIPT" \
-              "${{ inputs.environment }}" \
-              "${{ inputs.email }}" \
-              "${{ inputs.name }}" \
-              "${{ inputs.password_hash }}"
+              "$OPS_ENV" \
+              "$OPS_EMAIL" \
+              "$OPS_NAME" \
+              "$OPS_PASSWORD_HASH"
