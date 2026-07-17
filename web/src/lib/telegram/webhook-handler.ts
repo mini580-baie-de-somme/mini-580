@@ -57,8 +57,16 @@ function largestPhoto(photos: TelegramPhotoSize[]): TelegramPhotoSize {
 async function ensureAllowed(from: TelegramUser | undefined): Promise<BotReply | null> {
   if (!from) return { text: "Utilisateur Telegram inconnu." };
   if (!isTelegramUserAllowed(from.id)) {
+    const label = [from.first_name, from.username ? `@${from.username}` : null]
+      .filter(Boolean)
+      .join(" ");
+    console.warn("telegram access denied", {
+      userId: from.id,
+      username: from.username,
+      firstName: from.first_name,
+    });
     return {
-      text: "⛔ Compte non autorisé. Demande l'ajout de ton Telegram ID à l'allowlist.",
+      text: `⛔ Compte non autorisé.\n\nTon ID Telegram : \`${from.id}\`${label ? `\n(${label})` : ""}\n\nTransmets cet ID à l'admin pour être ajouté à l'allowlist.`,
     };
   }
   return null;

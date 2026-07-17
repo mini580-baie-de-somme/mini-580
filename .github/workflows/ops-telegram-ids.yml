@@ -14,7 +14,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            set -euo pipefail
+            set -uo pipefail
             for env in test prod; do
               echo "===== $env ====="
               ENV_FILE="/opt/mini580/$env/.env"
@@ -26,15 +26,16 @@ jobs:
               echo "TELEGRAM_ALLOWED_USER_IDS=${ALLOWED:-<empty>}"
               TOKEN=$(grep -E '^TELEGRAM_BOT_TOKEN=' "$ENV_FILE" | cut -d= -f2- | tr -d '"')
               if [[ -n "$TOKEN" ]]; then
-                curl -fsS "https://api.telegram.org/bot${TOKEN}/getMe"
+                curl -fsS "https://api.telegram.org/bot${TOKEN}/getMe" || true
                 echo
-                curl -fsS "https://api.telegram.org/bot${TOKEN}/getUpdates?limit=20"
+                curl -fsS "https://api.telegram.org/bot${TOKEN}/getUpdates?limit=20" || echo "getUpdates failed (webhook active?)"
                 echo
               fi
               COMPOSE="/opt/mini580/$env/docker-compose.yml"
               if [[ -f "$COMPOSE" ]]; then
-                docker compose -f "$COMPOSE" --env-file "$ENV_FILE" logs web --tail 400 2>&1 \
-                  | grep -Ei 'from|telegram|autoris|Laurent|userId|webhook' \
-                  | tail -40 || true
+                docker compose -f "$COMPOSE" --env-file "$ENV_FILE" logs web --since 3h 2>&1 | tail -120 || true
+                docker compose -f "$COMPOSE" --env-file "$ENV_FILE" exec -T db \
+                  psql -U postgres -d mini580 -c \
+                  'SELECT "telegramUserId", "telegramChatId", "updatedAt" FROM "TelegramAgentThread" ORDER BY "updatedAt" DESC LIMIT 10;' 2>/dev/null || true
               fi
             done
