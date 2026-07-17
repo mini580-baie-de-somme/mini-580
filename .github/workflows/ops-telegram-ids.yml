@@ -1,0 +1,38 @@
+name: Ops — Telegram recent users
+
+on:
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH — docker logs + Telegram getUpdates
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            for env in test prod; do
+              echo "===== $env ====="
+              ENV_FILE="/opt/mini580/$env/.env"
+              if [[ ! -f "$ENV_FILE" ]]; then
+                echo "missing $ENV_FILE"
+                continue
+              fi
+              ALLOWED=$(grep -E '^TELEGRAM_ALLOWED_USER_IDS=' "$ENV_FILE" | cut -d= -f2- || true)
+              echo "TELEGRAM_ALLOWED_USER_IDS=${ALLOWED:-<empty>}"
+              TOKEN=$(grep -E '^TELEGRAM_BOT_TOKEN=' "$ENV_FILE" | cut -d= -f2- | tr -d '"')
+              if [[ -n "$TOKEN" ]]; then
+                curl -fsS "https://api.telegram.org/bot${TOKEN}/getMe" | jq -c '{ok,username:.result.username,name:.result.first_name}'
+                curl -fsS "https://api.telegram.org/bot${TOKEN}/getUpdates?limit=20" | jq -c '[.result[]? | {update_id, user_id: (.message.from.id // .callback_query.from.id), username: (.message.from.username // .callback_query.from.username), first_name: (.message.from.first_name // .callback_query.from.first_name), text: (.message.text // .callback_query.data)}]'
+              fi
+              COMPOSE="/opt/mini580/$env/docker-compose.yml"
+              if [[ -f "$COMPOSE" ]]; then
+                docker compose -f "$COMPOSE" --env-file "$ENV_FILE" logs web --tail 400 2>&1 \
+                  | grep -Ei 'from|telegram|autoris|Laurent|userId|webhook' \
+                  | tail -40 || true
+              fi
+            done
