@@ -33,9 +33,16 @@ export function parseListPagination(searchParams: URLSearchParams): {
 }
 
 export function isListFiltered(searchParams: URLSearchParams, filterKeys: string[]): boolean {
-  if (searchParams.get("q")?.trim()) return true;
-  return filterKeys.some((key) => {
+  return countListFilters(searchParams, filterKeys) > 0;
+}
+
+export function countListFilters(searchParams: URLSearchParams, filterKeys: string[]): number {
+  let count = 0;
+  if (searchParams.get("q")?.trim()) count += 1;
+  for (const key of filterKeys) {
+    if (key === "q") continue;
     const value = searchParams.get(key);
-    return Boolean(value && value !== "ALL");
-  });
+    if (value && value !== "ALL") count += 1;
+  }
+  return count;
 }
