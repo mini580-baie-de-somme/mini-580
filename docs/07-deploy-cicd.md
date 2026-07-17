@@ -160,9 +160,10 @@ Les images uploadées ne vivent **pas** dans le filesystem éphémère du contai
 Sur un VPS déjà bootstrapé :
 
 ```bash
-sudo mkdir -p /opt/mini580/{test,prod}/media
-sudo chown -R 1001:1001 /opt/mini580/{test,prod}/media
-sudo chmod -R u+rwX,g+rX,o+rX /opt/mini580/{test,prod}/media
+# Media dirs must be writable by container uid 1001 (nextjs). Fix without sudo:
+docker run --rm -v /opt/mini580/prod/media:/data/media alpine:3.20 \
+  sh -c 'chown -R 1001:1001 /data/media && chmod -R u+rwX,g+rX,o+rX /data/media'
+# Or ops workflow: Ops — Fix media permissions
 # Recopier compose + nginx puis reload
 sudo cp /chemin/repo/deploy/docker-compose.test.yml /opt/mini580/test/docker-compose.yml
 sudo cp /chemin/repo/deploy/docker-compose.prod.yml /opt/mini580/prod/docker-compose.yml

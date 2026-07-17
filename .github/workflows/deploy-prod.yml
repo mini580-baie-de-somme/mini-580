@@ -123,10 +123,10 @@ jobs:
             if command -v sudo >/dev/null 2>&1; then
               sudo cp /opt/mini580/nginx/classmini580.blog.conf /etc/nginx/sites-available/classmini580.blog.conf || true
               sudo nginx -t && sudo systemctl reload nginx || true
-              sudo mkdir -p /opt/mini580/prod/media
-              sudo chown -R 1001:1001 /opt/mini580/prod/media
-              sudo chmod -R u+rwX,g+rX,o+rX /opt/mini580/prod/media
-              ls -lad /opt/mini580/prod/media
             fi
+            mkdir -p /opt/mini580/prod/media
+            docker run --rm -v /opt/mini580/prod/media:/data/media alpine:3.20 \
+              sh -c 'chown -R 1001:1001 /data/media && chmod -R u+rwX,g+rX,o+rX /data/media'
+            ls -lad /opt/mini580/prod/media
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             /opt/mini580/bin/deploy.sh prod "$IMAGE"

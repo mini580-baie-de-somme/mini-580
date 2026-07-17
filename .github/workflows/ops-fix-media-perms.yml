@@ -31,26 +31,20 @@ jobs:
           envs: OPS_ENV
           script: |
             set -euo pipefail
+            # Prefer Docker (root) over sudo — deploy user often has no passwordless sudo.
             fix_one() {
               local env="$1"
               local dir="/opt/mini580/${env}/media"
               echo "===== ${env} ====="
               mkdir -p "$dir"
-              if command -v sudo >/dev/null 2>&1; then
-                sudo chown -R 1001:1001 "$dir"
-                sudo chmod -R u+rwX,g+rX,o+rX "$dir"
-              else
-                chown -R 1001:1001 "$dir"
-                chmod -R u+rwX,g+rX,o+rX "$dir"
-              fi
+              docker run --rm -v "${dir}:/data/media" alpine:3.20 \
+                sh -c 'chown -R 1001:1001 /data/media && chmod -R u+rwX,g+rX,o+rX /data/media'
               ls -lad "$dir"
-              # Prove container user can create a year dir
               COMPOSE="/opt/mini580/${env}/docker-compose.yml"
               ENVF="/opt/mini580/${env}/.env"
               if [[ -f "$COMPOSE" && -f "$ENVF" ]]; then
                 docker compose -f "$COMPOSE" --env-file "$ENVF" exec -T -u 1001 web \
-                  sh -c 'mkdir -p /data/media/_permcheck && rmdir /data/media/_permcheck && echo "write OK as uid 1001"' \
-                  || echo "WARNING: write check failed for ${env}"
+                  sh -c 'mkdir -p /data/media/_permcheck && rmdir /data/media/_permcheck && echo "write OK as uid 1001"'
               fi
             }
             case "${OPS_ENV}" in
