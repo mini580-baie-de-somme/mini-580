@@ -39,6 +39,9 @@ const ALLOWED_CONTENT_TYPES = new Map<string, string>([
   ["image/png", "png"],
   ["image/webp", "webp"],
   ["image/gif", "gif"],
+  ["application/pdf", "pdf"],
+  ["video/mp4", "mp4"],
+  ["video/webm", "webm"],
 ]);
 
 const EXT_TO_CONTENT_TYPE: Record<string, string> = {
@@ -47,12 +50,34 @@ const EXT_TO_CONTENT_TYPE: Record<string, string> = {
   png: "image/png",
   webp: "image/webp",
   gif: "image/gif",
+  pdf: "application/pdf",
+  mp4: "video/mp4",
+  webm: "video/webm",
 };
 
-/** Max object size (bytes). nginx client_max_body_size is 20M. */
+/** Max size for images / documents (bytes). */
 export const MEDIA_MAX_BYTES = 10 * 1024 * 1024;
+/** Max size for videos (bytes). */
+export const MEDIA_VIDEO_MAX_BYTES = 100 * 1024 * 1024;
 
-const KEY_RE = /^[a-zA-Z0-9][a-zA-Z0-9/_ .-]*\.(jpe?g|png|webp|gif)$/i;
+const KEY_RE =
+  /^[a-zA-Z0-9][a-zA-Z0-9/_ .-]*\.(jpe?g|png|webp|gif|pdf|mp4|webm)$/i;
+
+export type MediaKindHint = "IMAGE" | "DOCUMENT" | "VIDEO";
+
+export function kindFromContentType(contentType: string): MediaKindHint | null {
+  const ct = normalizeContentType(contentType);
+  if (ct.startsWith("image/")) return "IMAGE";
+  if (ct === "application/pdf") return "DOCUMENT";
+  if (ct.startsWith("video/")) return "VIDEO";
+  return null;
+}
+
+export function maxBytesForContentType(contentType: string): number {
+  return kindFromContentType(contentType) === "VIDEO"
+    ? MEDIA_VIDEO_MAX_BYTES
+    : MEDIA_MAX_BYTES;
+}
 
 export function isAllowedContentType(contentType: string): boolean {
   return ALLOWED_CONTENT_TYPES.has(contentType.toLowerCase().split(";")[0].trim());
@@ -116,7 +141,7 @@ export class LocalDiskBucket implements MediaBucket {
       ? extensionForContentType(fromName) ?? ""
       : path.extname(filename).replace(".", "").toLowerCase();
     if (ext === "jpeg") ext = "jpg";
-    if (!["jpg", "png", "webp", "gif"].includes(ext)) {
+    if (!["jpg", "png", "webp", "gif", "pdf", "mp4", "webm"].includes(ext)) {
       throw new MediaBucketError("Unsupported file extension", 400);
     }
     const now = new Date();

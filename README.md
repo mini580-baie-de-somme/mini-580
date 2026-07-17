@@ -31,7 +31,7 @@ Ce dépôt part de zéro pour reconstruire le site web, la documentation et la c
 | [Sync TEST ↔ PROD](docs/08-sync-test-prod.md) | OTP Ed25519, pull/publish, archive |
 | [Publication Telegram + IA](docs/09-telegram-publish.md) | Bot allowlist, review FR/EN, photos, preview |
 | [Tests d'intégration API](docs/10-api-integration-tests.md) | Vitest CRUD / photos / sync / tools IA |
-| [Design system listes éditeur](docs/11-design-system-editeur.md) | Recherche, actions, clic ligne, infinite scroll, compteurs |
+| [Design system listes éditeur](docs/11-design-system-editeur.md) | Recherche, actions, clic ligne, infinite scroll, compteurs, médiathèque |
 
 ## Application web (`web/`)
 

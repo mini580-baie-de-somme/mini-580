@@ -3,7 +3,7 @@ import { z } from "zod";
 import { PostStatus } from "@/generated/prisma/client";
 import { getEditorOrService } from "@/lib/service-auth";
 import { prisma } from "@/lib/db";
-import { postInclude } from "@/lib/posts";
+import { postInclude, withLegacyImages } from "@/lib/posts";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       },
       include: postInclude,
     });
-    return NextResponse.json(post);
+    return NextResponse.json(withLegacyImages(post));
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.flatten() }, { status: 400 });

@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { postInclude } from "@/lib/posts";
+import { postInclude, withLegacyImages } from "@/lib/posts";
 import { PostEditor } from "@/components/PostEditor";
 import { getSyncEnv, isSyncConfigured, peerFetch } from "@/lib/sync-crypto";
 import type { SyncPostSummary } from "@/lib/sync";
@@ -39,7 +39,7 @@ export default async function EditPostPage({ params }: PageProps) {
   return (
     <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
       <PostEditor
-        post={post}
+        post={withLegacyImages(post)}
         tags={tags}
         themes={themes}
         milestones={milestones}

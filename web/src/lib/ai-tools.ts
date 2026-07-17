@@ -14,6 +14,7 @@ export type AiToolDef = {
   category:
     | "posts"
     | "photos"
+    | "media"
     | "tags"
     | "themes"
     | "milestones"
@@ -34,7 +35,7 @@ export const AI_TOOLS: AiToolDef[] = [
   {
     name: "posts.create",
     description:
-      "Create a DRAFT post immediately (empty body OK; titles default to Nouvel article / New article). Returns id to reuse for patches and photos.",
+      "Create a DRAFT post immediately (empty body OK; titles default to Nouvel article / New article). Returns id to reuse for patches and media.attach / photos.upload.",
     method: "POST",
     path: "/api/posts",
     auth: "bearer_or_session",
@@ -81,37 +82,127 @@ export const AI_TOOLS: AiToolDef[] = [
     category: "posts",
   },
 
-  // Photos + FR/EN + transforms + 4 sizes
+  // Public gallery + media library + legacy photo aliases
   {
     name: "gallery.list",
     description:
-      "Public yard gallery: published post photos filtered by hull/theme/tag/milestone/search, sorted by date or milestone",
+      "Public multi-media gallery (IMAGE|DOCUMENT|VIDEO) linked to published posts. Query: hull, theme, tag, milestone, search, kind, sort=date|milestone",
     method: "GET",
     path: "/api/gallery",
     auth: "public",
-    category: "photos",
+    category: "media",
+  },
+  {
+    name: "media.list",
+    description:
+      "List media library items (paginated). Query: q, kind=IMAGE|DOCUMENT|VIDEO, limit, offset. Returns { items, total, totalAll }. Media are independent of posts (0–N links).",
+    method: "GET",
+    path: "/api/media-library",
+    auth: "bearer_or_session",
+    category: "media",
+  },
+  {
+    name: "media.get",
+    description: "Get one media library item by id (includes linked posts)",
+    method: "GET",
+    path: "/api/media-library/:id",
+    auth: "bearer_or_session",
+    category: "media",
+  },
+  {
+    name: "media.create",
+    description:
+      "Create media in the library (multipart file OR JSON { urlOrigin, kind?, titleFr/En }). IMAGE → variants; DOCUMENT/VIDEO → origin only. Does not attach to a post.",
+    method: "POST",
+    path: "/api/media-library",
+    auth: "bearer_or_session",
+    category: "media",
+  },
+  {
+    name: "media.update",
+    description: "Patch media FR/EN meta and IMAGE transforms (focus/zoom/rotate/crop)",
+    method: "PATCH",
+    path: "/api/media-library/:id",
+    auth: "bearer_or_session",
+    category: "media",
+  },
+  {
+    name: "media.replace",
+    description: "Replace media file (multipart). IMAGE regenerates variants.",
+    method: "POST",
+    path: "/api/media-library/:id/replace",
+    auth: "bearer_or_session",
+    category: "media",
+  },
+  {
+    name: "media.delete",
+    description:
+      "Delete media from library. If linked to posts, pass ?force=1. Prefer media.detach to only unlink.",
+    method: "DELETE",
+    path: "/api/media-library/:id",
+    auth: "bearer_or_session",
+    category: "media",
+  },
+  {
+    name: "media.attach",
+    description:
+      "Attach mediaIds to a post, OR upload multipart and attach, OR JSON { urlOrigin }. Body: { mediaIds, setCoverFirst? }",
+    method: "POST",
+    path: "/api/posts/:id/media",
+    auth: "bearer_or_session",
+    category: "media",
+  },
+  {
+    name: "media.list_for_post",
+    description: "List media linked to a post (all kinds), ordered by sortOrder",
+    method: "GET",
+    path: "/api/posts/:id/media",
+    auth: "public",
+    category: "media",
+  },
+  {
+    name: "media.detach",
+    description: "Detach media from a post only (does NOT delete library item)",
+    method: "DELETE",
+    path: "/api/posts/:id/media/:mediaId",
+    auth: "bearer_or_session",
+    category: "media",
+  },
+  {
+    name: "media.reorder",
+    description: "Reorder media on a post. Body: { mediaIds: string[] }",
+    method: "PUT",
+    path: "/api/posts/:id/media/reorder",
+    auth: "bearer_or_session",
+    category: "media",
+  },
+  {
+    name: "media.set_cover",
+    description: "Mark linked media as post cover",
+    method: "POST",
+    path: "/api/posts/:id/media/:mediaId/cover",
+    auth: "bearer_or_session",
+    category: "media",
+  },
+  {
+    name: "media.put",
+    description: "Raw bucket upload (no DB row) — prefer media.create / media.attach",
+    method: "POST",
+    path: "/api/media",
+    auth: "bearer_or_session",
+    category: "media",
   },
   {
     name: "photos.list",
-    description: "List images for a post",
+    description: "[compat] List post media — prefer media.list_for_post",
     method: "GET",
     path: "/api/posts/:id/images",
     auth: "public",
     category: "photos",
   },
   {
-    name: "media.put",
-    description:
-      "Raw bucket upload (single object, no DB row) — prefer photos.upload for covers and gallery",
-    method: "POST",
-    path: "/api/media",
-    auth: "bearer_or_session",
-    category: "photos",
-  },
-  {
     name: "photos.upload",
-    description:
-      "Upload image (multipart) → PostImage + origin/picto/petite/moyenne/grande; use for cover then set coverImageUrl",
+    description: "[compat] Upload/attach image to post — prefer media.attach",
     method: "POST",
     path: "/api/posts/:id/images",
     auth: "bearer_or_session",
@@ -119,7 +210,7 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "photos.replace_all",
-    description: "Replace all post images metadata/URLs",
+    description: "[compat] Replace all post media links",
     method: "PUT",
     path: "/api/posts/:id/images",
     auth: "bearer_or_session",
@@ -127,7 +218,7 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "photos.patch",
-    description: "Update FR/EN meta + move/zoom/rotate/crop transforms",
+    description: "[compat] Update media meta — prefer media.update",
     method: "PATCH",
     path: "/api/posts/:id/images/:imageId",
     auth: "bearer_or_session",
@@ -135,7 +226,7 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "photos.replace_file",
-    description: "Replace origin file and regenerate 4 WebP sizes",
+    description: "[compat] Replace image file — prefer media.replace",
     method: "POST",
     path: "/api/posts/:id/images/:imageId/replace",
     auth: "bearer_or_session",
@@ -143,7 +234,7 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "photos.reorder",
-    description: "Reorder post images",
+    description: "[compat] Reorder — prefer media.reorder with mediaIds",
     method: "PUT",
     path: "/api/posts/:id/images/reorder",
     auth: "bearer_or_session",
@@ -151,7 +242,7 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "photos.delete",
-    description: "Delete an image and media files",
+    description: "[compat] Detach+delete orphan — prefer media.detach / media.delete",
     method: "DELETE",
     path: "/api/posts/:id/images/:imageId",
     auth: "bearer_or_session",
@@ -161,7 +252,7 @@ export const AI_TOOLS: AiToolDef[] = [
   // Tags
   {
     name: "tags.list",
-    description: "List tags",
+    description: "List tags (array) or paginated ?limit&offset&q → { items, total, totalAll }",
     method: "GET",
     path: "/api/tags",
     auth: "public",
@@ -169,7 +260,7 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "tags.create",
-    description: "Create bilingual tag",
+    description: "Create bilingual tag (labelFr, labelEn, optional name)",
     method: "POST",
     path: "/api/tags",
     auth: "bearer_or_session",
@@ -177,7 +268,7 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "tags.update",
-    description: "Update tag FR/EN",
+    description: "Update tag FR/EN labels or identifier",
     method: "PATCH",
     path: "/api/tags/:id",
     auth: "bearer_or_session",
@@ -185,7 +276,7 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "tags.delete",
-    description: "Delete tag",
+    description: "Delete a tag (unlinks from posts)",
     method: "DELETE",
     path: "/api/tags/:id",
     auth: "bearer_or_session",
@@ -195,7 +286,7 @@ export const AI_TOOLS: AiToolDef[] = [
   // Themes
   {
     name: "themes.list",
-    description: "List themes",
+    description: "List themes (array) or paginated ?limit&offset&q → { items, total, totalAll }",
     method: "GET",
     path: "/api/themes",
     auth: "public",
@@ -203,7 +294,7 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "themes.create",
-    description: "Create bilingual theme",
+    description: "Create bilingual theme (labelFr, labelEn, optional slug)",
     method: "POST",
     path: "/api/themes",
     auth: "bearer_or_session",
@@ -211,7 +302,7 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "themes.update",
-    description: "Update theme FR/EN",
+    description: "Update theme FR/EN labels or slug",
     method: "PATCH",
     path: "/api/themes/:id",
     auth: "bearer_or_session",
@@ -219,17 +310,17 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "themes.delete",
-    description: "Delete theme",
+    description: "Delete a theme (unlinks from posts)",
     method: "DELETE",
     path: "/api/themes/:id",
     auth: "bearer_or_session",
     category: "themes",
   },
 
-  // Milestones (jalons timeline)
+  // Milestones
   {
     name: "milestones.list",
-    description: "List timeline milestones",
+    description: "List milestones (array) or paginated ?limit&offset&q → { items, total, totalAll }",
     method: "GET",
     path: "/api/milestones",
     auth: "public",
@@ -237,7 +328,7 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "milestones.create",
-    description: "Create bilingual milestone",
+    description: "Create bilingual milestone (titles, descriptions, milestoneDate, sortOrder, slug)",
     method: "POST",
     path: "/api/milestones",
     auth: "bearer_or_session",
@@ -245,7 +336,7 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "milestones.update",
-    description: "Update milestone FR/EN",
+    description: "Update milestone FR/EN, date, order, slug",
     method: "PATCH",
     path: "/api/milestones/:id",
     auth: "bearer_or_session",
@@ -253,7 +344,7 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "milestones.delete",
-    description: "Delete milestone",
+    description: "Delete a milestone (unlinks from posts)",
     method: "DELETE",
     path: "/api/milestones/:id",
     auth: "bearer_or_session",

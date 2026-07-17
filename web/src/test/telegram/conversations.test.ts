@@ -16,6 +16,7 @@ import {
   uniqueSlug,
 } from "../helpers";
 import { prisma } from "@/lib/db";
+import { withLegacyImages } from "@/lib/posts";
 import type { TelegramUpdate } from "@/lib/telegram/webhook-handler";
 
 const USER_ID = 7257839706;
@@ -144,7 +145,7 @@ async function loadGuidedPost() {
     include: {
       tags: { include: { tag: true } },
       milestones: { include: { milestone: true } },
-      images: { orderBy: { sortOrder: "asc" } },
+      mediaLinks: { orderBy: { sortOrder: "asc" }, include: { media: true } },
     },
   });
   expect(post).toBeTruthy();
@@ -316,13 +317,13 @@ describe("Telegram conversation simulations — parcours guidé", () => {
     expect((await activeSession())?.step).toBe("REVIEW_PHOTO_ORDER");
 
     const before = await loadGuidedPost();
-    const idsBefore = before.post.images.map((i) => i.id);
+    const idsBefore = withLegacyImages(before.post!).images.map((i) => i.id);
     expect(idsBefore.length).toBe(3);
 
     await run(cb("order:edit"));
     await run(textMsg("ordre: 3,1,2"));
     const afterOrder = await loadGuidedPost();
-    expect(afterOrder.post.images.map((i) => i.id)).toEqual([
+    expect(withLegacyImages(afterOrder.post!).images.map((i) => i.id)).toEqual([
       idsBefore[2],
       idsBefore[0],
       idsBefore[1],
@@ -344,10 +345,10 @@ describe("Telegram conversation simulations — parcours guidé", () => {
       )
     );
     let cur = await loadGuidedPost();
-    expect(cur.post.images[0].titleFr).toBe("Photo A FR");
-    expect(cur.post.images[0].descriptionFr).toBe("Légende A du couple");
-    expect(cur.post.images[0].zoom).toBe(1.2);
-    expect(cur.post.images[0].rotation).toBe(90);
+    expect(withLegacyImages(cur.post!).images[0].titleFr).toBe("Photo A FR");
+    expect(withLegacyImages(cur.post!).images[0].descriptionFr).toBe("Légende A du couple");
+    expect(withLegacyImages(cur.post!).images[0].zoom).toBe(1.2);
+    expect(withLegacyImages(cur.post!).images[0].rotation).toBe(90);
 
     await run(cb("photofr:approve"));
     await run(textMsg("titre: Photo B FR\ndescription: Légende B"));
@@ -358,7 +359,7 @@ describe("Telegram conversation simulations — parcours guidé", () => {
     expect((await activeSession())?.step).toBe("REVIEW_PHOTO_META_EN");
     // Image EN should be filled by Cursor when titles/descriptions FR exist
     cur = await loadGuidedPost();
-    expect(cur.post.images[0].titleEn.trim().length).toBeGreaterThan(0);
+    expect(withLegacyImages(cur.post!).images[0].titleEn.trim().length).toBeGreaterThan(0);
 
     await run(cb("photoen:approve"));
     await run(cb("photoen:approve"));
@@ -370,12 +371,12 @@ describe("Telegram conversation simulations — parcours guidé", () => {
     await run(cb("session:cancel"));
     cur = await prisma.post.findUniqueOrThrow({
       where: { id: before.post.id },
-      include: { images: { orderBy: { sortOrder: "asc" } } },
+      include: { mediaLinks: { orderBy: { sortOrder: "asc" }, include: { media: true } } },
     });
     expect(cur.status).toBe("DRAFT");
-    expect(cur.images[0].titleFr).toBe("Photo A FR");
-    expect(cur.images[1].titleFr).toBe("Photo B FR");
-    expect(cur.images[2].titleFr).toBe("Photo C FR");
+    expect(withLegacyImages(cur).images[0].titleFr).toBe("Photo A FR");
+    expect(withLegacyImages(cur).images[1].titleFr).toBe("Photo B FR");
+    expect(withLegacyImages(cur).images[2].titleFr).toBe("Photo C FR");
   }, 300_000);
 
   it("full path with Cursor trad publishes the post", async () => {
@@ -398,7 +399,7 @@ describe("Telegram conversation simulations — parcours guidé", () => {
     await run(cb("photofr:approve"));
 
     const afterImgTrad = await loadGuidedPost();
-    expect(afterImgTrad.post.images[0].titleEn.trim().length).toBeGreaterThan(0);
+    expect(withLegacyImages(afterImgTrad.post!).images[0].titleEn.trim().length).toBeGreaterThan(0);
 
     await run(cb("photoen:approve"));
 

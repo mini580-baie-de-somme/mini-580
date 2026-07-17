@@ -11,15 +11,16 @@ contenu, traduction, aperçu, ordre des photos, métadonnées et transforms par 
 
 Par défaut, Telegram parle à un **agent Cursor** qui appelle les endpoints via `AI_TOOLS` (`Bearer INGEST_API_KEY`) :
 
-- lire / rechercher posts, galerie, tags, thèmes, jalons
+- lire / rechercher posts, galerie multi-médias, tags, thèmes, jalons
 - CRUD articles + publish/archive
-- médiathèque & images liées (meta FR/EN, transforms, reorder, replace)
+- médiathèque indépendante `Media` (IMAGE|DOCUMENT|VIDEO) : `media.*` tools — create/update/delete/attach/detach/reorder/set_cover
+- tools `photos.*` conservés en compat (même modèle sous-jacent)
 - liens d’aperçu `preview.create` → `/apercu/t/{token}`
 - traduction FR→EN (`translate`)
 
 Parcours guidé conservé : `/nouveau`.
 
-Fichiers clés : `web/src/lib/telegram/agent.ts`, `ai-tools.ts`, `ai-tools-runtime.ts`.
+Fichiers clés : `web/src/lib/telegram/agent.ts`, `ai-tools.ts`, `ai-tools-runtime.ts`, `media-library.ts`.
 
 ## Prérequis
 
@@ -34,7 +35,7 @@ Fichiers clés : `web/src/lib/telegram/agent.ts`, `ai-tools.ts`, `ai-tools-runti
 | `CURSOR_MODEL` | Modèle Cursor (défaut `composer-2.5`) |
 | `SITE_URL` | Liens d'aperçu absolus |
 
-Migration : `telegram_publish_flow` (PostImage enrichi + `TelegramPublishSession` + `PreviewToken`).
+Migration : `media_library` (`Media` + `PostMedia` depuis `PostImage`) · `telegram_publish_flow` · `PreviewToken`.
 
 ## Brancher le webhook
 
@@ -71,30 +72,31 @@ flowchart TD
 
 ## Modèle photo
 
-Chaque `PostImage` stocke :
+Chaque `Media` stocke :
 
-- `urlOrigin` (image d’origine) + formats dérivés `urlPicto` / `urlPetite` / `urlMoyenne` / `urlGrande`
-- `titleFr/En`, `descriptionFr/En`, `takenAt`, `sortOrder`
-- transforms CSS : `focusX/Y`, `zoom`, `rotation`, `cropX/Y/W/H`
+- `kind` : IMAGE | DOCUMENT | VIDEO
+- `urlOrigin` + (IMAGE) formats dérivés `urlPicto` / `urlPetite` / `urlMoyenne` / `urlGrande`
+- `titleFr/En`, `descriptionFr/En`, `takenAt`
+- transforms CSS (IMAGE) : `focusX/Y`, `zoom`, `rotation`, `cropX/Y/W/H`
+- liaison articles via `PostMedia` (`sortOrder`, `isCover`) — 0 à N posts
 
-Les variants sont générés au upload (`sharp`). L’affichage applique le transform (`GalleryImage`) sur `urlMoyenne` (fallback origin).
+Les variants IMAGE sont générés au upload (`sharp`). L’affichage applique le transform (`GalleryImage`) sur `urlMoyenne` (fallback origin).
 
-## API tools images (éditeur + assistant IA)
+## API tools médias (éditeur + assistant IA)
 
 Auth : cookie session **ou** `Authorization: Bearer <INGEST_API_KEY>`.
 
 | Tool | Méthode |
 |------|---------|
-| Galerie publique | `GET /api/gallery?hull=&theme=&tag=&milestone=&search=&sort=date\|milestone` |
-| Lister (post) | `GET /api/posts/:id/images` |
-| Upload + variants | `POST /api/posts/:id/images` (multipart `file`) |
-| Créer (URLs) | `POST /api/posts/:id/images` (JSON) |
-| Remplacer tout | `PUT /api/posts/:id/images` |
-| Patch meta/transform | `PATCH /api/posts/:id/images/:imageId` |
-| Remplacer origine | `POST /api/posts/:id/images/:imageId/replace` |
-| Réordonner | `PUT /api/posts/:id/images/reorder` `{ imageIds }` |
-| Supprimer | `DELETE /api/posts/:id/images/:imageId` |
-| Bucket brut (cover) | `POST /api/media` |
+| Galerie publique | `GET /api/gallery?kind=&hull=&theme=&tag=&milestone=&search=&sort=` |
+| Médiathèque liste | `GET /api/media-library?q=&kind=&limit=&offset=` |
+| Médiathèque CRUD | `POST/PATCH/DELETE /api/media-library` · `…/:id` · `…/:id/replace` |
+| Médias d’un post | `GET/POST /api/posts/:id/media` |
+| Détacher | `DELETE /api/posts/:id/media/:mediaId` |
+| Réordonner | `PUT /api/posts/:id/media/reorder` `{ mediaIds }` |
+| Couverture | `POST /api/posts/:id/media/:mediaId/cover` |
+| Compat photos | `…/posts/:id/images*` (mêmes données sous-jacentes) |
+| Bucket brut | `POST /api/media` |
 
 ## Secrets CI/CD (IA + Telegram)
 

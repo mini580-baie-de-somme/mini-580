@@ -10,6 +10,7 @@ type SearchParams = Promise<{
   milestone?: string;
   search?: string;
   sort?: string;
+  kind?: string;
 }>;
 
 export const metadata = {
@@ -22,6 +23,12 @@ export default async function GaleriePage({
   searchParams: SearchParams;
 }) {
   const params = await searchParams;
+  const kind =
+    params.kind === "IMAGE" ||
+    params.kind === "DOCUMENT" ||
+    params.kind === "VIDEO"
+      ? params.kind
+      : undefined;
   const [photos, themes, tags, milestones] = await Promise.all([
     listGalleryPhotos({
       hull: params.hull,
@@ -29,6 +36,7 @@ export default async function GaleriePage({
       tag: params.tag,
       milestone: params.milestone,
       search: params.search,
+      kind,
       sort: params.sort === "milestone" ? "milestone" : "date",
     }),
     prisma.theme.findMany({ orderBy: { slug: "asc" } }),

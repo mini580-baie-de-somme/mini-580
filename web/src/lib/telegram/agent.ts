@@ -52,14 +52,14 @@ async function rememberActiveIds(
   params: Record<string, string> | undefined,
   data: unknown
 ): Promise<void> {
-  const patch: { activePostId?: string | null; activeImageId?: string | null } =
+  const patch: { activePostId?: string | null; activeMediaId?: string | null } =
     {};
 
   if (toolName === "posts.create") {
     const postId = idFromData(data);
     if (postId) {
       patch.activePostId = postId;
-      patch.activeImageId = null;
+      patch.activeMediaId = null;
     }
   } else if (
     toolName === "posts.get" ||
@@ -69,27 +69,44 @@ async function rememberActiveIds(
     toolName === "posts.delete"
   ) {
     if (params?.id) patch.activePostId = params.id;
-  } else if (toolName === "photos.upload") {
+  } else if (toolName === "photos.upload" || toolName === "media.attach" || toolName === "media.create") {
     if (params?.id) patch.activePostId = params.id;
-    const imageId = idFromData(data);
-    if (imageId) patch.activeImageId = imageId;
+    const mediaId = idFromData(data);
+    if (mediaId) patch.activeMediaId = mediaId;
   } else if (
     toolName === "photos.patch" ||
     toolName === "photos.replace_file" ||
-    toolName === "photos.delete"
+    toolName === "photos.delete" ||
+    toolName === "media.update" ||
+    toolName === "media.replace" ||
+    toolName === "media.delete" ||
+    toolName === "media.detach" ||
+    toolName === "media.set_cover"
   ) {
     if (params?.id) patch.activePostId = params.id;
-    if (params?.imageId) {
-      patch.activeImageId =
-        toolName === "photos.delete" ? null : params.imageId;
+    const mid = params?.imageId || params?.mediaId;
+    if (mid) {
+      patch.activeMediaId =
+        toolName === "photos.delete" ||
+        toolName === "media.delete" ||
+        toolName === "media.detach"
+          ? null
+          : mid;
     }
-  } else if (toolName === "photos.list" || toolName === "photos.reorder") {
+  } else if (
+    toolName === "photos.list" ||
+    toolName === "photos.reorder" ||
+    toolName === "media.list_for_post" ||
+    toolName === "media.reorder"
+  ) {
     if (params?.id) patch.activePostId = params.id;
   } else if (toolName === "photos.replace_all") {
     if (params?.id) {
       patch.activePostId = params.id;
-      patch.activeImageId = null;
+      patch.activeMediaId = null;
     }
+  } else if (toolName === "media.get") {
+    if (params?.id) patch.activeMediaId = params.id;
   }
 
   if (Object.keys(patch).length === 0) return;
@@ -166,24 +183,26 @@ function buildPlatformCustomTools(
 const SYSTEM_BRIEF = `Tu es l'assistant Class Mini 5.80 Baie de Somme sur Telegram.
 Tu aides les comptes autorisés à :
 - renseigner (coques #268/#269/#270, chantier, jalons, tags, thèmes)
-- rechercher des articles / photos (gallery, posts.list, posts.get)
-- créer / modifier / publier / archiver des contenus via les tools plateforme
-- gérer la médiathèque et les images liées aux posts (upload, meta FR/EN, transforms, reorder, replace)
+- rechercher articles / médias (gallery.list, posts.list, media.list)
+- créer / modifier / publier / archiver / supprimer : articles, médias, jalons, thèmes, tags
+- gérer la médiathèque indépendante (IMAGE|DOCUMENT|VIDEO) : media.create, media.update, media.delete
+- associer/détacher des médias à 0–N articles : media.attach, media.detach, media.reorder, media.set_cover
 - partager des liens de prévisualisation (preview_create)
 
 Règles :
-- Utilise les tools HTTP de la plateforme (posts_*, photos_*, tags_*, themes_*, milestones_*, gallery_list, translate, preview_create, media_put).
+- Utilise les tools HTTP (posts_*, media_*, tags_*, themes_*, milestones_*, gallery_list, translate, preview_create). photos_* restent disponibles (compat).
 - Réponds en français, concis, adapté à Telegram (Markdown simple).
-- Avant de publier, confirme clairement avec l'utilisateur.
-- Pour créer un article : appelle posts_create immédiatement (brouillon vide OK) puis réutilise son id pour les patchs et photos.
-- Pour les photos Telegram déjà uploadées, tu recevras des URLs /media/... — rattache-les via photos_upload (JSON) ou photos_replace_all.
-- Ne invente pas d'IDs : utilise le contexte actif ci-dessous, ou liste d'abord puis sélectionne.
-- SITE_URL est dans le contexte ; les aperçus sont /apercu/t/{token}.
+- Avant de publier ou supprimer, confirme clairement avec l'utilisateur.
+- Créer un article : posts_create puis réutilise son id pour patchs et media.attach.
+- Médias Telegram (/media/...) : media.create puis media.attach, ou photos_upload (compat).
+- media.detach enlève le lien article ; media.delete supprime de la médiathèque (force=1 si lié).
+- Ne invente pas d'IDs : utilise le contexte actif, ou liste d'abord.
+- SITE_URL est dans le contexte ; aperçus /apercu/t/{token}.
 `;
 
 function formatActiveContext(thread: {
   activePostId: string | null;
-  activeImageId: string | null;
+  activeMediaId: string | null;
 }): string {
   const lines = ["Contexte actif (à réutiliser sauf changement de sujet) :"];
   lines.push(
@@ -192,9 +211,9 @@ function formatActiveContext(thread: {
       : "- postId: (aucun — crée un brouillon avec posts_create si besoin)"
   );
   lines.push(
-    thread.activeImageId
-      ? `- imageId: ${thread.activeImageId}`
-      : "- imageId: (aucune)"
+    thread.activeMediaId
+      ? `- mediaId: ${thread.activeMediaId}`
+      : "- mediaId: (aucune)"
   );
   return lines.join("\n");
 }

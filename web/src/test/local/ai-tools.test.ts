@@ -49,6 +49,7 @@ describe("API integration — IA tools full capacity (Bearer)", () => {
     for (const c of [
       "posts",
       "photos",
+      "media",
       "tags",
       "themes",
       "milestones",
@@ -58,7 +59,19 @@ describe("API integration — IA tools full capacity (Bearer)", () => {
       expect(cats.has(c)).toBe(true);
       expect(aiToolsByCategory(c).length).toBeGreaterThan(0);
     }
-    expect(AI_TOOLS.length).toBeGreaterThanOrEqual(25);
+    expect(AI_TOOLS.length).toBeGreaterThanOrEqual(35);
+    const mediaNames = aiToolsByCategory("media").map((t) => t.name);
+    for (const name of [
+      "media.list",
+      "media.create",
+      "media.attach",
+      "media.detach",
+      "media.delete",
+      "media.set_cover",
+      "gallery.list",
+    ]) {
+      expect(mediaNames).toContain(name);
+    }
   });
 
   it("exercises CRUD tools: posts + trad fields", async () => {
@@ -143,6 +156,68 @@ describe("API integration — IA tools full capacity (Bearer)", () => {
       { params: Promise.resolve({ id: postId, imageId }) }
     );
     expect(patched.status).toBe(200);
+  });
+
+  it("exercises media library tools: list + attach + detach", async () => {
+    const { POST: createMedia, GET: listMedia } = await import(
+      "@/app/api/media-library/route"
+    );
+    const created = await createMedia(
+      jsonRequest("http://localhost/api/media-library", {
+        method: "POST",
+        headers: bearerHeaders(),
+        body: JSON.stringify({
+          urlOrigin: "/media/2026/07/ai-lib.jpg",
+          titleFr: "IA Lib",
+          titleEn: "AI Lib",
+          kind: "IMAGE",
+        }),
+      })
+    );
+    expect(created.status).toBe(201);
+    const media = await created.json();
+
+    const listed = await listMedia(
+      jsonRequest("http://localhost/api/media-library", {
+        headers: bearerHeaders(),
+        searchParams: { q: "IA Lib", limit: "5", offset: "0" },
+      })
+    );
+    expect(listed.status).toBe(200);
+    const page = await listed.json();
+    expect(page.items.some((i: { id: string }) => i.id === media.id)).toBe(true);
+
+    const { POST: attach } = await import("@/app/api/posts/[id]/media/route");
+    const attachRes = await attach(
+      jsonRequest(`http://localhost/api/posts/${postId}/media`, {
+        method: "POST",
+        headers: bearerHeaders(),
+        body: JSON.stringify({ mediaIds: [media.id] }),
+      }),
+      { params: Promise.resolve({ id: postId }) }
+    );
+    expect(attachRes.status).toBe(201);
+
+    const { DELETE: detach } = await import(
+      "@/app/api/posts/[id]/media/[mediaId]/route"
+    );
+    const detachRes = await detach(
+      jsonRequest(`http://localhost/api/posts/${postId}/media/${media.id}`, {
+        method: "DELETE",
+        headers: bearerHeaders(),
+      }),
+      { params: Promise.resolve({ id: postId, mediaId: media.id }) }
+    );
+    expect(detachRes.status).toBe(200);
+
+    const { DELETE: del } = await import("@/app/api/media-library/[id]/route");
+    await del(
+      jsonRequest(`http://localhost/api/media-library/${media.id}?force=1`, {
+        method: "DELETE",
+        headers: bearerHeaders(),
+      }),
+      { params: Promise.resolve({ id: media.id }) }
+    );
   });
 
   it("exercises tag / theme / milestone tools", async () => {

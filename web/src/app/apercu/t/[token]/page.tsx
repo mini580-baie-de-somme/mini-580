@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { postInclude } from "@/lib/posts";
+import { postInclude, withLegacyImages } from "@/lib/posts";
 import { PreviewArticle } from "@/components/PreviewArticle";
 
 type PageProps = { params: Promise<{ token: string }> };
@@ -21,7 +21,7 @@ export default async function SharedPreviewPage({ params }: PageProps) {
     notFound();
   }
 
-  const post = preview.post;
+  const post = withLegacyImages(preview.post);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">

@@ -7,6 +7,7 @@ import {
   normalizeContentType,
 } from "@/lib/media-bucket";
 import { deleteMediaUrls, storeOriginAndVariants } from "@/lib/media-variants";
+import { listPostMediaAsImages, mediaAsPostImage } from "@/lib/media-library";
 
 type RouteContext = { params: Promise<{ id: string; imageId: string }> };
 
@@ -18,12 +19,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
   }
 
   const { id: postId, imageId } = await context.params;
-  const existing = await prisma.postImage.findFirst({
-    where: { id: imageId, postId },
+  const link = await prisma.postMedia.findUnique({
+    where: { postId_mediaId: { postId, mediaId: imageId } },
+    include: { media: true },
   });
-  if (!existing) {
+  if (!link) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  const existing = link.media;
 
   try {
     const form = await request.formData();
@@ -50,12 +53,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
       existing.urlGrande,
     ]);
 
-    const image = await prisma.postImage.update({
+    const media = await prisma.media.update({
       where: { id: imageId },
-      data: variants,
+      data: {
+        ...variants,
+        mimeType: ct,
+        byteSize: buffer.byteLength,
+      },
     });
 
-    return NextResponse.json(image);
+    return NextResponse.json(mediaAsPostImage(media, { ...link, postId }));
   } catch (err) {
     console.error("image replace failed", err);
     return NextResponse.json({ error: "Replace failed" }, { status: 500 });

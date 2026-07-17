@@ -8,8 +8,16 @@ Règles UI obligatoires pour **toutes** les listes CRUD de l’espace éditeur :
 - Conteneur liste : `rounded-lg border border-[#d4dde6] bg-white`
 - Table HTML réelle : un `<th>` / `<td>` par colonne (pas de `colSpan` + grille CSS pour simuler les colonnes)
 - Colonnes secondaires masquées en responsive (`hidden sm:table-cell` / `md:table-cell`) de façon **identique** entre en-tête et cellules
-- Formulaires de création / édition inline au-dessus de la liste (tags, thèmes, jalons) ou page dédiée (articles)
+- Formulaires de création / édition inline au-dessus de la liste (tags, thèmes, jalons, galerie) ou page dédiée (articles)
+- Modules : Articles, **Galerie (médiathèque)**, Jalons, Thématiques, Tags, Sync
 - i18n FR/EN via `web/src/lib/i18n.ts`
+
+## Médiathèque (`/editeur/galerie`)
+
+- Entité `Media` indépendante (`IMAGE` | `DOCUMENT` | `VIDEO`), liaison M:N via `PostMedia`
+- CRUD liste design system + upload PDF/vidéo/photo
+- Dans un article : upload **ou** sélection depuis la médiathèque (`media.attach`)
+- Détacher ≠ supprimer : `DELETE …/posts/:id/media/:mediaId` vs `DELETE …/media-library/:id`
 
 ## Règles listes (obligatoires)
 

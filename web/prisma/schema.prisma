@@ -48,7 +48,7 @@ model Post {
   tags          PostTag[]
   themes        PostTheme[]
   milestones    PostMilestone[]
-  images        PostImage[]
+  mediaLinks    PostMedia[]
   telegramSessions TelegramPublishSession[]
   previewTokens PreviewToken[]
 }
@@ -118,33 +118,59 @@ model PostMilestone {
   @@id([postId, milestoneId])
 }
 
-model PostImage {
-  id            String    @id @default(cuid())
-  postId        String
-  post          Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
-  /// Original uploaded file (image_origine)
+enum MediaKind {
+  IMAGE
+  DOCUMENT
+  VIDEO
+}
+
+/// Independent media library item (photo, PDF, video) — linkable to 0–N posts.
+model Media {
+  id            String      @id @default(cuid())
+  kind          MediaKind   @default(IMAGE)
+  mimeType      String      @default("image/jpeg")
+  byteSize      Int?
+  /// Original uploaded file
   urlOrigin     String
   urlPicto      String?
   urlPetite     String?
   urlMoyenne    String?
   urlGrande     String?
-  titleFr       String    @default("")
-  titleEn       String    @default("")
-  descriptionFr String    @default("")
-  descriptionEn String    @default("")
+  titleFr       String      @default("")
+  titleEn       String      @default("")
+  descriptionFr String      @default("")
+  descriptionEn String      @default("")
   takenAt       DateTime?
-  sortOrder     Int       @default(0)
-  /// Focus point 0–1 (object-position)
-  focusX        Float     @default(0.5)
-  focusY        Float     @default(0.5)
-  zoom          Float     @default(1)
+  /// Focus point 0–1 (object-position) — IMAGE only
+  focusX        Float       @default(0.5)
+  focusY        Float       @default(0.5)
+  zoom          Float       @default(1)
   /// Degrees: 0, 90, 180, 270
-  rotation      Int       @default(0)
+  rotation      Int         @default(0)
   /// Crop rectangle relative 0–1
-  cropX         Float     @default(0)
-  cropY         Float     @default(0)
-  cropW         Float     @default(1)
-  cropH         Float     @default(1)
+  cropX         Float       @default(0)
+  cropY         Float       @default(0)
+  cropW         Float       @default(1)
+  cropH         Float       @default(1)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  posts         PostMedia[]
+
+  @@index([kind])
+  @@index([createdAt])
+}
+
+/// Post ↔ Media association (order + cover flag per post).
+model PostMedia {
+  postId   String
+  mediaId  String
+  post     Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  media    Media   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  sortOrder Int    @default(0)
+  isCover   Boolean @default(false)
+
+  @@id([postId, mediaId])
+  @@index([mediaId])
 }
 
 enum TelegramSessionStep {
@@ -168,7 +194,7 @@ model TelegramPublishSession {
   step           TelegramSessionStep @default(AWAITING_CONTENT)
   postId         String?
   post           Post?               @relation(fields: [postId], references: [id], onDelete: SetNull)
-  /// Index into post.images during per-photo review
+  /// Index into post media during per-photo review
   photoIndex     Int                 @default(0)
   /// Pending media URLs + raw text before draft is created
   draftPayload   Json?
@@ -187,8 +213,8 @@ model TelegramAgentThread {
   cursorAgentId  String?
   /// Post currently being created/edited by the agent (kept across turns)
   activePostId   String?
-  /// Photo currently being created/edited by the agent
-  activeImageId  String?
+  /// Media currently being created/edited by the agent
+  activeMediaId  String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

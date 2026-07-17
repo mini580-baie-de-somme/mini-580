@@ -1,12 +1,12 @@
 import "server-only";
 
-import { Prisma } from "@/generated/prisma/client";
+import { MediaKind, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
-import type { GalleryFilters, GalleryPhoto } from "@/lib/gallery-types";
+import type { GalleryFilters, GalleryItem } from "@/lib/gallery-types";
 import { displayImageUrl } from "@/lib/media-variants";
 import { parseHull } from "@/lib/utils";
 
-export type { GalleryFilters, GalleryPhoto } from "@/lib/gallery-types";
+export type { GalleryFilters, GalleryItem, GalleryPhoto } from "@/lib/gallery-types";
 
 function postFilter(filters: GalleryFilters): Prisma.PostWhereInput {
   const where: Prisma.PostWhereInput = { status: "PUBLISHED" };
@@ -28,21 +28,34 @@ function postFilter(filters: GalleryFilters): Prisma.PostWhereInput {
   return where;
 }
 
-export async function listGalleryPhotos(
+export async function listGalleryItems(
   filters: GalleryFilters = {}
-): Promise<GalleryPhoto[]> {
+): Promise<GalleryItem[]> {
   const search = filters.search?.trim();
+  const kind =
+    filters.kind && filters.kind !== "ALL"
+      ? (filters.kind as MediaKind)
+      : undefined;
 
-  const images = await prisma.postImage.findMany({
+  const links = await prisma.postMedia.findMany({
     where: {
       post: postFilter(filters),
+      ...(kind ? { media: { kind } } : {}),
       ...(search
         ? {
             OR: [
-              { titleFr: { contains: search, mode: "insensitive" } },
-              { titleEn: { contains: search, mode: "insensitive" } },
-              { descriptionFr: { contains: search, mode: "insensitive" } },
-              { descriptionEn: { contains: search, mode: "insensitive" } },
+              { media: { titleFr: { contains: search, mode: "insensitive" } } },
+              { media: { titleEn: { contains: search, mode: "insensitive" } } },
+              {
+                media: {
+                  descriptionFr: { contains: search, mode: "insensitive" },
+                },
+              },
+              {
+                media: {
+                  descriptionEn: { contains: search, mode: "insensitive" },
+                },
+              },
               {
                 post: {
                   OR: [
@@ -56,6 +69,7 @@ export async function listGalleryPhotos(
         : {}),
     },
     include: {
+      media: true,
       post: {
         include: {
           hulls: true,
@@ -67,78 +81,119 @@ export async function listGalleryPhotos(
     },
   });
 
-  const mapped: GalleryPhoto[] = images.map((img) => {
+  // Dedupe media appearing on multiple published posts
+  const byMedia = new Map<string, (typeof links)[number][]>();
+  for (const link of links) {
+    const list = byMedia.get(link.mediaId) ?? [];
+    list.push(link);
+    byMedia.set(link.mediaId, list);
+  }
+
+  const items: GalleryItem[] = [];
+  for (const group of byMedia.values()) {
+    const primary = group[0]!;
+    const media = primary.media;
     const display = {
-      urlOrigin: img.urlOrigin,
-      urlPicto: img.urlPicto,
-      urlPetite: img.urlPetite,
-      urlMoyenne: img.urlMoyenne,
-      urlGrande: img.urlGrande,
+      urlOrigin: media.urlOrigin,
+      urlPicto: media.urlPicto,
+      urlPetite: media.urlPetite,
+      urlMoyenne: media.urlMoyenne,
+      urlGrande: media.urlGrande,
     };
-    return {
-      id: img.id,
-      titleFr: img.titleFr,
-      titleEn: img.titleEn,
-      descriptionFr: img.descriptionFr,
-      descriptionEn: img.descriptionEn,
-      takenAt: img.takenAt?.toISOString() ?? null,
-      sortOrder: img.sortOrder,
-      urlOrigin: img.urlOrigin,
-      urlPicto: img.urlPicto,
-      urlPetite: img.urlPetite,
-      urlMoyenne: img.urlMoyenne,
-      urlGrande: img.urlGrande,
-      thumbUrl: img.urlPetite || img.urlPicto || displayImageUrl(display),
-      displayUrl: displayImageUrl(display),
-      focusX: img.focusX,
-      focusY: img.focusY,
-      zoom: img.zoom,
-      rotation: img.rotation,
-      cropX: img.cropX,
-      cropY: img.cropY,
-      cropW: img.cropW,
-      cropH: img.cropH,
-      post: {
-        id: img.post.id,
-        slug: img.post.slug,
-        titleFr: img.post.titleFr,
-        titleEn: img.post.titleEn,
-        publishedAt: img.post.publishedAt?.toISOString() ?? null,
-      },
-      milestones: img.post.milestones.map((m) => ({
+    const thumbUrl =
+      media.kind === "IMAGE"
+        ? media.urlPetite || media.urlPicto || media.urlOrigin
+        : media.urlOrigin;
+    const displayUrl =
+      media.kind === "IMAGE" ? displayImageUrl(display) : media.urlOrigin;
+
+    const milestones = group.flatMap((g) =>
+      g.post.milestones.map((m) => ({
         slug: m.milestone.slug,
         titleFr: m.milestone.titleFr,
         titleEn: m.milestone.titleEn,
         milestoneDate: m.milestone.milestoneDate.toISOString(),
-      })),
-      themes: img.post.themes.map((t) => ({
+      }))
+    );
+    const themes = group.flatMap((g) =>
+      g.post.themes.map((t) => ({
         slug: t.theme.slug,
         labelFr: t.theme.labelFr,
         labelEn: t.theme.labelEn,
-      })),
-      tags: img.post.tags.map((t) => ({
+      }))
+    );
+    const tags = group.flatMap((g) =>
+      g.post.tags.map((t) => ({
         name: t.tag.name,
         labelFr: t.tag.labelFr,
         labelEn: t.tag.labelEn,
+      }))
+    );
+    const hulls = [
+      ...new Set(group.flatMap((g) => g.post.hulls.map((h) => h.hull))),
+    ];
+
+    items.push({
+      id: media.id,
+      kind: media.kind,
+      mimeType: media.mimeType,
+      titleFr: media.titleFr,
+      titleEn: media.titleEn,
+      descriptionFr: media.descriptionFr,
+      descriptionEn: media.descriptionEn,
+      takenAt: media.takenAt?.toISOString() ?? null,
+      sortOrder: primary.sortOrder,
+      urlOrigin: media.urlOrigin,
+      urlPicto: media.urlPicto,
+      urlPetite: media.urlPetite,
+      urlMoyenne: media.urlMoyenne,
+      urlGrande: media.urlGrande,
+      thumbUrl,
+      displayUrl,
+      focusX: media.focusX,
+      focusY: media.focusY,
+      zoom: media.zoom,
+      rotation: media.rotation,
+      cropX: media.cropX,
+      cropY: media.cropY,
+      cropW: media.cropW,
+      cropH: media.cropH,
+      post: {
+        id: primary.post.id,
+        slug: primary.post.slug,
+        titleFr: primary.post.titleFr,
+        titleEn: primary.post.titleEn,
+        publishedAt: primary.post.publishedAt?.toISOString() ?? null,
+      },
+      posts: group.map((g) => ({
+        id: g.post.id,
+        slug: g.post.slug,
+        titleFr: g.post.titleFr,
+        titleEn: g.post.titleEn,
       })),
-      hulls: img.post.hulls.map((h) => h.hull),
-    };
-  });
+      milestones,
+      themes,
+      tags,
+      hulls,
+    });
+  }
 
-  const sort = filters.sort === "milestone" ? "milestone" : "date";
+  if (filters.sort === "milestone") {
+    items.sort((a, b) => {
+      const da = a.milestones[0]?.milestoneDate ?? "";
+      const db = b.milestones[0]?.milestoneDate ?? "";
+      return da.localeCompare(db);
+    });
+  } else {
+    items.sort((a, b) => {
+      const da = a.takenAt ?? a.post.publishedAt ?? "";
+      const db = b.takenAt ?? b.post.publishedAt ?? "";
+      return db.localeCompare(da);
+    });
+  }
 
-  mapped.sort((a, b) => {
-    if (sort === "milestone") {
-      const aDate = a.milestones[0]?.milestoneDate ?? a.takenAt ?? a.post.publishedAt ?? "";
-      const bDate = b.milestones[0]?.milestoneDate ?? b.takenAt ?? b.post.publishedAt ?? "";
-      if (aDate !== bDate) return bDate.localeCompare(aDate);
-    } else {
-      const aDate = a.takenAt ?? a.post.publishedAt ?? "";
-      const bDate = b.takenAt ?? b.post.publishedAt ?? "";
-      if (aDate !== bDate) return bDate.localeCompare(aDate);
-    }
-    return a.sortOrder - b.sortOrder;
-  });
-
-  return mapped;
+  return items;
 }
+
+/** @deprecated use listGalleryItems */
+export const listGalleryPhotos = listGalleryItems;

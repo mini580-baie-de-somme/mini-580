@@ -74,9 +74,6 @@ function NavLinks({
 
   return (
     <nav className="flex flex-col gap-1">
-      <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-[#495867]/70">
-        {t("nav.sectionSite")}
-      </p>
       {publicNav.map((item) => (
         <Link
           key={item.href}

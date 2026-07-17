@@ -3,7 +3,7 @@ import "server-only";
 import { randomBytes } from "crypto";
 import { Hull, Prisma, TelegramSessionStep } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
-import { postInclude, syncPostRelations, uniqueSlug } from "@/lib/posts";
+import { postInclude, syncPostRelations, uniqueSlug, withLegacyImages } from "@/lib/posts";
 import { slugify } from "@/lib/utils";
 import {
   isTranslationConfigured,
@@ -221,19 +221,27 @@ export async function appendContent(
     draft.mediaUrls.push(mediaItem.urlOrigin);
 
     if (session.postId) {
-      const max = await prisma.postImage.aggregate({
-        where: { postId: session.postId },
-        _max: { sortOrder: true },
-      });
-      await prisma.postImage.create({
+      const media = await prisma.media.create({
         data: {
-          postId: session.postId,
+          kind: "IMAGE",
+          mimeType: "image/jpeg",
           urlOrigin: mediaItem.urlOrigin,
           urlPicto: mediaItem.urlPicto || null,
           urlPetite: mediaItem.urlPetite || null,
           urlMoyenne: mediaItem.urlMoyenne || mediaItem.urlOrigin,
           urlGrande: mediaItem.urlGrande || null,
+        },
+      });
+      const max = await prisma.postMedia.aggregate({
+        where: { postId: session.postId },
+        _max: { sortOrder: true },
+      });
+      await prisma.postMedia.create({
+        data: {
+          postId: session.postId,
+          mediaId: media.id,
           sortOrder: (max._max.sortOrder ?? -1) + 1,
+          isCover: draft.mediaItems.length === 1,
         },
       });
       if (draft.mediaItems.length === 1) {
@@ -417,37 +425,50 @@ export async function finalizeContentCollection(
 
   // Images are already linked during appendContent when postId exists.
   // Backfill titles/captions from AI parse onto existing rows.
-  const existingImages = await prisma.postImage.findMany({
+  const existingLinks = await prisma.postMedia.findMany({
     where: { postId },
+    include: { media: true },
     orderBy: { sortOrder: "asc" },
   });
 
-  if (existingImages.length === 0 && draft.mediaItems.length) {
-    await prisma.postImage.createMany({
-      data: draft.mediaItems.map((item, i) => ({
-        postId,
-        urlOrigin: item.urlOrigin,
-        urlPicto: item.urlPicto || null,
-        urlPetite: item.urlPetite || null,
-        urlMoyenne: item.urlMoyenne || item.urlOrigin,
-        urlGrande: item.urlGrande || null,
-        titleFr: parsed.imageTitlesFr[i] ?? "",
-        titleEn: "",
-        descriptionFr: parsed.imageCaptionsFr[i] ?? "",
-        descriptionEn: "",
-        sortOrder: i,
-        takenAt: publishedAt,
-      })),
-    });
-  } else {
-    for (let i = 0; i < existingImages.length; i++) {
-      await prisma.postImage.update({
-        where: { id: existingImages[i].id },
+  if (existingLinks.length === 0 && draft.mediaItems.length) {
+    for (let i = 0; i < draft.mediaItems.length; i++) {
+      const item = draft.mediaItems[i]!;
+      const media = await prisma.media.create({
         data: {
-          titleFr: parsed.imageTitlesFr[i] ?? existingImages[i].titleFr,
+          kind: "IMAGE",
+          mimeType: "image/jpeg",
+          urlOrigin: item.urlOrigin,
+          urlPicto: item.urlPicto || null,
+          urlPetite: item.urlPetite || null,
+          urlMoyenne: item.urlMoyenne || item.urlOrigin,
+          urlGrande: item.urlGrande || null,
+          titleFr: parsed.imageTitlesFr[i] ?? "",
+          titleEn: "",
+          descriptionFr: parsed.imageCaptionsFr[i] ?? "",
+          descriptionEn: "",
+          takenAt: publishedAt,
+        },
+      });
+      await prisma.postMedia.create({
+        data: {
+          postId,
+          mediaId: media.id,
+          sortOrder: i,
+          isCover: i === 0,
+        },
+      });
+    }
+  } else {
+    for (let i = 0; i < existingLinks.length; i++) {
+      const link = existingLinks[i]!;
+      await prisma.media.update({
+        where: { id: link.mediaId },
+        data: {
+          titleFr: parsed.imageTitlesFr[i] ?? link.media.titleFr,
           descriptionFr:
-            parsed.imageCaptionsFr[i] ?? existingImages[i].descriptionFr,
-          takenAt: publishedAt ?? existingImages[i].takenAt,
+            parsed.imageCaptionsFr[i] ?? link.media.descriptionFr,
+          takenAt: publishedAt ?? link.media.takenAt,
         },
       });
     }
@@ -466,13 +487,26 @@ export async function finalizeContentCollection(
   return formatFrReview(postId);
 }
 
+
+async function loadSession(sessionId: string) {
+  const session = await prisma.telegramPublishSession.findUnique({
+    where: { id: sessionId },
+    include: { post: { include: postInclude } },
+  });
+  if (!session) return null;
+  return {
+    ...session,
+    post: session.post ? withLegacyImages(session.post) : null,
+  };
+}
+
 async function loadPost(postId: string) {
   const post = await prisma.post.findUnique({
     where: { id: postId },
     include: postInclude,
   });
   if (!post) throw new Error("Post not found");
-  return post;
+  return withLegacyImages(post);
 }
 
 export async function formatFrReview(postId: string): Promise<BotReply> {
@@ -715,7 +749,7 @@ export async function runImagesTranslation(postId: string): Promise<void> {
   for (let i = 0; i < post.images.length; i++) {
     const tr = result.images[i];
     if (!tr) continue;
-    await prisma.postImage.update({
+    await prisma.media.update({
       where: { id: post.images[i].id },
       data: {
         titleEn: tr.titleEn || post.images[i].titleFr,
@@ -743,10 +777,7 @@ export async function handleCallback(
   sessionId: string,
   data: string
 ): Promise<BotReply> {
-  const session = await prisma.telegramPublishSession.findUnique({
-    where: { id: sessionId },
-    include: { post: { include: postInclude } },
-  });
+  const session = await loadSession(sessionId);
   if (!session) return { text: "Session introuvable." };
 
   if (data === "session:cancel") {
@@ -871,10 +902,7 @@ export async function handleEditMessage(
   sessionId: string,
   text: string
 ): Promise<BotReply> {
-  const session = await prisma.telegramPublishSession.findUnique({
-    where: { id: sessionId },
-    include: { post: { include: postInclude } },
-  });
+  const session = await loadSession(sessionId);
   if (!session?.postId || !session.post) {
     return { text: "Pas de brouillon à modifier." };
   }
@@ -893,8 +921,8 @@ export async function handleEditMessage(
       const reordered = order.map((i) => images[i]).filter(Boolean);
       if (reordered.length === images.length) {
         for (let i = 0; i < reordered.length; i++) {
-          await prisma.postImage.update({
-            where: { id: reordered[i].id },
+          await prisma.postMedia.update({
+            where: { postId_mediaId: { postId, mediaId: reordered[i].id } },
             data: { sortOrder: i },
           });
         }
@@ -906,7 +934,7 @@ export async function handleEditMessage(
   if (session.step === "REVIEW_PHOTO_META_FR") {
     const img = session.post.images[session.photoIndex];
     if (!img) return { text: "Photo introuvable." };
-    const data: Prisma.PostImageUpdateInput = {};
+    const data: Prisma.MediaUpdateInput = {};
     if (kv.titre || kv.title) data.titleFr = kv.titre || kv.title;
     if (kv.description || kv.desc || kv.caption) {
       data.descriptionFr = kv.description || kv.desc || kv.caption;
@@ -937,19 +965,19 @@ export async function handleEditMessage(
         data.cropH = h;
       }
     }
-    await prisma.postImage.update({ where: { id: img.id }, data });
+    await prisma.media.update({ where: { id: img.id }, data });
     return formatPhotoMetaFrReview(postId, session.photoIndex);
   }
 
   if (session.step === "REVIEW_PHOTO_META_EN") {
     const img = session.post.images[session.photoIndex];
     if (!img) return { text: "Photo introuvable." };
-    const data: Prisma.PostImageUpdateInput = {};
+    const data: Prisma.MediaUpdateInput = {};
     if (kv.title || kv.titre) data.titleEn = kv.title || kv.titre;
     if (kv.description || kv.desc || kv.caption) {
       data.descriptionEn = kv.description || kv.desc || kv.caption;
     }
-    await prisma.postImage.update({ where: { id: img.id }, data });
+    await prisma.media.update({ where: { id: img.id }, data });
     return formatPhotoMetaEnReview(postId, session.photoIndex);
   }
 

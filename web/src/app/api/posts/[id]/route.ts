@@ -3,7 +3,7 @@ import { z } from "zod";
 import { Hull } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
-import { postInclude, uniqueSlug, syncPostRelations } from "@/lib/posts";
+import { postInclude, uniqueSlug, syncPostRelations, withLegacyImages } from "@/lib/posts";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  return NextResponse.json(post);
+  return NextResponse.json(withLegacyImages(post));
 }
 
 const updateSchema = z.object({
@@ -91,7 +91,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       include: postInclude,
     });
 
-    return NextResponse.json(post);
+    return NextResponse.json(post ? withLegacyImages(post) : null);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.flatten() }, { status: 400 });

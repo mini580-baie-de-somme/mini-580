@@ -121,27 +121,29 @@ function serializePost(post: PostWithRelations): SyncPostPayload {
       milestoneDate: m.milestone.milestoneDate.toISOString(),
       sortOrder: m.milestone.sortOrder,
     })),
-    images: post.images.map((img) => ({
-      id: img.id,
-      urlOrigin: img.urlOrigin,
-      urlPicto: img.urlPicto,
-      urlPetite: img.urlPetite,
-      urlMoyenne: img.urlMoyenne,
-      urlGrande: img.urlGrande,
-      titleFr: img.titleFr,
-      titleEn: img.titleEn,
-      descriptionFr: img.descriptionFr,
-      descriptionEn: img.descriptionEn,
-      takenAt: img.takenAt?.toISOString() ?? null,
-      sortOrder: img.sortOrder,
-      focusX: img.focusX,
-      focusY: img.focusY,
-      zoom: img.zoom,
-      rotation: img.rotation,
-      cropX: img.cropX,
-      cropY: img.cropY,
-      cropW: img.cropW,
-      cropH: img.cropH,
+    images: post.mediaLinks.map((link) => ({
+      id: link.media.id,
+      kind: link.media.kind,
+      urlOrigin: link.media.urlOrigin,
+      urlPicto: link.media.urlPicto,
+      urlPetite: link.media.urlPetite,
+      urlMoyenne: link.media.urlMoyenne,
+      urlGrande: link.media.urlGrande,
+      titleFr: link.media.titleFr,
+      titleEn: link.media.titleEn,
+      descriptionFr: link.media.descriptionFr,
+      descriptionEn: link.media.descriptionEn,
+      takenAt: link.media.takenAt?.toISOString() ?? null,
+      sortOrder: link.sortOrder,
+      isCover: link.isCover,
+      focusX: link.media.focusX,
+      focusY: link.media.focusY,
+      zoom: link.media.zoom,
+      rotation: link.media.rotation,
+      cropX: link.media.cropX,
+      cropY: link.media.cropY,
+      cropW: link.media.cropW,
+      cropH: link.media.cropH,
     })),
   };
 }
@@ -419,12 +421,15 @@ export async function upsertPostFromSync(payload: SyncPostPayload) {
     });
   }
 
-  await prisma.postImage.deleteMany({ where: { postId: payload.id } });
-  if (payload.images.length) {
-    await prisma.postImage.createMany({
-      data: payload.images.map((img) => ({
+  // Sync media: upsert Media rows, then replace this post's links only
+  await prisma.postMedia.deleteMany({ where: { postId: payload.id } });
+  for (const img of payload.images) {
+    await prisma.media.upsert({
+      where: { id: img.id },
+      create: {
         id: img.id,
-        postId: payload.id,
+        kind: "IMAGE",
+        mimeType: "image/jpeg",
         urlOrigin: img.urlOrigin,
         urlPicto: img.urlPicto,
         urlPetite: img.urlPetite,
@@ -435,7 +440,6 @@ export async function upsertPostFromSync(payload: SyncPostPayload) {
         descriptionFr: img.descriptionFr,
         descriptionEn: img.descriptionEn,
         takenAt: img.takenAt ? new Date(img.takenAt) : null,
-        sortOrder: img.sortOrder,
         focusX: img.focusX ?? 0.5,
         focusY: img.focusY ?? 0.5,
         zoom: img.zoom ?? 1,
@@ -444,7 +448,35 @@ export async function upsertPostFromSync(payload: SyncPostPayload) {
         cropY: img.cropY ?? 0,
         cropW: img.cropW ?? 1,
         cropH: img.cropH ?? 1,
-      })),
+      },
+      update: {
+        urlOrigin: img.urlOrigin,
+        urlPicto: img.urlPicto,
+        urlPetite: img.urlPetite,
+        urlMoyenne: img.urlMoyenne ?? img.urlOrigin,
+        urlGrande: img.urlGrande,
+        titleFr: img.titleFr ?? "",
+        titleEn: img.titleEn ?? "",
+        descriptionFr: img.descriptionFr,
+        descriptionEn: img.descriptionEn,
+        takenAt: img.takenAt ? new Date(img.takenAt) : null,
+        focusX: img.focusX ?? 0.5,
+        focusY: img.focusY ?? 0.5,
+        zoom: img.zoom ?? 1,
+        rotation: img.rotation ?? 0,
+        cropX: img.cropX ?? 0,
+        cropY: img.cropY ?? 0,
+        cropW: img.cropW ?? 1,
+        cropH: img.cropH ?? 1,
+      },
+    });
+    await prisma.postMedia.create({
+      data: {
+        postId: payload.id,
+        mediaId: img.id,
+        sortOrder: img.sortOrder,
+        isCover: img.sortOrder === 0,
+      },
     });
   }
 

@@ -17,8 +17,8 @@ function tagWhere(q?: string): Prisma.TagWhereInput {
   };
 }
 
-export async function GET(request?: NextRequest) {
-  const searchParams = request?.nextUrl.searchParams ?? new URLSearchParams();
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
   const { limit, offset, q, paginated } = parseListPagination(searchParams);
   const where = tagWhere(q);
 

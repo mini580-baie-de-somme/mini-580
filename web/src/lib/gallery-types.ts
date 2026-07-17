@@ -1,5 +1,9 @@
-export type GalleryPhoto = {
+export type MediaKindFilter = "IMAGE" | "DOCUMENT" | "VIDEO" | "ALL";
+
+export type GalleryItem = {
   id: string;
+  kind: "IMAGE" | "DOCUMENT" | "VIDEO";
+  mimeType: string;
   titleFr: string;
   titleEn: string;
   descriptionFr: string;
@@ -28,6 +32,12 @@ export type GalleryPhoto = {
     titleEn: string;
     publishedAt: string | null;
   };
+  posts: {
+    id: string;
+    slug: string;
+    titleFr: string;
+    titleEn: string;
+  }[];
   milestones: {
     slug: string;
     titleFr: string;
@@ -39,11 +49,15 @@ export type GalleryPhoto = {
   hulls: string[];
 };
 
+/** @deprecated use GalleryItem */
+export type GalleryPhoto = GalleryItem;
+
 export type GalleryFilters = {
   hull?: string;
   theme?: string;
   tag?: string;
   milestone?: string;
   search?: string;
+  kind?: MediaKindFilter;
   sort?: "date" | "milestone";
 };

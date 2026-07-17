@@ -2,15 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
-import { listPostMediaAsImages } from "@/lib/media-library";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 const reorderSchema = z.object({
-  imageIds: z.array(z.string().min(1)).min(1),
+  mediaIds: z.array(z.string()).min(1),
 });
 
-/** PUT /api/posts/:id/images/reorder — { imageIds: string[] } in desired order */
 export async function PUT(request: NextRequest, context: RouteContext) {
   const editor = await getEditorOrService(request);
   if (!editor) {
@@ -25,25 +23,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
   try {
     const body = await request.json();
-    const { imageIds } = reorderSchema.parse(body);
-
-    const existing = await prisma.postMedia.findMany({
-      where: { postId },
-      select: { mediaId: true },
-    });
-    const existingIds = new Set(existing.map((i) => i.mediaId));
-    if (
-      imageIds.length !== existingIds.size ||
-      imageIds.some((id) => !existingIds.has(id))
-    ) {
-      return NextResponse.json(
-        { error: "imageIds must list every image of the post exactly once" },
-        { status: 400 }
-      );
-    }
+    const { mediaIds } = reorderSchema.parse(body);
 
     await prisma.$transaction(
-      imageIds.map((mediaId, sortOrder) =>
+      mediaIds.map((mediaId, sortOrder) =>
         prisma.postMedia.update({
           where: { postId_mediaId: { postId, mediaId } },
           data: { sortOrder },
@@ -51,7 +34,19 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       )
     );
 
-    return NextResponse.json(await listPostMediaAsImages(postId));
+    const links = await prisma.postMedia.findMany({
+      where: { postId },
+      include: { media: true },
+      orderBy: { sortOrder: "asc" },
+    });
+    return NextResponse.json(
+      links.map((l) => ({
+        ...l.media,
+        sortOrder: l.sortOrder,
+        isCover: l.isCover,
+        postId,
+      }))
+    );
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.flatten() }, { status: 400 });

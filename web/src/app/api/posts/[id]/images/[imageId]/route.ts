@@ -2,16 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
+import { bakeVariantsFromOrigin } from "@/lib/media-variants";
 import {
-  contentTypeFromFilename,
-  isAllowedContentType,
-  normalizeContentType,
-} from "@/lib/media-bucket";
-import {
-  bakeVariantsFromOrigin,
-  deleteMediaUrls,
-  storeOriginAndVariants,
-} from "@/lib/media-variants";
+  detachMediaFromPost,
+  deleteMediaById,
+  listPostMediaAsImages,
+  mediaAsPostImage,
+} from "@/lib/media-library";
 
 type RouteContext = { params: Promise<{ id: string; imageId: string }> };
 
@@ -58,12 +55,14 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   }
 
   const { id: postId, imageId } = await context.params;
-  const existing = await prisma.postImage.findFirst({
-    where: { id: imageId, postId },
+  const link = await prisma.postMedia.findUnique({
+    where: { postId_mediaId: { postId, mediaId: imageId } },
+    include: { media: true },
   });
-  if (!existing) {
+  if (!link) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  const existing = link.media;
 
   try {
     const body = await request.json();
@@ -99,7 +98,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       );
     }
 
-    const image = await prisma.postImage.update({
+    const media = await prisma.media.update({
       where: { id: imageId },
       data: {
         ...(data.urlOrigin !== undefined && { urlOrigin: data.urlOrigin }),
@@ -127,7 +126,6 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         ...(data.takenAt !== undefined && {
           takenAt: data.takenAt ? new Date(data.takenAt) : null,
         }),
-        ...(data.sortOrder !== undefined && { sortOrder: data.sortOrder }),
         ...(data.focusX !== undefined && { focusX: data.focusX }),
         ...(data.focusY !== undefined && { focusY: data.focusY }),
         ...(data.zoom !== undefined && { zoom: data.zoom }),
@@ -138,7 +136,21 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         ...(data.cropH !== undefined && { cropH: data.cropH }),
       },
     });
-    return NextResponse.json(image);
+
+    if (data.sortOrder !== undefined) {
+      await prisma.postMedia.update({
+        where: { postId_mediaId: { postId, mediaId: imageId } },
+        data: { sortOrder: data.sortOrder },
+      });
+    }
+
+    const updatedLink = await prisma.postMedia.findUniqueOrThrow({
+      where: { postId_mediaId: { postId, mediaId: imageId } },
+    });
+
+    return NextResponse.json(
+      mediaAsPostImage(media, { ...updatedLink, postId })
+    );
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.flatten() }, { status: 400 });
@@ -155,20 +167,18 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   }
 
   const { id: postId, imageId } = await context.params;
-  const existing = await prisma.postImage.findFirst({
-    where: { id: imageId, postId },
+  const link = await prisma.postMedia.findUnique({
+    where: { postId_mediaId: { postId, mediaId: imageId } },
   });
-  if (!existing) {
+  if (!link) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  await deleteMediaUrls([
-    existing.urlOrigin,
-    existing.urlPicto,
-    existing.urlPetite,
-    existing.urlMoyenne,
-    existing.urlGrande,
-  ]);
-  await prisma.postImage.delete({ where: { id: imageId } });
+  // Legacy photos.delete: detach + delete media if orphaned (force)
+  await detachMediaFromPost(postId, imageId);
+  const remaining = await prisma.postMedia.count({ where: { mediaId: imageId } });
+  if (remaining === 0) {
+    await deleteMediaById(imageId, { force: true });
+  }
   return new NextResponse(null, { status: 204 });
 }

@@ -135,6 +135,33 @@ export function GalleryPageContent({
 
         <div className="mt-4 flex flex-wrap gap-2">
           <span className="text-xs font-medium uppercase tracking-wide text-[#495867]">
+            Type
+          </span>
+          {(
+            [
+              ["", "Tous"],
+              ["IMAGE", "Photos"],
+              ["DOCUMENT", "Documents"],
+              ["VIDEO", "Vidéos"],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value || "all"}
+              type="button"
+              onClick={() => update("kind", value)}
+              className={`rounded border px-2 py-1 text-xs ${
+                (searchParams.get("kind") ?? "") === value
+                  ? "border-[#495867] bg-[#495867] text-white"
+                  : "border-[#d4dde6] bg-white text-[#495867]"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <span className="text-xs font-medium uppercase tracking-wide text-[#495867]">
             {t("gallery.sort")}
           </span>
           {(
@@ -283,12 +310,21 @@ export function GalleryPageContent({
                 className="group overflow-hidden rounded-lg border border-[#d4dde6] bg-white text-left shadow-sm transition hover:border-[#495867]"
               >
                 <div className="aspect-square overflow-hidden bg-[#eef3f7]">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={photo.thumbUrl}
-                    alt={title}
-                    className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                  />
+                  {photo.kind === "IMAGE" || !photo.kind ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={photo.thumbUrl}
+                      alt={title}
+                      className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-[#495867]">
+                      <span className="text-2xl font-bold">
+                        {photo.kind === "DOCUMENT" ? "PDF" : "▶"}
+                      </span>
+                      <span className="text-[10px] uppercase">{photo.kind}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="px-2 py-2">
                   <p className="truncate text-xs font-medium text-[#0D131A]">
@@ -353,7 +389,36 @@ export function GalleryPageContent({
               ‹
             </button>
             <div className="max-h-full w-full max-w-4xl">
-              <GalleryImage image={current} locale={locale} />
+              {current.kind === "VIDEO" ? (
+                <video
+                  src={current.urlOrigin}
+                  controls
+                  className="mx-auto max-h-[70vh] w-full"
+                />
+              ) : current.kind === "DOCUMENT" ? (
+                <div className="rounded-lg bg-white p-6 text-center text-[#0D131A]">
+                  <p className="mb-3 font-medium">
+                    {locale === "fr"
+                      ? current.titleFr || "Document PDF"
+                      : current.titleEn || "PDF document"}
+                  </p>
+                  <a
+                    href={current.urlOrigin}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-md bg-[#495867] px-4 py-2 text-sm text-white"
+                  >
+                    Ouvrir le PDF
+                  </a>
+                  <iframe
+                    title="pdf"
+                    src={current.urlOrigin}
+                    className="mt-4 h-[50vh] w-full rounded border border-[#d4dde6]"
+                  />
+                </div>
+              ) : (
+                <GalleryImage image={current} locale={locale} />
+              )}
               <div className="mt-3 text-center text-sm text-white/90">
                 <Link
                   href={`/blog/${current.post.slug}`}

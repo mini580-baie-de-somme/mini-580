@@ -55,7 +55,7 @@ Phase 2 (VM dédiée) :
 - `status` : DRAFT | PUBLISHED
 - `slug`, `coverImageUrl`, `publishedAt`
 - Relations : hulls (268/269/270), tags, themes, milestone optionnel, images
-- Médias binaires : bucket local style S3 sur disque VPS (`/opt/mini580/{test,prod}/media`), `PostImage` avec `urlOrigin` + formats picto/petite/moyenne/grande, meta FR/EN, date, transforms — voir `docs/07-deploy-cicd.md` et `docs/09-telegram-publish.md`
+- Médias : table `Media` (IMAGE|DOCUMENT|VIDEO) liée M:N aux posts via `PostMedia` ; bucket local + variants IMAGE — voir `docs/07-deploy-cicd.md` et `docs/09-telegram-publish.md`
 
 ### Tag (enrichissable)
 - `slug` unique, `labelFr`, `labelEn`
@@ -63,6 +63,12 @@ Phase 2 (VM dédiée) :
 
 ### Theme (structuré)
 - `fournisseurs`, `chantier`, `3d`, `course` (+ extensible)
+
+### Media (médiathèque)
+- Types : `IMAGE` | `DOCUMENT` (PDF) | `VIDEO` (mp4/webm)
+- Indépendant des articles — liaison M:N via `PostMedia` (`sortOrder`, `isCover`)
+- Meta bilingue + transforms (IMAGE) + variants picto/petite/moyenne/grande
+- Éditeur : `/editeur/galerie` · public : `/galerie` (multi-médias, filtre `kind`)
 
 ### Milestone (jalon)
 - `titleFr/En`, `descriptionFr/En`, `milestoneDate`, `sortOrder`
@@ -78,16 +84,20 @@ Phase 2 (VM dédiée) :
 |-------|-------|-------------|
 | `/` | Public | Accueil projet, équipe, 3 coques, derniers articles |
 | `/blog` | Public | Grille cartes, filtres coque/thème/tag/recherche |
+| `/galerie` | Public | Galerie multi-médias (photos, PDF, vidéos) |
 | `/timeline` | Public | Axe vertical jalons + posts accrochés |
 | `/blog/[slug]` | Public | Article complet, toggle FR/EN, galerie |
 | `/connexion` | Public | Login éditeurs |
 | `/editeur` | Auth | Liste brouillons + publiés |
 | `/editeur/nouveau` | Auth | Créer article |
 | `/editeur/[id]` | Auth | Édition + autosave + publier |
+| `/editeur/galerie` | Auth | Médiathèque (CRUD médias) |
 | `/editeur/tags` · `/themes` · `/jalons` | Auth | CRUD listes (même design system) |
 | `/apercu/[id]` | Auth | Prévisualisation brouillon |
 
 Listes éditeur (recherche, actions, clic ligne, infinite scroll, compteurs) : voir **[Design system listes éditeur](11-design-system-editeur.md)**.
+
+Nav : menus publics sans libellé de section ; section **Édition** pour les menus éditeur.
 
 ## Stack
 

@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     tag: sp.get("tag") ?? undefined,
     milestone: sp.get("milestone") ?? undefined,
     search: sp.get("search") ?? undefined,
+    kind: (sp.get("kind") as GalleryFilters["kind"]) ?? undefined,
     sort: sp.get("sort") === "milestone" ? "milestone" : "date",
   };
 
@@ -21,5 +22,6 @@ export async function GET(request: NextRequest) {
     count: photos.length,
     sort: filters.sort ?? "date",
     photos,
+    items: photos,
   });
 }

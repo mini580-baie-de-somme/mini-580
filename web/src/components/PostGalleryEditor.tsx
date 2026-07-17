@@ -25,7 +25,8 @@ type ModalState =
   | { kind: "add" }
   | { kind: "edit"; imageId: string }
   | { kind: "add-cover" }
-  | { kind: "edit-cover"; imageId: string };
+  | { kind: "edit-cover"; imageId: string }
+  | { kind: "pick-library" };
 
 function normalizeImages(list: GalleryEditorImage[]): GalleryEditorImage[] {
   return list.map((img) => ({
@@ -56,6 +57,10 @@ export function PostGalleryEditor({
   const [modal, setModal] = useState<ModalState>({ kind: "closed" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [libraryItems, setLibraryItems] = useState<
+    { id: string; kind: string; titleFr: string; titleEn: string; urlOrigin: string; urlPicto: string | null; urlMoyenne: string | null }[]
+  >([]);
+  const [librarySelected, setLibrarySelected] = useState<Set<string>>(new Set());
   const orphanImportRef = useRef(false);
 
   const selected = images.find((i) => i.id === selectedId) ?? null;
@@ -168,6 +173,58 @@ export function PostGalleryEditor({
     }
   }
 
+  async function openLibraryPicker() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/media-library?limit=50&offset=0");
+      if (!res.ok) throw new Error("library failed");
+      const data = (await res.json()) as {
+        items: {
+          id: string;
+          kind: string;
+          titleFr: string;
+          titleEn: string;
+          urlOrigin: string;
+          urlPicto: string | null;
+          urlMoyenne: string | null;
+        }[];
+      };
+      const already = new Set(images.map((i) => i.id));
+      setLibraryItems(data.items.filter((i) => !already.has(i.id)));
+      setLibrarySelected(new Set());
+      setModal({ kind: "pick-library" });
+    } catch {
+      setError("Impossible de charger la médiathèque");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function attachFromLibrary() {
+    if (librarySelected.size === 0) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const mediaIds = [...librarySelected];
+      const res = await fetch(`/api/posts/${postId}/media`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mediaIds }),
+      });
+      if (!res.ok) throw new Error("attach failed");
+      const linked = (await res.json()) as Record<string, unknown>[];
+      for (const raw of linked) {
+        upsertImage(toEditorImage(raw));
+      }
+      setModal({ kind: "closed" });
+    } catch {
+      setError("Association impossible");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function handleImageDeleted(id: string) {
     setImages((prev) => {
       const next = prev.filter((i) => i.id !== id);
@@ -250,17 +307,24 @@ export function PostGalleryEditor({
       <div className="space-y-4 rounded-lg border border-[#d4dde6] p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-medium text-[#0D131A]">
-            Photos de l’article ({images.length})
+            Médias de l’article ({images.length})
           </h2>
           <div className="flex flex-wrap items-center gap-2">
             {busy && <span className="text-xs text-[#495867]">…</span>}
             {error && <span className="text-xs text-red-600">{error}</span>}
             <button
               type="button"
+              onClick={() => void openLibraryPicker()}
+              className="rounded-md border border-[#d4dde6] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7]"
+            >
+              Depuis la médiathèque
+            </button>
+            <button
+              type="button"
               onClick={() => setModal({ kind: "add" })}
               className="rounded-md border border-[#495867] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7]"
             >
-              Ajouter photo
+              Ajouter fichier
             </button>
             <button
               type="button"
@@ -271,15 +335,14 @@ export function PostGalleryEditor({
               disabled={!selected}
               className="rounded-md bg-[#495867] px-3 py-1.5 text-sm text-white hover:bg-[#3a4654] disabled:opacity-50"
             >
-              Éditer photo
+              Éditer
             </button>
           </div>
         </div>
 
         {images.length === 0 ? (
           <p className="rounded-lg border border-dashed border-[#d4dde6] bg-[#fafbfc] px-4 py-8 text-center text-sm text-[#495867]">
-            Aucune photo — utilise « Ajouter photo » pour en enregistrer une dans
-            la médiathèque et la lier à cet article.
+            Aucun média — uploade un fichier ou choisis depuis la médiathèque.
           </p>
         ) : (
           <div className="flex gap-2 overflow-x-auto pb-1">
@@ -338,7 +401,77 @@ export function PostGalleryEditor({
         )}
       </div>
 
-      {modal.kind !== "closed" && (
+      {modal.kind === "pick-library" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[80vh] w-full max-w-lg overflow-auto rounded-lg bg-white p-4 shadow-lg">
+            <h3 className="mb-3 text-lg font-semibold text-[#0D131A]">
+              Médias de la bibliothèque
+            </h3>
+            {libraryItems.length === 0 ? (
+              <p className="text-sm text-[#495867]">Aucun média disponible à associer.</p>
+            ) : (
+              <ul className="mb-4 space-y-2">
+                {libraryItems.map((item) => {
+                  const checked = librarySelected.has(item.id);
+                  return (
+                    <li key={item.id}>
+                      <label className="flex cursor-pointer items-center gap-3 rounded border border-[#d4dde6] px-3 py-2 hover:bg-[#f8fafc]">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            setLibrarySelected((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(item.id)) next.delete(item.id);
+                              else next.add(item.id);
+                              return next;
+                            });
+                          }}
+                        />
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        {item.kind === "IMAGE" ? (
+                          <img
+                            src={item.urlPicto || item.urlMoyenne || item.urlOrigin}
+                            alt=""
+                            className="h-10 w-10 rounded object-cover"
+                          />
+                        ) : (
+                          <span className="flex h-10 w-10 items-center justify-center rounded bg-[#eef3f7] text-[10px] font-semibold">
+                            {item.kind === "DOCUMENT" ? "PDF" : "VID"}
+                          </span>
+                        )}
+                        <span className="text-sm">
+                          {item.titleFr || item.titleEn || item.id.slice(0, 8)}
+                          <span className="ml-2 text-xs text-[#495867]">{item.kind}</span>
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={busy || librarySelected.size === 0}
+                onClick={() => void attachFromLibrary()}
+                className="rounded-md bg-[#495867] px-3 py-2 text-sm text-white disabled:opacity-50"
+              >
+                Associer ({librarySelected.size})
+              </button>
+              <button
+                type="button"
+                onClick={() => setModal({ kind: "closed" })}
+                className="rounded-md border border-[#d4dde6] px-3 py-2 text-sm"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modal.kind !== "closed" && modal.kind !== "pick-library" && (
         <PhotoEditModal
           postId={postId}
           lang={lang}

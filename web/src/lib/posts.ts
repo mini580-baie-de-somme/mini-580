@@ -12,12 +12,46 @@ export const postInclude = {
   tags: { include: { tag: true } },
   themes: { include: { theme: true } },
   milestones: { include: { milestone: true } },
-  images: { orderBy: { sortOrder: "asc" as const } },
+  mediaLinks: {
+    orderBy: { sortOrder: "asc" as const },
+    include: { media: true },
+  },
 } satisfies Prisma.PostInclude;
 
 export type PostWithRelations = Prisma.PostGetPayload<{
   include: typeof postInclude;
 }>;
+
+/** Flatten mediaLinks → legacy `images` array for UI / sync / Telegram. */
+export function withLegacyImages<T extends PostWithRelations>(post: T) {
+  const images = post.mediaLinks.map((link) => ({
+    id: link.media.id,
+    postId: link.postId,
+    kind: link.media.kind,
+    urlOrigin: link.media.urlOrigin,
+    urlPicto: link.media.urlPicto,
+    urlPetite: link.media.urlPetite,
+    urlMoyenne: link.media.urlMoyenne,
+    urlGrande: link.media.urlGrande,
+    titleFr: link.media.titleFr,
+    titleEn: link.media.titleEn,
+    descriptionFr: link.media.descriptionFr,
+    descriptionEn: link.media.descriptionEn,
+    takenAt: link.media.takenAt,
+    sortOrder: link.sortOrder,
+    isCover: link.isCover,
+    focusX: link.media.focusX,
+    focusY: link.media.focusY,
+    zoom: link.media.zoom,
+    rotation: link.media.rotation,
+    cropX: link.media.cropX,
+    cropY: link.media.cropY,
+    cropW: link.media.cropW,
+    cropH: link.media.cropH,
+  }));
+  const { mediaLinks: _ml, ...rest } = post;
+  return { ...rest, images, mediaLinks: post.mediaLinks };
+}
 
 export async function uniqueSlug(base: string, excludeId?: string): Promise<string> {
   const slug = slugify(base) || "article";
