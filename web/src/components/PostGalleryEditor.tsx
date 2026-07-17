@@ -8,6 +8,7 @@ import {
   toEditorImage,
 } from "@/lib/gallery-editor";
 import { PhotoEditModal } from "./PhotoEditModal";
+import { FullscreenEditorModal } from "./FullscreenEditorModal";
 import { MediaKindThumb } from "./MediaKindThumb";
 
 export type { GalleryEditorImage };
@@ -416,15 +417,37 @@ export function PostGalleryEditor({
       </div>
 
       {modal.kind === "pick-library" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[80vh] w-full max-w-lg overflow-auto rounded-lg bg-white p-4 shadow-lg">
-            <h3 className="mb-3 text-lg font-semibold text-[#0D131A]">
-              Médias de la bibliothèque
-            </h3>
+        <FullscreenEditorModal
+          title="Médias de la bibliothèque"
+          onClose={() => setModal({ kind: "closed" })}
+          busy={busy}
+          footerRight={
+            <>
+              <button
+                type="button"
+                onClick={() => setModal({ kind: "closed" })}
+                className="rounded-md border border-[#d4dde6] px-3 py-2 text-sm"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                disabled={busy || librarySelected.size === 0}
+                onClick={() => void attachFromLibrary()}
+                className="rounded-md bg-[#495867] px-3 py-2 text-sm text-white disabled:opacity-50"
+              >
+                Associer ({librarySelected.size})
+              </button>
+            </>
+          }
+        >
+          <div className="h-full overflow-y-auto p-4">
             {libraryItems.length === 0 ? (
-              <p className="text-sm text-[#495867]">Aucun média disponible à associer.</p>
+              <p className="text-sm text-[#495867]">
+                Aucun média disponible à associer.
+              </p>
             ) : (
-              <ul className="mb-4 space-y-2">
+              <ul className="mx-auto grid max-w-3xl gap-2 sm:grid-cols-2">
                 {libraryItems.map((item) => {
                   const checked = librarySelected.has(item.id);
                   return (
@@ -442,19 +465,24 @@ export function PostGalleryEditor({
                             });
                           }}
                         />
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <MediaKindThumb
                           kind={item.kind}
                           mimeType={item.mimeType}
                           src={
                             item.kind === "IMAGE"
-                              ? item.urlPicto || item.urlMoyenne || item.urlOrigin
+                              ? item.urlPicto ||
+                                item.urlMoyenne ||
+                                item.urlOrigin
                               : item.urlPicto || item.urlMoyenne || null
                           }
                         />
-                        <span className="text-sm">
-                          {item.titleFr || item.titleEn || item.id.slice(0, 8)}
-                          <span className="ml-2 text-xs text-[#495867]">{item.kind}</span>
+                        <span className="min-w-0 text-sm">
+                          <span className="block truncate font-medium">
+                            {item.titleFr || item.titleEn || item.id.slice(0, 8)}
+                          </span>
+                          <span className="text-xs text-[#495867]">
+                            {item.kind}
+                          </span>
                         </span>
                       </label>
                     </li>
@@ -462,25 +490,8 @@ export function PostGalleryEditor({
                 })}
               </ul>
             )}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={busy || librarySelected.size === 0}
-                onClick={() => void attachFromLibrary()}
-                className="rounded-md bg-[#495867] px-3 py-2 text-sm text-white disabled:opacity-50"
-              >
-                Associer ({librarySelected.size})
-              </button>
-              <button
-                type="button"
-                onClick={() => setModal({ kind: "closed" })}
-                className="rounded-md border border-[#d4dde6] px-3 py-2 text-sm"
-              >
-                Annuler
-              </button>
-            </div>
           </div>
-        </div>
+        </FullscreenEditorModal>
       )}
 
       {modal.kind !== "closed" && modal.kind !== "pick-library" && (

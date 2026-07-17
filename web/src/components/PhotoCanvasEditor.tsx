@@ -15,6 +15,10 @@ type Props = {
   value: ImageLayoutParams;
   onChange: (next: ImageLayoutParams) => void;
   disabled?: boolean;
+  /** Grow stage to fill parent height (workspace modal). */
+  fillStage?: boolean;
+  showStage?: boolean;
+  showControls?: boolean;
 };
 
 type DragMode = "pan" | "rotate" | null;
@@ -37,22 +41,24 @@ function Stepper({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="w-16 shrink-0 text-xs text-[#495867]">{label}</span>
+    <div className="flex min-w-0 items-center gap-1">
+      <span className="w-7 shrink-0 text-[11px] text-[#495867]">{label}</span>
       <button
         type="button"
         disabled={disabled}
         onClick={() => onAdjust(-step)}
-        className="rounded border border-[#d4dde6] px-2 py-0.5 text-sm disabled:opacity-40"
+        className="rounded border border-[#d4dde6] px-1.5 py-0.5 text-xs disabled:opacity-40"
       >
         −
       </button>
-      <span className="min-w-[4.5rem] text-center font-mono text-xs">{value}</span>
+      <span className="min-w-[3.25rem] text-center font-mono text-[11px]">
+        {value}
+      </span>
       <button
         type="button"
         disabled={disabled}
         onClick={() => onAdjust(step)}
-        className="rounded border border-[#d4dde6] px-2 py-0.5 text-sm disabled:opacity-40"
+        className="rounded border border-[#d4dde6] px-1.5 py-0.5 text-xs disabled:opacity-40"
       >
         +
       </button>
@@ -65,6 +71,9 @@ export function PhotoCanvasEditor({
   value,
   onChange,
   disabled,
+  fillStage = false,
+  showStage = true,
+  showControls = true,
 }: Props) {
   const { locale } = useLocale();
   const stageRef = useRef<HTMLDivElement>(null);
@@ -157,51 +166,58 @@ export function PhotoCanvasEditor({
     userSelect: "none",
   };
 
-  return (
-    <div className="space-y-4">
+  const stage = showStage ? (
+    <div
+      ref={stageRef}
+      className={
+        fillStage
+          ? "relative h-full max-h-full max-w-full touch-none overflow-hidden rounded-lg border border-[#d4dde6] shadow-sm"
+          : "relative mx-auto w-full max-w-[min(100%,360px)] touch-none overflow-hidden rounded-lg border border-[#d4dde6] shadow-sm"
+      }
+      style={{
+        aspectRatio: String(IMAGE_ASPECT),
+        ...(fillStage ? { width: "auto" } : {}),
+        background:
+          value.backgroundColor === "transparent"
+            ? "repeating-conic-gradient(#ddd 0% 25%, #fff 0% 50%) 50% / 16px 16px"
+            : value.backgroundColor,
+      }}
+      onWheel={onWheel}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={imageSrc} alt="" draggable={false} style={photoStyle} />
+
       <div
-        ref={stageRef}
-        className="relative mx-auto w-full max-w-[min(100%,360px)] touch-none overflow-hidden rounded-lg border border-[#d4dde6] shadow-sm"
+        className="pointer-events-none absolute border-2 border-white/90"
         style={{
-          aspectRatio: String(IMAGE_ASPECT),
-          background:
-            value.backgroundColor === "transparent"
-              ? "repeating-conic-gradient(#ddd 0% 25%, #fff 0% 50%) 50% / 16px 16px"
-              : value.backgroundColor,
+          left: `${cropLeft}%`,
+          top: `${cropTop}%`,
+          width: `${cropW}%`,
+          height: `${cropH}%`,
+          borderRadius: value.cropShape === "CIRCLE" ? "50%" : "2px",
+          boxShadow: "0 0 0 9999px rgba(13,19,26,0.45)",
         }}
-        onWheel={onWheel}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={imageSrc} alt="" draggable={false} style={photoStyle} />
+      />
 
-        <div
-          className="pointer-events-none absolute border-2 border-white/90"
-          style={{
-            left: `${cropLeft}%`,
-            top: `${cropTop}%`,
-            width: `${cropW}%`,
-            height: `${cropH}%`,
-            borderRadius: value.cropShape === "CIRCLE" ? "50%" : "2px",
-            boxShadow: "0 0 0 9999px rgba(13,19,26,0.45)",
-          }}
-        />
+      <div
+        className="absolute inset-0 cursor-grab active:cursor-grabbing"
+        onPointerDown={(e) => onPointerDown(e, "pan")}
+      />
+    </div>
+  ) : null;
 
-        <div
-          className="absolute inset-0 cursor-grab active:cursor-grabbing"
-          onPointerDown={(e) => onPointerDown(e, "pan")}
-        />
-      </div>
-
-      <p className="text-center text-[11px] text-[#495867]">
+  const controls = showControls ? (
+    <div className="space-y-3">
+      <p className="text-[11px] leading-snug text-[#495867]">
         {locale === "fr"
-          ? "Glisser pour déplacer · molette pour zoomer · Maj/Alt = axe Y/X"
-          : "Drag to pan · wheel to zoom · Shift/Alt = Y/X axis"}
+          ? "Glisser = déplacer · molette = zoom · Maj/Alt = axe Y/X"
+          : "Drag = pan · wheel = zoom · Shift/Alt = Y/X"}
       </p>
 
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
         <Stepper
           label="X"
           value={value.offsetX.toFixed(2)}
@@ -217,7 +233,7 @@ export function PhotoCanvasEditor({
           onAdjust={(d) => patch({ offsetY: clamp(value.offsetY + d, -2, 2) })}
         />
         <Stepper
-          label={locale === "fr" ? "Échelle" : "Scale"}
+          label={locale === "fr" ? "Éch." : "Sc."}
           value={value.scaleX.toFixed(2)}
           step={0.05}
           disabled={disabled}
@@ -232,7 +248,7 @@ export function PhotoCanvasEditor({
         />
         {!value.lockAspect && (
           <Stepper
-            label="Échelle Y"
+            label="Y×"
             value={value.scaleY.toFixed(2)}
             step={0.05}
             disabled={disabled}
@@ -248,13 +264,13 @@ export function PhotoCanvasEditor({
           disabled={disabled}
           onAdjust={(d) => patch({ rotation: value.rotation + d })}
         />
-        <div className="flex items-center gap-2">
-          <span className="w-16 text-xs text-[#495867]">90°</span>
+        <div className="flex items-center gap-1">
           <button
             type="button"
             disabled={disabled}
             onClick={() => patch({ rotation: value.rotation - 90 })}
-            className="rounded border border-[#d4dde6] px-2 py-0.5 text-sm"
+            className="rounded border border-[#d4dde6] px-1.5 py-0.5 text-xs"
+            title="-90°"
           >
             ↺
           </button>
@@ -262,7 +278,8 @@ export function PhotoCanvasEditor({
             type="button"
             disabled={disabled}
             onClick={() => patch({ rotation: value.rotation + 90 })}
-            className="rounded border border-[#d4dde6] px-2 py-0.5 text-sm"
+            className="rounded border border-[#d4dde6] px-1.5 py-0.5 text-xs"
+            title="+90°"
           >
             ↻
           </button>
@@ -270,15 +287,15 @@ export function PhotoCanvasEditor({
             type="button"
             disabled={disabled}
             onPointerDown={(e) => onPointerDown(e, "rotate")}
-            className="rounded border border-[#d4dde6] px-2 py-0.5 text-xs"
+            className="rounded border border-[#d4dde6] px-1.5 py-0.5 text-[10px]"
           >
             {locale === "fr" ? "Glisser °" : "Drag °"}
           </button>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 text-sm">
-        <label className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-[#495867]">
+        <label className="flex items-center gap-1.5">
           <input
             type="checkbox"
             checked={value.lockAspect}
@@ -292,11 +309,9 @@ export function PhotoCanvasEditor({
               );
             }}
           />
-          <span className="text-xs text-[#495867]">
-            {locale === "fr" ? "Conserver le ratio" : "Lock aspect ratio"}
-          </span>
+          {locale === "fr" ? "Ratio" : "Aspect"}
         </label>
-        <label className="flex items-center gap-2 text-xs text-[#495867]">
+        <label className="flex items-center gap-1.5">
           Crop
           <select
             value={value.cropShape}
@@ -304,17 +319,17 @@ export function PhotoCanvasEditor({
             onChange={(e) =>
               patch({ cropShape: e.target.value as CropShape })
             }
-            className="rounded border border-[#d4dde6] px-2 py-1"
+            className="rounded border border-[#d4dde6] px-1.5 py-0.5 text-xs"
           >
             <option value="RECT">
-              {locale === "fr" ? "Rectangle" : "Rectangle"}
+              {locale === "fr" ? "Rect" : "Rect"}
             </option>
             <option value="CIRCLE">
               {locale === "fr" ? "Cercle" : "Circle"}
             </option>
           </select>
         </label>
-        <label className="flex items-center gap-2 text-xs text-[#495867]">
+        <label className="flex min-w-[8rem] flex-1 items-center gap-1.5">
           Inset
           <input
             type="range"
@@ -324,46 +339,79 @@ export function PhotoCanvasEditor({
             value={value.cropInset}
             disabled={disabled}
             onChange={(e) => patch({ cropInset: Number(e.target.value) })}
+            className="min-w-0 flex-1"
           />
         </label>
       </div>
 
-      <div>
-        <p className="mb-1 text-xs text-[#495867]">
-          {locale === "fr" ? "Fond" : "Background"}
-        </p>
-        <div className="flex flex-wrap gap-1.5">
-          {BACKGROUND_PRESETS.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              title={locale === "fr" ? p.labelFr : p.labelEn}
-              disabled={disabled}
-              onClick={() => patch({ backgroundColor: p.value })}
-              className={`h-7 w-7 rounded border-2 ${
-                value.backgroundColor === p.value
-                  ? "border-[#495867]"
-                  : "border-[#d4dde6]"
-              }`}
-              style={{
-                background:
-                  p.value === "transparent"
-                    ? "repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50% / 8px 8px"
-                    : p.value,
-              }}
-            />
-          ))}
-        </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="mr-1 text-[11px] text-[#495867]">
+          {locale === "fr" ? "Fond" : "Bg"}
+        </span>
+        {BACKGROUND_PRESETS.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            title={locale === "fr" ? p.labelFr : p.labelEn}
+            disabled={disabled}
+            onClick={() => patch({ backgroundColor: p.value })}
+            className={`h-6 w-6 rounded border-2 ${
+              value.backgroundColor === p.value
+                ? "border-[#495867]"
+                : "border-[#d4dde6]"
+            }`}
+            style={{
+              background:
+                p.value === "transparent"
+                  ? "repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50% / 8px 8px"
+                  : p.value,
+            }}
+          />
+        ))}
       </div>
 
       <button
         type="button"
         disabled={disabled}
         onClick={() => onChange({ ...DEFAULT_IMAGE_LAYOUT })}
-        className="text-xs text-[#495867] underline"
+        className="text-[11px] text-[#495867] underline"
       >
-        {locale === "fr" ? "Réinitialiser la mise en page" : "Reset layout"}
+        {locale === "fr" ? "Réinitialiser" : "Reset"}
       </button>
+    </div>
+  ) : null;
+
+  if (showStage && showControls && !fillStage) {
+    return (
+      <div className="space-y-3">
+        {stage}
+        {controls}
+      </div>
+    );
+  }
+
+  if (showStage && !showControls) {
+    return fillStage ? (
+      <div className="flex h-full w-full items-center justify-center p-2 sm:p-4">
+        {stage}
+      </div>
+    ) : (
+      <>{stage}</>
+    );
+  }
+
+  if (!showStage && showControls) {
+    return <>{controls}</>;
+  }
+
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-3 lg:flex-row">
+      <div className="flex min-h-[36vh] flex-1 items-center justify-center bg-[#eef3f7] p-2 lg:min-h-0">
+        {stage}
+      </div>
+      <div className="shrink-0 overflow-y-auto border-t border-[#d4dde6] p-3 lg:w-[320px] lg:border-l lg:border-t-0">
+        {controls}
+      </div>
     </div>
   );
 }

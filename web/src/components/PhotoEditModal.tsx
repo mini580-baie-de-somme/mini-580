@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PhotoCanvasEditor } from "./PhotoCanvasEditor";
+import { FullscreenEditorModal } from "./FullscreenEditorModal";
 import {
   type GalleryEditorImage,
   toEditorImage,
@@ -98,16 +99,6 @@ export function PhotoEditModal({
     setLocalPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [pendingFile]);
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape" && !busy) discard();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // discard is stable enough for Escape; avoid re-binding every render
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [busy]);
 
   function patchDraft(patch: Partial<GalleryEditorImage>) {
     setDraft((prev) => (prev ? { ...prev, ...patch } : prev));
@@ -263,35 +254,63 @@ export function PhotoEditModal({
       : draft;
   const canSave =
     Boolean(draft?.id || pendingFile) && (dirty || Boolean(pendingFile));
+  const canvasSrc =
+    localPreviewUrl || draft?.urlOrigin || previewDraft?.urlOrigin || "";
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-[#0D131A]/50 p-0 sm:items-center sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !busy) discard();
-      }}
-    >
-      <div className="flex max-h-[95vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-xl bg-white shadow-xl sm:rounded-xl">
-        <div className="flex items-center justify-between border-b border-[#d4dde6] px-4 py-3">
-          <h2 className="text-base font-semibold text-[#0D131A]">{title}</h2>
+    <FullscreenEditorModal
+      title={title}
+      onClose={discard}
+      busy={busy}
+      error={error}
+      footerLeft={
+        draft?.id ? (
+          <button
+            type="button"
+            onClick={() => void remove()}
+            disabled={busy}
+            className="rounded border border-red-300 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
+          >
+            Supprimer
+          </button>
+        ) : null
+      }
+      footerRight={
+        <>
           <button
             type="button"
             onClick={discard}
             disabled={busy}
-            className="rounded border border-[#d4dde6] px-3 py-1 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
+            className="rounded border border-[#d4dde6] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
           >
-            Fermer
+            Annuler
           </button>
-        </div>
-
-        <div className="space-y-4 overflow-y-auto p-4">
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          {busy && <p className="text-xs text-[#495867]">Enregistrement…</p>}
-
-          {!previewDraft && (
+          <button
+            type="button"
+            onClick={() => void save()}
+            disabled={busy || !canSave}
+            className="rounded bg-[#495867] px-4 py-1.5 text-sm text-white hover:bg-[#3a4654] disabled:opacity-50"
+          >
+            {busy ? "…" : "Enregistrer"}
+          </button>
+        </>
+      }
+    >
+      <div className="flex h-full min-h-0 flex-col md:flex-row">
+        <section className="flex min-h-[42vh] flex-1 items-center justify-center bg-[#eef3f7] md:min-h-0">
+          {previewDraft && canvasSrc ? (
+            <PhotoCanvasEditor
+              imageSrc={canvasSrc}
+              value={layout}
+              onChange={(next) => {
+                setLayout(next);
+                setDirty(true);
+              }}
+              disabled={busy}
+              fillStage
+              showControls={false}
+            />
+          ) : (
             <div
               ref={dropRef}
               onDragEnter={(e) => {
@@ -309,182 +328,148 @@ export function PhotoEditModal({
                 const file = e.dataTransfer.files?.[0];
                 if (file) queueFile(file);
               }}
-              className={`rounded-lg border-2 border-dashed px-4 py-10 text-center ${
+              className={`mx-4 w-full max-w-md rounded-lg border-2 border-dashed px-4 py-12 text-center ${
                 dragOver
-                  ? "border-[#495867] bg-[#eef3f7]"
-                  : "border-[#d4dde6] bg-[#fafbfc]"
+                  ? "border-[#495867] bg-white"
+                  : "border-[#d4dde6] bg-white/70"
               }`}
             >
               <p className="text-sm text-[#495867]">
-                Glisser-déposer une image, coller (Ctrl/⌘+V), ou
+                Glisser-déposer, coller (Ctrl/⌘+V), ou
               </p>
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={busy}
-                className="mt-2 rounded-md border border-[#495867] px-3 py-1.5 text-sm text-[#495867] hover:bg-white disabled:opacity-50"
+                className="mt-2 rounded-md border border-[#495867] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
               >
                 Choisir un fichier
               </button>
-              <p className="mt-2 text-xs text-[#495867]">
-                Rien n’est enregistré tant que tu n’as pas cliqué Enregistrer.
-              </p>
             </div>
           )}
+        </section>
 
-          {previewDraft && (
-            <div className="space-y-4">
-              <div className="grid gap-4 lg:grid-cols-2">
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={busy}
-                    className="w-full rounded border border-[#d4dde6] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
-                  >
-                    {draft?.id ? "Remplacer le fichier" : "Changer de fichier"}
-                  </button>
-                  {pendingFile && (
-                    <p className="truncate text-xs text-[#495867]">
-                      Fichier en attente : {pendingFile.name}
-                    </p>
-                  )}
-                  <p className="text-xs text-[#495867]">
-                    Ou coller (Ctrl/⌘+V). Rien n’est sauvé avant Enregistrer.
-                  </p>
-                </div>
-
-                <div className="space-y-3 text-sm">
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <label className="block">
-                      <span className="text-xs text-[#495867]">Titre FR</span>
-                      <input
-                        value={draft?.titleFr ?? ""}
-                        onChange={(e) => patchDraft({ titleFr: e.target.value })}
-                        className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-xs text-[#495867]">Title EN</span>
-                      <input
-                        value={draft?.titleEn ?? ""}
-                        onChange={(e) => patchDraft({ titleEn: e.target.value })}
-                        className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1"
-                      />
-                    </label>
-                  </div>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <label className="block">
-                      <span className="text-xs text-[#495867]">Description FR</span>
-                      <textarea
-                        value={draft?.descriptionFr ?? ""}
-                        onChange={(e) =>
-                          patchDraft({ descriptionFr: e.target.value })
-                        }
-                        rows={2}
-                        className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-xs text-[#495867]">Description EN</span>
-                      <textarea
-                        value={draft?.descriptionEn ?? ""}
-                        onChange={(e) =>
-                          patchDraft({ descriptionEn: e.target.value })
-                        }
-                        rows={2}
-                        className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1"
-                      />
-                    </label>
-                  </div>
-                  <label className="block">
-                    <span className="text-xs text-[#495867]">Date</span>
-                    <input
-                      type="date"
-                      value={
-                        draft?.takenAt
-                          ? (typeof draft.takenAt === "string"
-                              ? draft.takenAt
-                              : draft.takenAt.toISOString()
-                            ).slice(0, 10)
-                          : ""
-                      }
-                      onChange={(e) =>
-                        patchDraft({
-                          takenAt: e.target.value
-                            ? new Date(e.target.value).toISOString()
-                            : null,
-                        })
-                      }
-                      className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1"
-                    />
-                  </label>
-                </div>
-              </div>
-
-              <PhotoCanvasEditor
-                imageSrc={
-                  localPreviewUrl ||
-                  draft?.urlOrigin ||
-                  previewDraft.urlOrigin
-                }
-                value={layout}
-                onChange={(next) => {
-                  setLayout(next);
-                  setDirty(true);
-                }}
-                disabled={busy}
-              />
-            </div>
-          )}
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            capture="environment"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) queueFile(file);
-              e.target.value = "";
-            }}
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#d4dde6] px-4 py-3">
-          <div>
-            {draft?.id && (
+        <aside className="flex w-full shrink-0 flex-col overflow-y-auto border-t border-[#d4dde6] md:w-[min(100%,24rem)] md:border-l md:border-t-0">
+          <div className="space-y-3 p-3 sm:p-4">
+            <div className="space-y-1.5">
               <button
                 type="button"
-                onClick={() => void remove()}
+                onClick={() => fileInputRef.current?.click()}
                 disabled={busy}
-                className="rounded border border-red-300 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
+                className="w-full rounded border border-[#d4dde6] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
               >
-                Supprimer
+                {draft?.id
+                  ? "Remplacer le fichier"
+                  : previewDraft
+                    ? "Changer de fichier"
+                    : "Choisir un fichier"}
               </button>
+              {pendingFile && (
+                <p className="truncate text-[11px] text-[#495867]">
+                  En attente : {pendingFile.name}
+                </p>
+              )}
+              <p className="text-[11px] text-[#495867]">
+                Coller Ctrl/⌘+V · rien n’est sauvé avant Enregistrer
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <label className="block">
+                <span className="text-[11px] text-[#495867]">Titre FR</span>
+                <input
+                  value={draft?.titleFr ?? ""}
+                  onChange={(e) => patchDraft({ titleFr: e.target.value })}
+                  className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
+                />
+              </label>
+              <label className="block">
+                <span className="text-[11px] text-[#495867]">Title EN</span>
+                <input
+                  value={draft?.titleEn ?? ""}
+                  onChange={(e) => patchDraft({ titleEn: e.target.value })}
+                  className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
+                />
+              </label>
+              <label className="col-span-2 block">
+                <span className="text-[11px] text-[#495867]">Description FR</span>
+                <textarea
+                  value={draft?.descriptionFr ?? ""}
+                  onChange={(e) =>
+                    patchDraft({ descriptionFr: e.target.value })
+                  }
+                  rows={2}
+                  className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
+                />
+              </label>
+              <label className="col-span-2 block">
+                <span className="text-[11px] text-[#495867]">Description EN</span>
+                <textarea
+                  value={draft?.descriptionEn ?? ""}
+                  onChange={(e) =>
+                    patchDraft({ descriptionEn: e.target.value })
+                  }
+                  rows={2}
+                  className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
+                />
+              </label>
+              <label className="col-span-2 block">
+                <span className="text-[11px] text-[#495867]">Date</span>
+                <input
+                  type="date"
+                  value={
+                    draft?.takenAt
+                      ? (typeof draft.takenAt === "string"
+                          ? draft.takenAt
+                          : draft.takenAt.toISOString()
+                        ).slice(0, 10)
+                      : ""
+                  }
+                  onChange={(e) =>
+                    patchDraft({
+                      takenAt: e.target.value
+                        ? new Date(e.target.value).toISOString()
+                        : null,
+                    })
+                  }
+                  className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
+                />
+              </label>
+            </div>
+
+            {previewDraft && canvasSrc && (
+              <div className="border-t border-[#eef3f7] pt-3">
+                <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-[#495867]">
+                  {lang === "fr" ? "Mise en page" : "Layout"}
+                </p>
+                <PhotoCanvasEditor
+                  imageSrc={canvasSrc}
+                  value={layout}
+                  onChange={(next) => {
+                    setLayout(next);
+                    setDirty(true);
+                  }}
+                  disabled={busy}
+                  showStage={false}
+                />
+              </div>
             )}
           </div>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={discard}
-              disabled={busy}
-              className="rounded border border-[#d4dde6] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
-            >
-              Annuler
-            </button>
-            <button
-              type="button"
-              onClick={() => void save()}
-              disabled={busy || !canSave}
-              className="rounded bg-[#495867] px-4 py-1.5 text-sm text-white hover:bg-[#3a4654] disabled:opacity-50"
-            >
-              Enregistrer
-            </button>
-          </div>
-        </div>
+        </aside>
       </div>
-    </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) queueFile(file);
+          e.target.value = "";
+        }}
+      />
+    </FullscreenEditorModal>
   );
 }

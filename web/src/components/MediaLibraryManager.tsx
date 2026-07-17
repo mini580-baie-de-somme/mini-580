@@ -9,6 +9,7 @@ import { useEditorInfiniteList } from "./useEditorInfiniteList";
 import { MediaPreview } from "./MediaPreview";
 import { MediaKindThumb } from "./MediaKindThumb";
 import { PhotoCanvasEditor } from "./PhotoCanvasEditor";
+import { FullscreenEditorModal } from "./FullscreenEditorModal";
 import {
   MEDIA_ACCEPT,
   isAllowedMediaFile,
@@ -363,7 +364,7 @@ export function MediaLibraryManager() {
           </Link>
           <button
             type="button"
-            disabled={busy || editingId !== null}
+            disabled={busy}
             onClick={startCreate}
             className="rounded-md bg-[#495867] px-3 py-2 text-sm text-white hover:bg-[#3a4654] disabled:opacity-50"
           >
@@ -372,7 +373,7 @@ export function MediaLibraryManager() {
         </div>
       </div>
 
-      {(error || localError) && (
+      {(error || localError) && !editingId && (
         <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-800">
           {localError ||
             (error === "LOAD_FAILED" ? t("list.loadError") : error)}
@@ -380,154 +381,38 @@ export function MediaLibraryManager() {
       )}
 
       {editingId && (
-        <div className="rounded-lg border border-[#d4dde6] bg-white p-4 sm:p-6">
-          <h2 className="mb-4 text-lg font-semibold text-[#0D131A]">
-            {editingId === "new" ? t("media.new") : t("media.edit")}
-          </h2>
-
-          <div className="mb-4 grid gap-4 lg:grid-cols-2">
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-[#495867]">{t("media.file")}</p>
-              <div
-                onDragEnter={(e) => {
-                  e.preventDefault();
-                  setDragOver(true);
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragOver(true);
-                }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setDragOver(false);
-                  const next = mediaFileFromDataTransfer(e.dataTransfer);
-                  if (next) acceptFile(next);
-                  else setLocalError(t("media.fileInvalid"));
-                }}
-                className={`rounded-lg border-2 border-dashed px-4 py-8 text-center ${
-                  dragOver
-                    ? "border-[#495867] bg-[#eef3f7]"
-                    : "border-[#d4dde6] bg-[#fafbfc]"
-                }`}
+        <FullscreenEditorModal
+          title={editingId === "new" ? t("media.new") : t("media.edit")}
+          onClose={cancelEdit}
+          busy={busy}
+          error={localError || (error && error !== "LOAD_FAILED" ? error : null)}
+          footerRight={
+            <>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={cancelEdit}
+                className="rounded-md border border-[#d4dde6] px-4 py-2 text-sm"
               >
-                <p className="text-sm text-[#495867]">{t("media.dropHint")}</p>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={busy}
-                  className="mt-2 rounded-md border border-[#495867] px-3 py-1.5 text-sm text-[#495867] hover:bg-white disabled:opacity-50"
-                >
-                  {editingId === "new"
-                    ? t("media.chooseFile")
-                    : t("media.replaceFile")}
-                </button>
-                <p className="mt-2 text-xs text-[#495867]">{t("media.pasteHint")}</p>
-                {file && (
-                  <p className="mt-2 truncate text-xs text-[#0D131A]">
-                    {file.name} ({Math.round(file.size / 1024)} Ko)
-                  </p>
-                )}
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept={MEDIA_ACCEPT}
-                className="hidden"
-                onChange={(e) => {
-                  acceptFile(e.target.files?.[0] ?? null);
-                  e.target.value = "";
-                }}
-              />
-              {previewKind && (
-                <p className="text-xs text-[#495867]">
-                  {t("media.detectedKind")}: {kindLabel(previewKind)}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-[#495867]">{t("media.preview")}</p>
-              {previewKind && previewSrc ? (
-                <MediaPreview
-                  kind={previewKind}
-                  src={previewSrc}
-                  title={
-                    (locale === "fr" ? form.titleFr : form.titleEn) ||
-                    file?.name
-                  }
-                  openLabel={t("media.open")}
-                />
-              ) : (
-                <p className="rounded-lg border border-dashed border-[#d4dde6] bg-[#fafbfc] px-4 py-10 text-center text-sm text-[#495867]">
-                  {t("media.fileRequired")}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block text-sm">
-              <span className="mb-1 block text-[#495867]">{t("media.titleFr")}</span>
-              <input
-                className="w-full rounded-md border border-[#d4dde6] px-3 py-2"
-                value={form.titleFr}
-                onChange={(e) => setForm({ ...form, titleFr: e.target.value })}
-              />
-            </label>
-            <label className="block text-sm">
-              <span className="mb-1 block text-[#495867]">{t("media.titleEn")}</span>
-              <input
-                className="w-full rounded-md border border-[#d4dde6] px-3 py-2"
-                value={form.titleEn}
-                onChange={(e) => setForm({ ...form, titleEn: e.target.value })}
-              />
-            </label>
-            <label className="block text-sm sm:col-span-2">
-              <span className="mb-1 block text-[#495867]">{t("media.descFr")}</span>
-              <textarea
-                rows={2}
-                className="w-full rounded-md border border-[#d4dde6] px-3 py-2"
-                value={form.descriptionFr}
-                onChange={(e) =>
-                  setForm({ ...form, descriptionFr: e.target.value })
-                }
-              />
-            </label>
-            <label className="block text-sm sm:col-span-2">
-              <span className="mb-1 block text-[#495867]">{t("media.descEn")}</span>
-              <textarea
-                rows={2}
-                className="w-full rounded-md border border-[#d4dde6] px-3 py-2"
-                value={form.descriptionEn}
-                onChange={(e) =>
-                  setForm({ ...form, descriptionEn: e.target.value })
-                }
-              />
-            </label>
-            {(previewKind === "IMAGE" || editingMedia?.kind === "IMAGE") && (
-              <label className="block text-sm sm:col-span-2">
-                <span className="mb-1 block text-[#495867]">{t("media.takenAt")}</span>
-                <input
-                  type="date"
-                  className="w-full rounded-md border border-[#d4dde6] px-3 py-2"
-                  value={form.takenAt}
-                  onChange={(e) =>
-                    setForm({ ...form, takenAt: e.target.value })
-                  }
-                />
-              </label>
-            )}
-          </div>
-
-          {(previewKind === "IMAGE" || editingMedia?.kind === "IMAGE") &&
-            (filePreviewUrl ||
-              (editingMedia &&
-                (editingMedia.urlOrigin || editingMedia.urlGrande))) && (
-              <div className="mt-4 rounded border border-[#d4dde6] p-3">
-                <p className="mb-3 text-xs font-medium text-[#495867]">
-                  {t("media.transforms")}
-                </p>
+                {t("media.cancel")}
+              </button>
+              <button
+                type="button"
+                disabled={busy || (editingId === "new" && !file)}
+                onClick={() => void save()}
+                className="rounded-md bg-[#495867] px-4 py-2 text-sm text-white disabled:opacity-50"
+              >
+                {t("media.save")}
+              </button>
+            </>
+          }
+        >
+          <div className="flex h-full min-h-0 flex-col md:flex-row">
+            <section className="flex min-h-[38vh] flex-1 items-center justify-center bg-[#eef3f7] p-3 md:min-h-0">
+              {(previewKind === "IMAGE" || editingMedia?.kind === "IMAGE") &&
+              (filePreviewUrl ||
+                (editingMedia &&
+                  (editingMedia.urlOrigin || editingMedia.urlGrande))) ? (
                 <PhotoCanvasEditor
                   imageSrc={
                     filePreviewUrl ||
@@ -537,29 +422,193 @@ export function MediaLibraryManager() {
                   value={form.layout}
                   onChange={(layout) => setForm({ ...form, layout })}
                   disabled={busy}
+                  fillStage
+                  showControls={false}
                 />
-              </div>
-            )}
+              ) : previewKind && previewSrc ? (
+                <div className="w-full max-w-lg">
+                  <MediaPreview
+                    kind={previewKind}
+                    src={previewSrc}
+                    title={
+                      (locale === "fr" ? form.titleFr : form.titleEn) ||
+                      file?.name
+                    }
+                    openLabel={t("media.open")}
+                  />
+                </div>
+              ) : (
+                <div
+                  onDragEnter={(e) => {
+                    e.preventDefault();
+                    setDragOver(true);
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOver(true);
+                  }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOver(false);
+                    const next = mediaFileFromDataTransfer(e.dataTransfer);
+                    if (next) acceptFile(next);
+                    else setLocalError(t("media.fileInvalid"));
+                  }}
+                  className={`mx-4 w-full max-w-md rounded-lg border-2 border-dashed px-4 py-12 text-center ${
+                    dragOver
+                      ? "border-[#495867] bg-white"
+                      : "border-[#d4dde6] bg-white/70"
+                  }`}
+                >
+                  <p className="text-sm text-[#495867]">{t("media.dropHint")}</p>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={busy}
+                    className="mt-2 rounded-md border border-[#495867] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
+                  >
+                    {t("media.chooseFile")}
+                  </button>
+                  <p className="mt-2 text-xs text-[#495867]">
+                    {t("media.pasteHint")}
+                  </p>
+                </div>
+              )}
+            </section>
 
-          <div className="mt-4 flex gap-2">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={cancelEdit}
-              className="rounded-md border border-[#d4dde6] px-4 py-2 text-sm"
-            >
-              {t("media.cancel")}
-            </button>
-            <button
-              type="button"
-              disabled={busy || (editingId === "new" && !file)}
-              onClick={() => void save()}
-              className="rounded-md bg-[#495867] px-4 py-2 text-sm text-white disabled:opacity-50"
-            >
-              {t("media.save")}
-            </button>
+            <aside className="flex w-full shrink-0 flex-col overflow-y-auto border-t border-[#d4dde6] md:w-[min(100%,24rem)] md:border-l md:border-t-0">
+              <div className="space-y-3 p-3 sm:p-4">
+                <div className="space-y-1.5">
+                  <p className="text-[11px] font-medium text-[#495867]">
+                    {t("media.file")}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={busy}
+                    className="w-full rounded border border-[#d4dde6] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
+                  >
+                    {editingId === "new"
+                      ? t("media.chooseFile")
+                      : t("media.replaceFile")}
+                  </button>
+                  {file && (
+                    <p className="truncate text-[11px] text-[#0D131A]">
+                      {file.name} ({Math.round(file.size / 1024)} Ko)
+                    </p>
+                  )}
+                  {previewKind && (
+                    <p className="text-[11px] text-[#495867]">
+                      {t("media.detectedKind")}: {kindLabel(previewKind)}
+                    </p>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={MEDIA_ACCEPT}
+                    className="hidden"
+                    onChange={(e) => {
+                      acceptFile(e.target.files?.[0] ?? null);
+                      e.target.value = "";
+                    }}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <label className="block">
+                    <span className="text-[11px] text-[#495867]">
+                      {t("media.titleFr")}
+                    </span>
+                    <input
+                      className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
+                      value={form.titleFr}
+                      onChange={(e) =>
+                        setForm({ ...form, titleFr: e.target.value })
+                      }
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-[11px] text-[#495867]">
+                      {t("media.titleEn")}
+                    </span>
+                    <input
+                      className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
+                      value={form.titleEn}
+                      onChange={(e) =>
+                        setForm({ ...form, titleEn: e.target.value })
+                      }
+                    />
+                  </label>
+                  <label className="col-span-2 block">
+                    <span className="text-[11px] text-[#495867]">
+                      {t("media.descFr")}
+                    </span>
+                    <textarea
+                      rows={2}
+                      className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
+                      value={form.descriptionFr}
+                      onChange={(e) =>
+                        setForm({ ...form, descriptionFr: e.target.value })
+                      }
+                    />
+                  </label>
+                  <label className="col-span-2 block">
+                    <span className="text-[11px] text-[#495867]">
+                      {t("media.descEn")}
+                    </span>
+                    <textarea
+                      rows={2}
+                      className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
+                      value={form.descriptionEn}
+                      onChange={(e) =>
+                        setForm({ ...form, descriptionEn: e.target.value })
+                      }
+                    />
+                  </label>
+                  {(previewKind === "IMAGE" ||
+                    editingMedia?.kind === "IMAGE") && (
+                    <label className="col-span-2 block">
+                      <span className="text-[11px] text-[#495867]">
+                        {t("media.takenAt")}
+                      </span>
+                      <input
+                        type="date"
+                        className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
+                        value={form.takenAt}
+                        onChange={(e) =>
+                          setForm({ ...form, takenAt: e.target.value })
+                        }
+                      />
+                    </label>
+                  )}
+                </div>
+
+                {(previewKind === "IMAGE" || editingMedia?.kind === "IMAGE") &&
+                  (filePreviewUrl ||
+                    (editingMedia &&
+                      (editingMedia.urlOrigin || editingMedia.urlGrande))) && (
+                    <div className="border-t border-[#eef3f7] pt-3">
+                      <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-[#495867]">
+                        {t("media.transforms")}
+                      </p>
+                      <PhotoCanvasEditor
+                        imageSrc={
+                          filePreviewUrl ||
+                          editingMedia!.urlOrigin ||
+                          editingMedia!.urlGrande!
+                        }
+                        value={form.layout}
+                        onChange={(layout) => setForm({ ...form, layout })}
+                        disabled={busy}
+                        showStage={false}
+                      />
+                    </div>
+                  )}
+              </div>
+            </aside>
           </div>
-        </div>
+        </FullscreenEditorModal>
       )}
 
       <EditorListSearch
