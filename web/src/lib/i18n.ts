@@ -153,6 +153,11 @@ const messages = {
 
   "article.gallery": { fr: "Médias", en: "Media" },
   "article.back": { fr: "Retour au blog", en: "Back to blog" },
+  "article.related": { fr: "À lire aussi", en: "Related reading" },
+  "article.relatedHint": {
+    fr: "D’autres articles proches par tags, thématiques ou périodes du chantier.",
+    en: "More posts that share tags, themes, or build periods.",
+  },
 
   "editor.title": { fr: "Éditeur", en: "Editor" },
   "editor.newPost": { fr: "Nouvel article", en: "New post" },
@@ -379,8 +384,8 @@ const messages = {
 
   "milestones.title": { fr: "Jalons timeline", en: "Timeline milestones" },
   "milestones.subtitle": {
-    fr: "Roadmap bilingue FR/EN — visible sur /timeline",
-    en: "Bilingual FR/EN roadmap — shown on /timeline",
+    fr: "Roadmap bilingue FR/EN, triée par date — visible sur /timeline",
+    en: "Bilingual FR/EN roadmap, sorted by date — shown on /timeline",
   },
   "milestones.new": { fr: "Nouveau jalon", en: "New milestone" },
   "milestones.edit": { fr: "Modifier le jalon", en: "Edit milestone" },
@@ -388,7 +393,6 @@ const messages = {
   "milestones.empty": { fr: "Aucun jalon.", en: "No milestones yet." },
   "milestones.colDate": { fr: "Date", en: "Date" },
   "milestones.colTitle": { fr: "FR / EN", en: "FR / EN" },
-  "milestones.colOrder": { fr: "Ordre", en: "Order" },
   "milestones.publishProd": { fr: "Publier PROD", en: "Publish to PROD" },
   "milestones.pullProd": { fr: "Tirer depuis PROD", en: "Pull from PROD" },
   "milestones.deleteConfirm": {

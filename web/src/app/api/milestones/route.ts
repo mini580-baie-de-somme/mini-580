@@ -4,6 +4,10 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
 import { parseListPagination } from "@/lib/editor-list";
+import {
+  milestoneOrderBy,
+  parseMilestoneLocale,
+} from "@/lib/milestones";
 import { slugify } from "@/lib/utils";
 
 const milestoneInclude = {
@@ -40,10 +44,7 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const { limit, offset, q, paginated } = parseListPagination(searchParams);
   const where = milestoneWhere(q);
-  const orderBy = [
-    { milestoneDate: "asc" as const },
-    { sortOrder: "asc" as const },
-  ];
+  const orderBy = milestoneOrderBy(parseMilestoneLocale(searchParams.get("locale")));
 
   if (!paginated) {
     const milestones = await prisma.milestone.findMany({
@@ -75,7 +76,6 @@ const createSchema = z.object({
   descriptionFr: z.string().optional(),
   descriptionEn: z.string().optional(),
   milestoneDate: z.string().datetime().or(z.string()),
-  sortOrder: z.number().int().optional(),
   slug: z.string().optional(),
 });
 
@@ -103,7 +103,6 @@ export async function POST(request: NextRequest) {
         descriptionFr: data.descriptionFr ?? "",
         descriptionEn: data.descriptionEn ?? "",
         milestoneDate: new Date(data.milestoneDate),
-        sortOrder: data.sortOrder ?? 0,
       },
     });
 

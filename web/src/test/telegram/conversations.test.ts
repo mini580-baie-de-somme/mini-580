@@ -277,7 +277,6 @@ describe("Telegram conversation simulations — parcours guidé", () => {
         titleFr: `Jalon Existant ${mileSlug}`,
         titleEn: "Existing milestone",
         milestoneDate: new Date("2026-02-01"),
-        sortOrder: 2,
       },
     });
 
@@ -431,7 +430,6 @@ describe("Telegram conversation simulations — parcours guidé", () => {
         titleFr: `Jalon Late ${mileSlug}`,
         titleEn: "Late milestone",
         milestoneDate: new Date("2026-05-01"),
-        sortOrder: 5,
       },
     });
 

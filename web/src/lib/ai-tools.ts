@@ -328,7 +328,7 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "milestones.create",
-    description: "Create bilingual milestone (titles, descriptions, milestoneDate, sortOrder, slug)",
+    description: "Create bilingual milestone (titles, descriptions, milestoneDate, slug)",
     method: "POST",
     path: "/api/milestones",
     auth: "bearer_or_session",
@@ -336,7 +336,7 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "milestones.update",
-    description: "Update milestone FR/EN, date, order, slug",
+    description: "Update milestone FR/EN titles, descriptions, date, slug",
     method: "PATCH",
     path: "/api/milestones/:id",
     auth: "bearer_or_session",

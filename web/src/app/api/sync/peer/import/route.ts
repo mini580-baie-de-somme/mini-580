@@ -45,7 +45,7 @@ const postSchema = z.object({
       descriptionFr: z.string(),
       descriptionEn: z.string(),
       milestoneDate: z.string(),
-      sortOrder: z.number(),
+      sortOrder: z.number().optional(),
     })
   ),
   images: z.array(
@@ -116,7 +116,7 @@ const catalogSchema = z.object({
       descriptionFr: z.string(),
       descriptionEn: z.string(),
       milestoneDate: z.string(),
-      sortOrder: z.number(),
+      sortOrder: z.number().optional(),
       createdAt: z.string(),
     })
   ),

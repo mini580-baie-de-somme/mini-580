@@ -41,7 +41,9 @@ export default async function GaleriePage({
     }),
     prisma.theme.findMany({ orderBy: { slug: "asc" } }),
     prisma.tag.findMany({ orderBy: { name: "asc" } }),
-    prisma.milestone.findMany({ orderBy: { milestoneDate: "asc" } }),
+    prisma.milestone.findMany({
+      orderBy: [{ milestoneDate: "asc" }, { titleFr: "asc" }],
+    }),
   ]);
 
   return (

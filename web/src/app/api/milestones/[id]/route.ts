@@ -11,7 +11,6 @@ const updateSchema = z.object({
   descriptionFr: z.string().optional(),
   descriptionEn: z.string().optional(),
   milestoneDate: z.string().optional(),
-  sortOrder: z.number().int().optional(),
   slug: z.string().optional(),
 });
 
@@ -35,7 +34,6 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         ...(data.descriptionFr !== undefined && { descriptionFr: data.descriptionFr }),
         ...(data.descriptionEn !== undefined && { descriptionEn: data.descriptionEn }),
         ...(data.slug !== undefined && { slug: data.slug }),
-        ...(data.sortOrder !== undefined && { sortOrder: data.sortOrder }),
         ...(data.milestoneDate !== undefined && {
           milestoneDate: new Date(data.milestoneDate),
         }),

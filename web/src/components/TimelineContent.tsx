@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
 import { useLocale } from "./LocaleProvider";
+import { compareByDateThenTitle } from "@/lib/milestones";
 
 type LinkedPost = {
   id: string;
@@ -36,6 +38,35 @@ type TimelineEntry =
 export function TimelineContent({ entries }: { entries: TimelineEntry[] }) {
   const { locale, t } = useLocale();
   const dateLocale = locale === "fr" ? "fr-FR" : "en-GB";
+  const lang = locale === "en" ? "en" : "fr";
+
+  const sorted = useMemo(
+    () =>
+      [...entries].sort((a, b) => {
+        const titleA =
+          a.kind === "milestone"
+            ? lang === "fr"
+              ? a.milestone.titleFr
+              : a.milestone.titleEn
+            : lang === "fr"
+              ? a.post.titleFr
+              : a.post.titleEn;
+        const titleB =
+          b.kind === "milestone"
+            ? lang === "fr"
+              ? b.milestone.titleFr
+              : b.milestone.titleEn
+            : lang === "fr"
+              ? b.post.titleFr
+              : b.post.titleEn;
+        return compareByDateThenTitle(
+          { date: a.date, title: titleA },
+          { date: b.date, title: titleB },
+          lang
+        );
+      }),
+    [entries, lang]
+  );
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
@@ -46,7 +77,7 @@ export function TimelineContent({ entries }: { entries: TimelineEntry[] }) {
         <div className="absolute left-4 top-0 h-full w-px bg-[#d4dde6] sm:left-6" />
 
         <ul className="space-y-10">
-          {entries.map((entry) => {
+          {sorted.map((entry) => {
             const dateStr = new Date(entry.date).toLocaleDateString(dateLocale, {
               day: "numeric",
               month: "long",
@@ -107,7 +138,7 @@ export function TimelineContent({ entries }: { entries: TimelineEntry[] }) {
           })}
         </ul>
 
-        {entries.length === 0 && (
+        {sorted.length === 0 && (
           <p className="text-center text-[#495867]">{t("timeline.empty")}</p>
         )}
       </div>

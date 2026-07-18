@@ -1,6 +1,6 @@
 /**
  * Class Mini 5.80 Baie de Somme — timeline milestones (FR/EN).
- * Pré-chantier (sortOrder 0–9) + mandatory Class Globe build steps (10–21).
+ * Pré-chantier + mandatory Class Globe build steps (ordered by milestoneDate).
  * Source: classglobe580.com builders blog checklist + project blog content.
  */
 export type MilestoneSeed = {
@@ -10,7 +10,6 @@ export type MilestoneSeed = {
   descriptionFr: string;
   descriptionEn: string;
   milestoneDate: Date;
-  sortOrder: number;
 };
 
 export const classMilestones: MilestoneSeed[] = [
@@ -21,7 +20,6 @@ export const classMilestones: MilestoneSeed[] = [
     descriptionFr: "Janvier 2025 — décision de construire trois Class Globe 5.80.",
     descriptionEn: "January 2025 — decision to build three Class Globe 5.80 boats.",
     milestoneDate: new Date("2025-01-15"),
-    sortOrder: 0,
   },
   {
     slug: "workshop-found",
@@ -30,7 +28,6 @@ export const classMilestones: MilestoneSeed[] = [
     descriptionFr: "Grange 250 m² — Baie de Somme.",
     descriptionEn: "250 m² barn workshop — Baie de Somme.",
     milestoneDate: new Date("2026-02-01"),
-    sortOrder: 1,
   },
   {
     slug: "plans-purchased",
@@ -41,7 +38,6 @@ export const classMilestones: MilestoneSeed[] = [
     descriptionEn:
       "Class Globe 5.80 plans purchased — hull numbers #268, #269 and #270 assigned.",
     milestoneDate: new Date("2025-02-01"),
-    sortOrder: 2,
   },
   {
     slug: "builder-blog-registered",
@@ -51,7 +47,6 @@ export const classMilestones: MilestoneSeed[] = [
       "« Les vieux fourneaux » inscrit sur le site officiel classglobe580.com.",
     descriptionEn: '"Old Stoves" blog registered on the official classglobe580.com site.',
     milestoneDate: new Date("2025-03-01"),
-    sortOrder: 3,
   },
   {
     slug: "team-roles-defined",
@@ -62,7 +57,6 @@ export const classMilestones: MilestoneSeed[] = [
     descriptionEn:
       "Laurent (#268) 3D modeling and build · Marco (#269) sourcing · Rodolphe (#270) CNC.",
     milestoneDate: new Date("2025-06-01"),
-    sortOrder: 4,
   },
   {
     slug: "sabbatical-confirmed",
@@ -71,7 +65,6 @@ export const classMilestones: MilestoneSeed[] = [
     descriptionFr: "Six mois à temps plein sur le chantier dès février 2026.",
     descriptionEn: "Six months full-time on the build from February 2026.",
     milestoneDate: new Date("2026-01-15"),
-    sortOrder: 5,
   },
   {
     slug: "plywood-ordered",
@@ -80,7 +73,6 @@ export const classMilestones: MilestoneSeed[] = [
     descriptionFr: "80 plaques 10 mm okoumé marine chez Allin (2500×1220 mm).",
     descriptionEn: "80 sheets of 10 mm marine okoume from Allin (2500×1220 mm).",
     milestoneDate: new Date("2025-11-15"),
-    sortOrder: 6,
   },
   {
     slug: "modeling-3d-started",
@@ -89,7 +81,6 @@ export const classMilestones: MilestoneSeed[] = [
     descriptionFr: "Premières courbes et surfaces coque/pont sur Onshape.",
     descriptionEn: "First hull and deck curves and surfaces in Onshape.",
     milestoneDate: new Date("2026-01-01"),
-    sortOrder: 7,
   },
   {
     slug: "suppliers-chosen",
@@ -98,7 +89,6 @@ export const classMilestones: MilestoneSeed[] = [
     descriptionFr: "Sicomin (époxy), Les Inoxydables (visserie A4), Allin (contreplaqué).",
     descriptionEn: "Sicomin (epoxy), Les Inoxydables (A4 screws), Allin (plywood).",
     milestoneDate: new Date("2026-05-03"),
-    sortOrder: 8,
   },
   {
     slug: "cnc-programming",
@@ -107,7 +97,6 @@ export const classMilestones: MilestoneSeed[] = [
     descriptionFr: "Rodolphe prépare les programmes de découpe CP et Douglas.",
     descriptionEn: "Rodolphe prepares CNC cutting programs for plywood and Douglas.",
     milestoneDate: new Date("2026-06-01"),
-    sortOrder: 9,
   },
   {
     slug: "making-frames",
@@ -116,7 +105,6 @@ export const classMilestones: MilestoneSeed[] = [
     descriptionFr: "Étape classe — couples et lisses.",
     descriptionEn: "Class step — frames and stringers.",
     milestoneDate: new Date("2026-09-01"),
-    sortOrder: 10,
   },
   {
     slug: "setting-up-frames",
@@ -125,7 +113,6 @@ export const classMilestones: MilestoneSeed[] = [
     descriptionFr: "Étape classe obligatoire.",
     descriptionEn: "Mandatory class build step.",
     milestoneDate: new Date("2026-10-01"),
-    sortOrder: 11,
   },
   {
     slug: "hull-plating",
@@ -134,7 +121,6 @@ export const classMilestones: MilestoneSeed[] = [
     descriptionFr: "Plaquage de la coque en contreplaqué.",
     descriptionEn: "Plywood hull plating.",
     milestoneDate: new Date("2026-11-01"),
-    sortOrder: 12,
   },
   {
     slug: "hull-epoxy-fairing",
@@ -143,7 +129,6 @@ export const classMilestones: MilestoneSeed[] = [
     descriptionFr: "Imprégnation époxy et fairing.",
     descriptionEn: "Epoxy sheeting and fairing.",
     milestoneDate: new Date("2027-01-01"),
-    sortOrder: 13,
   },
   {
     slug: "roll-hull-deck",
@@ -152,7 +137,6 @@ export const classMilestones: MilestoneSeed[] = [
     descriptionFr: "Retournement, plaquage pont et fairing.",
     descriptionEn: "Hull roll, deck plating and glass-fairing.",
     milestoneDate: new Date("2027-03-01"),
-    sortOrder: 14,
   },
   {
     slug: "internal-fit",
@@ -161,7 +145,6 @@ export const classMilestones: MilestoneSeed[] = [
     descriptionFr: "Cloisons, crash box avant.",
     descriptionEn: "Internal fit-out and forward crash box.",
     milestoneDate: new Date("2027-05-01"),
-    sortOrder: 15,
   },
   {
     slug: "keel-floors",
@@ -170,7 +153,6 @@ export const classMilestones: MilestoneSeed[] = [
     descriptionFr: "Installation des sols de quille.",
     descriptionEn: "Keel floor installation.",
     milestoneDate: new Date("2027-06-01"),
-    sortOrder: 16,
   },
   {
     slug: "weighing-hull",
@@ -179,7 +161,6 @@ export const classMilestones: MilestoneSeed[] = [
     descriptionFr: "Pesée officielle de la coque.",
     descriptionEn: "Official hull weighing.",
     milestoneDate: new Date("2027-07-01"),
-    sortOrder: 17,
   },
   {
     slug: "rudder",
@@ -188,7 +169,6 @@ export const classMilestones: MilestoneSeed[] = [
     descriptionFr: "Fabrication du gouvernail.",
     descriptionEn: "Rudder build.",
     milestoneDate: new Date("2027-08-01"),
-    sortOrder: 18,
   },
   {
     slug: "keel",
@@ -197,7 +177,6 @@ export const classMilestones: MilestoneSeed[] = [
     descriptionFr: "Quille lest plomb — pesée.",
     descriptionEn: "Lead keel — construction and weighing.",
     milestoneDate: new Date("2027-09-01"),
-    sortOrder: 19,
   },
   {
     slug: "deck-hardware",
@@ -206,7 +185,6 @@ export const classMilestones: MilestoneSeed[] = [
     descriptionFr: "Trappe, portes étanches, hublots.",
     descriptionEn: "Companionway hatch, watertight doors, deck hatches.",
     milestoneDate: new Date("2027-10-01"),
-    sortOrder: 20,
   },
   {
     slug: "safety-rails",
@@ -215,6 +193,5 @@ export const classMilestones: MilestoneSeed[] = [
     descriptionFr: "Main courante, bout de focs, points harnais.",
     descriptionEn: "Handrails, bowsprit, safety harness attachments.",
     milestoneDate: new Date("2027-11-01"),
-    sortOrder: 21,
   },
 ];

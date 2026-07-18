@@ -110,6 +110,98 @@ export async function syncPostRelations(
   }
 }
 
+const relatedCardInclude = {
+  hulls: true,
+  themes: { include: { theme: true } },
+} satisfies Prisma.PostInclude;
+
+export type RelatedPostCard = Prisma.PostGetPayload<{
+  include: typeof relatedCardInclude;
+}>;
+
+/** Published posts sharing tags, themes, milestones or hulls — scored by overlap + date proximity. */
+export async function findRelatedPosts(
+  post: {
+    id: string;
+    publishedAt: Date | null;
+    hulls: { hull: Hull }[];
+    tags: { tagId: string }[];
+    themes: { themeId: string }[];
+    milestones: { milestoneId: string }[];
+  },
+  limit = 3
+): Promise<RelatedPostCard[]> {
+  const tagIds = post.tags.map((t) => t.tagId);
+  const themeIds = post.themes.map((t) => t.themeId);
+  const milestoneIds = post.milestones.map((m) => m.milestoneId);
+  const hulls = post.hulls.map((h) => h.hull);
+
+  const overlap: Prisma.PostWhereInput[] = [];
+  if (tagIds.length > 0) {
+    overlap.push({ tags: { some: { tagId: { in: tagIds } } } });
+  }
+  if (themeIds.length > 0) {
+    overlap.push({ themes: { some: { themeId: { in: themeIds } } } });
+  }
+  if (milestoneIds.length > 0) {
+    overlap.push({ milestones: { some: { milestoneId: { in: milestoneIds } } } });
+  }
+  if (hulls.length > 0) {
+    overlap.push({ hulls: { some: { hull: { in: hulls } } } });
+  }
+
+  if (overlap.length === 0) return [];
+
+  const candidates = await prisma.post.findMany({
+    where: {
+      status: PostStatus.PUBLISHED,
+      id: { not: post.id },
+      OR: overlap,
+    },
+    include: {
+      ...relatedCardInclude,
+      tags: true,
+      milestones: true,
+    },
+    orderBy: { publishedAt: "desc" },
+    take: 24,
+  });
+
+  const tagSet = new Set(tagIds);
+  const themeSet = new Set(themeIds);
+  const milestoneSet = new Set(milestoneIds);
+  const hullSet = new Set(hulls);
+  const originMs = post.publishedAt?.getTime() ?? null;
+  const dayMs = 86_400_000;
+
+  const scored = candidates.map((c) => {
+    let score = 0;
+    for (const t of c.tags) if (tagSet.has(t.tagId)) score += 3;
+    for (const th of c.themes) if (themeSet.has(th.themeId)) score += 4;
+    for (const m of c.milestones) if (milestoneSet.has(m.milestoneId)) score += 5;
+    for (const h of c.hulls) if (hullSet.has(h.hull)) score += 1;
+
+    if (originMs && c.publishedAt) {
+      const days = Math.abs(c.publishedAt.getTime() - originMs) / dayMs;
+      if (days <= 120) score += Math.max(0, 3 - days / 40);
+    }
+
+    return { post: c, score };
+  });
+
+  scored.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    const aDate = a.post.publishedAt?.getTime() ?? 0;
+    const bDate = b.post.publishedAt?.getTime() ?? 0;
+    return bDate - aDate;
+  });
+
+  return scored.slice(0, limit).map(({ post: c }) => {
+    const { tags: _tags, milestones: _milestones, ...card } = c;
+    return card;
+  });
+}
+
 export function publicPostWhere(
   filters?: {
     hull?: string;

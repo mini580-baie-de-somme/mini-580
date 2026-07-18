@@ -15,7 +15,6 @@ export type SyncCatalogPayload = {
     descriptionFr: string;
     descriptionEn: string;
     milestoneDate: string;
-    sortOrder: number;
     createdAt: string;
   }[];
 };
@@ -46,7 +45,6 @@ export type SyncPostPayload = {
     descriptionFr: string;
     descriptionEn: string;
     milestoneDate: string;
-    sortOrder: number;
   }[];
   images: {
     id: string;
@@ -119,7 +117,6 @@ function serializePost(post: PostWithRelations): SyncPostPayload {
       descriptionFr: m.milestone.descriptionFr,
       descriptionEn: m.milestone.descriptionEn,
       milestoneDate: m.milestone.milestoneDate.toISOString(),
-      sortOrder: m.milestone.sortOrder,
     })),
     images: post.mediaLinks.map((link) => ({
       id: link.media.id,
@@ -152,7 +149,9 @@ export async function exportCatalog(): Promise<SyncCatalogPayload> {
   const [tags, themes, milestones] = await Promise.all([
     prisma.tag.findMany({ orderBy: { name: "asc" } }),
     prisma.theme.findMany({ orderBy: { slug: "asc" } }),
-    prisma.milestone.findMany({ orderBy: { sortOrder: "asc" } }),
+    prisma.milestone.findMany({
+      orderBy: [{ milestoneDate: "asc" }, { titleFr: "asc" }],
+    }),
   ]);
 
   return {
@@ -177,7 +176,6 @@ export async function exportCatalog(): Promise<SyncCatalogPayload> {
       descriptionFr: m.descriptionFr,
       descriptionEn: m.descriptionEn,
       milestoneDate: m.milestoneDate.toISOString(),
-      sortOrder: m.sortOrder,
       createdAt: m.createdAt.toISOString(),
     })),
   };
@@ -322,7 +320,6 @@ export async function upsertCatalog(payload: SyncCatalogPayload) {
         descriptionFr: m.descriptionFr,
         descriptionEn: m.descriptionEn,
         milestoneDate: new Date(m.milestoneDate),
-        sortOrder: m.sortOrder,
         createdAt: new Date(m.createdAt),
       },
       update: {
@@ -332,7 +329,6 @@ export async function upsertCatalog(payload: SyncCatalogPayload) {
         descriptionFr: m.descriptionFr,
         descriptionEn: m.descriptionEn,
         milestoneDate: new Date(m.milestoneDate),
-        sortOrder: m.sortOrder,
       },
     });
   }

@@ -17,7 +17,9 @@ export default async function EditPostPage({ params }: PageProps) {
     prisma.post.findUnique({ where: { id }, include: postInclude }),
     prisma.tag.findMany({ orderBy: { name: "asc" } }),
     prisma.theme.findMany({ orderBy: { slug: "asc" } }),
-    prisma.milestone.findMany({ orderBy: { milestoneDate: "asc" } }),
+    prisma.milestone.findMany({
+      orderBy: [{ milestoneDate: "asc" }, { titleFr: "asc" }],
+    }),
   ]);
 
   if (!post) notFound();

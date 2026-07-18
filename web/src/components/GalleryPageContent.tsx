@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { GalleryPhoto } from "@/lib/gallery-types";
 import { countListFilters } from "@/lib/editor-list";
 import { resolveThumbKind } from "@/lib/media-file-client";
-import { GalleryImage } from "./GalleryImage";
 import { MediaKindThumb } from "./MediaKindThumb";
+import { MediaSlideshow, useMediaSlideshow } from "./MediaSlideshow";
 import {
   EditorFilterChip,
   EditorFilterGroup,
@@ -22,7 +22,6 @@ type FilterOptions = {
   milestones: { slug: string; titleFr: string; titleEn: string }[];
 };
 
-const AUTO_MS = 5000;
 const FILTER_KEYS = [
   "search",
   "kind",
@@ -44,10 +43,7 @@ export function GalleryPageContent({
   const searchParams = useSearchParams();
   const { locale, t } = useLocale();
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [slideshowOpen, setSlideshowOpen] = useState(false);
-  const [index, setIndex] = useState(0);
-  const [autoPlay, setAutoPlay] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const slideshow = useMediaSlideshow();
 
   const sort = searchParams.get("sort") === "milestone" ? "milestone" : "date";
   const activeCount = countListFilters(searchParams, FILTER_KEYS);
@@ -61,65 +57,6 @@ export function GalleryPageContent({
     },
     [router, searchParams]
   );
-
-  const openViewer = useCallback((i: number) => {
-    setIndex(i);
-    setAutoPlay(false);
-    setSlideshowOpen(true);
-  }, []);
-
-  const startSlideshow = useCallback(
-    (fromIndex = 0) => {
-      if (photos.length === 0) return;
-      setIndex(fromIndex);
-      setAutoPlay(true);
-      setSlideshowOpen(true);
-    },
-    [photos.length]
-  );
-
-  const go = useCallback(
-    (delta: number) => {
-      if (photos.length === 0) return;
-      setIndex((i) => (i + delta + photos.length) % photos.length);
-    },
-    [photos.length]
-  );
-
-  useEffect(() => {
-    if (!slideshowOpen || !autoPlay || photos.length < 2) {
-      if (timerRef.current) clearInterval(timerRef.current);
-      timerRef.current = null;
-      return;
-    }
-    timerRef.current = setInterval(() => go(1), AUTO_MS);
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [slideshowOpen, autoPlay, go, photos.length, index]);
-
-  useEffect(() => {
-    if (!slideshowOpen) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setSlideshowOpen(false);
-      if (e.key === "ArrowLeft") {
-        setAutoPlay(false);
-        go(-1);
-      }
-      if (e.key === "ArrowRight") {
-        setAutoPlay(false);
-        go(1);
-      }
-      if (e.key === " ") {
-        e.preventDefault();
-        setAutoPlay((v) => !v);
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [slideshowOpen, go]);
-
-  const current = photos[index] ?? null;
 
   const emptyHint = useMemo(
     () => (photos.length === 0 ? t("gallery.empty") : null),
@@ -354,7 +291,7 @@ export function GalleryPageContent({
         {photos.length > 0 && (
           <button
             type="button"
-            onClick={() => startSlideshow(0)}
+            onClick={() => slideshow.startSlideshow(0)}
             className="rounded-md border border-[#495867] bg-[#495867] px-3 py-1.5 text-sm text-white hover:bg-[#3a4654]"
           >
             {t("gallery.startSlideshow")}
@@ -385,7 +322,7 @@ export function GalleryPageContent({
               <button
                 key={photo.id}
                 type="button"
-                onClick={() => openViewer(i)}
+                onClick={() => slideshow.openViewer(i)}
                 className="group overflow-hidden rounded-lg border border-[#d4dde6] bg-white text-left shadow-sm transition hover:border-[#495867]"
               >
                 <div className="aspect-square overflow-hidden bg-[#eef3f7]">
@@ -434,118 +371,27 @@ export function GalleryPageContent({
         </div>
       )}
 
-      {slideshowOpen && current && (
-        <div
-          className="fixed inset-0 z-[100] flex flex-col bg-[#0D131A]/90"
-          role="dialog"
-          aria-modal="true"
-          aria-label={t("gallery.slideshow")}
-        >
-          <div className="flex items-center justify-between gap-3 px-4 py-3 text-white">
-            <p className="text-sm">
-              {index + 1} / {photos.length}
-              {autoPlay ? ` · ${t("gallery.slideshow")}` : ""}
-            </p>
-            <div className="flex items-center gap-2">
-              {photos.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => setAutoPlay((v) => !v)}
-                  className="rounded border border-white/30 px-3 py-1 text-xs hover:bg-white/10"
-                >
-                  {autoPlay ? t("gallery.pause") : t("gallery.play")}
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => {
-                  setAutoPlay(false);
-                  setSlideshowOpen(false);
-                }}
-                className="rounded border border-white/30 px-3 py-1 text-xs hover:bg-white/10"
+      <MediaSlideshow
+        items={photos}
+        open={slideshow.open}
+        initialIndex={slideshow.initialIndex}
+        initialAutoPlay={slideshow.initialAutoPlay}
+        onClose={slideshow.close}
+        footer={(item) => {
+          const photo = item as GalleryPhoto;
+          if (!photo.post?.slug) return null;
+          return (
+            <div className="mt-3 text-center text-sm text-white/90">
+              <Link
+                href={`/blog/${photo.post.slug}`}
+                className="underline hover:text-white"
               >
-                {t("gallery.close")}
-              </button>
+                {locale === "fr" ? photo.post.titleFr : photo.post.titleEn}
+              </Link>
             </div>
-          </div>
-
-          <div className="relative flex flex-1 items-center justify-center px-12 pb-8">
-            <button
-              type="button"
-              aria-label={t("gallery.prev")}
-              onClick={() => {
-                setAutoPlay(false);
-                go(-1);
-              }}
-              className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/15 px-3 py-2 text-xl text-white hover:bg-white/25 sm:left-4"
-            >
-              ‹
-            </button>
-            <div className="max-h-full w-full max-w-4xl">
-              {(() => {
-                const currentKind = resolveThumbKind(
-                  current.kind,
-                  current.mimeType,
-                  current.urlOrigin
-                );
-                if (currentKind === "VIDEO") {
-                  return (
-                    <video
-                      src={current.urlOrigin}
-                      controls
-                      className="mx-auto max-h-[70vh] w-full"
-                    />
-                  );
-                }
-                if (currentKind === "DOCUMENT") {
-                  return (
-                    <div className="rounded-lg bg-white p-6 text-center text-[#0D131A]">
-                      <p className="mb-3 font-medium">
-                        {locale === "fr"
-                          ? current.titleFr || t("gallery.kind.document")
-                          : current.titleEn || t("gallery.kind.document")}
-                      </p>
-                      <a
-                        href={current.urlOrigin}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="rounded-md bg-[#495867] px-4 py-2 text-sm text-white"
-                      >
-                        {t("gallery.openPdf")}
-                      </a>
-                      <iframe
-                        title="pdf"
-                        src={current.urlOrigin}
-                        className="mt-4 h-[50vh] w-full rounded border border-[#d4dde6]"
-                      />
-                    </div>
-                  );
-                }
-                return <GalleryImage image={current} locale={locale} />;
-              })()}
-              <div className="mt-3 text-center text-sm text-white/90">
-                <Link
-                  href={`/blog/${current.post.slug}`}
-                  className="underline hover:text-white"
-                >
-                  {locale === "fr" ? current.post.titleFr : current.post.titleEn}
-                </Link>
-              </div>
-            </div>
-            <button
-              type="button"
-              aria-label={t("gallery.next")}
-              onClick={() => {
-                setAutoPlay(false);
-                go(1);
-              }}
-              className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/15 px-3 py-2 text-xl text-white hover:bg-white/25 sm:right-4"
-            >
-              ›
-            </button>
-          </div>
-        </div>
-      )}
+          );
+        }}
+      />
     </div>
   );
 }

@@ -104,7 +104,6 @@ model Milestone {
   descriptionFr String          @default("") @db.Text
   descriptionEn String          @default("") @db.Text
   milestoneDate DateTime
-  sortOrder     Int             @default(0)
   createdAt     DateTime        @default(now())
   posts         PostMilestone[]
 }

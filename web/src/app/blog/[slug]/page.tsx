@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { postInclude, withLegacyImages } from "@/lib/posts";
+import { findRelatedPosts, postInclude, withLegacyImages } from "@/lib/posts";
 import { ArticleView } from "@/components/ArticleView";
 
 type PageProps = {
@@ -28,9 +28,14 @@ export default async function BlogPostPage({ params }: PageProps) {
 
   if (!post) notFound();
 
+  const relatedPosts = await findRelatedPosts(post, 3);
+
   return (
-    <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
-      <ArticleView post={withLegacyImages(post)} />
+    <div className="px-4 py-12 sm:px-6">
+      <ArticleView
+        post={withLegacyImages(post)}
+        relatedPosts={relatedPosts}
+      />
     </div>
   );
 }

@@ -163,7 +163,6 @@ describe("API integration — Tags / Themes / Jalons CRUD FR/EN", () => {
           descriptionFr: "Desc FR",
           descriptionEn: "Desc EN",
           milestoneDate: "2026-03-15T00:00:00.000Z",
-          sortOrder: 10,
         }),
       })
     );
@@ -190,6 +189,58 @@ describe("API integration — Tags / Themes / Jalons CRUD FR/EN", () => {
     const patched = await patchRes.json();
     expect(patched.titleEn).toBe("Keel set");
     expect(patched.descriptionEn).toBe("Updated EN");
+    expect(patched.sortOrder).toBeUndefined();
+
+    // Same date → alphabetical by title in the requested locale.
+    const sameDay = "2026-07-18T00:00:00.000Z";
+    const aSlug = uniqueSlug(`${MILE_P}-a`);
+    const zSlug = uniqueSlug(`${MILE_P}-z`);
+    await POST(
+      jsonRequest("http://localhost/api/milestones", {
+        method: "POST",
+        headers: bearerHeaders(),
+        body: JSON.stringify({
+          slug: zSlug,
+          titleFr: "Zulu FR",
+          titleEn: "Alpha EN",
+          milestoneDate: sameDay,
+        }),
+      })
+    );
+    await POST(
+      jsonRequest("http://localhost/api/milestones", {
+        method: "POST",
+        headers: bearerHeaders(),
+        body: JSON.stringify({
+          slug: aSlug,
+          titleFr: "Alpha FR",
+          titleEn: "Zulu EN",
+          milestoneDate: sameDay,
+        }),
+      })
+    );
+
+    const listFr = await GET(
+      jsonRequest("http://localhost/api/milestones", {
+        searchParams: { locale: "fr" },
+      })
+    );
+    const frItems = (await listFr.json()) as { slug: string; titleFr: string }[];
+    const frSameDay = frItems.filter((x) =>
+      [aSlug, zSlug].includes(x.slug)
+    );
+    expect(frSameDay.map((x) => x.titleFr)).toEqual(["Alpha FR", "Zulu FR"]);
+
+    const listEn = await GET(
+      jsonRequest("http://localhost/api/milestones", {
+        searchParams: { locale: "en" },
+      })
+    );
+    const enItems = (await listEn.json()) as { slug: string; titleEn: string }[];
+    const enSameDay = enItems.filter((x) =>
+      [aSlug, zSlug].includes(x.slug)
+    );
+    expect(enSameDay.map((x) => x.titleEn)).toEqual(["Alpha EN", "Zulu EN"]);
 
     const list = await GET(jsonRequest("http://localhost/api/milestones"));
     expect((await list.json()).some((x: { id: string }) => x.id === m.id)).toBe(

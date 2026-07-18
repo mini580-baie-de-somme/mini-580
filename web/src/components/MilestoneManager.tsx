@@ -15,7 +15,6 @@ type Milestone = {
   descriptionFr: string;
   descriptionEn: string;
   milestoneDate: string;
-  sortOrder: number;
 };
 
 type FormState = {
@@ -24,7 +23,6 @@ type FormState = {
   descriptionFr: string;
   descriptionEn: string;
   milestoneDate: string;
-  sortOrder: number;
   slug: string;
 };
 
@@ -34,7 +32,6 @@ const emptyForm: FormState = {
   descriptionFr: "",
   descriptionEn: "",
   milestoneDate: new Date().toISOString().slice(0, 10),
-  sortOrder: 0,
   slug: "",
 };
 
@@ -53,8 +50,9 @@ export function MilestoneManager({ isTestEnv = false }: { isTestEnv?: boolean })
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
+    params.set("locale", locale);
     return params.toString();
-  }, [q]);
+  }, [q, locale]);
 
   const {
     items,
@@ -110,7 +108,6 @@ export function MilestoneManager({ isTestEnv = false }: { isTestEnv?: boolean })
       descriptionFr: m.descriptionFr,
       descriptionEn: m.descriptionEn,
       milestoneDate: toDateInput(m.milestoneDate),
-      sortOrder: m.sortOrder,
       slug: m.slug,
     });
   }
@@ -130,7 +127,6 @@ export function MilestoneManager({ isTestEnv = false }: { isTestEnv?: boolean })
         descriptionFr: form.descriptionFr,
         descriptionEn: form.descriptionEn,
         milestoneDate: new Date(form.milestoneDate).toISOString(),
-        sortOrder: Number(form.sortOrder) || 0,
         ...(form.slug.trim() ? { slug: form.slug.trim() } : {}),
       };
 
@@ -311,17 +307,6 @@ export function MilestoneManager({ isTestEnv = false }: { isTestEnv?: boolean })
                 onChange={(e) => setForm({ ...form, milestoneDate: e.target.value })}
               />
             </label>
-            <label className="block text-sm">
-              <span className="mb-1 block text-[#495867]">Ordre</span>
-              <input
-                type="number"
-                className="w-full rounded-md border border-[#d4dde6] px-3 py-2"
-                value={form.sortOrder}
-                onChange={(e) =>
-                  setForm({ ...form, sortOrder: Number(e.target.value) || 0 })
-                }
-              />
-            </label>
             <label className="block text-sm sm:col-span-2">
               <span className="mb-1 block text-[#495867]">Slug (optionnel)</span>
               <input
@@ -379,9 +364,6 @@ export function MilestoneManager({ isTestEnv = false }: { isTestEnv?: boolean })
               <tr>
                 <th className="px-4 py-3 font-medium">{t("milestones.colDate")}</th>
                 <th className="px-4 py-3 font-medium">{t("milestones.colTitle")}</th>
-                <th className="hidden px-4 py-3 font-medium md:table-cell">
-                  {t("milestones.colOrder")}
-                </th>
                 <th className="px-4 py-3 font-medium">{t("list.colActions")}</th>
               </tr>
             </thead>
@@ -401,7 +383,6 @@ export function MilestoneManager({ isTestEnv = false }: { isTestEnv?: boolean })
                     <div className="font-medium text-[#0D131A]">{m.titleFr}</div>
                     <div className="text-xs text-[#495867]">{m.titleEn}</div>
                   </td>
-                  <td className="hidden px-4 py-3 md:table-cell">{m.sortOrder}</td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex flex-wrap gap-2">
                       <button

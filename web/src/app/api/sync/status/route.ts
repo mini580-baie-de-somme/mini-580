@@ -11,7 +11,6 @@ type MilestoneSummary = {
   titleFr: string;
   titleEn: string;
   milestoneDate: string;
-  sortOrder: number;
 };
 
 function compareById<T extends { id: string; titleFr?: string }>(
@@ -66,7 +65,7 @@ export async function GET() {
     const localPosts = await exportPostSummaries();
     const localMilestones: MilestoneSummary[] = (
       await prisma.milestone.findMany({
-        orderBy: [{ milestoneDate: "asc" }, { sortOrder: "asc" }],
+        orderBy: [{ milestoneDate: "asc" }, { titleFr: "asc" }],
       })
     ).map((m) => ({
       id: m.id,
@@ -74,7 +73,6 @@ export async function GET() {
       titleFr: m.titleFr,
       titleEn: m.titleEn,
       milestoneDate: m.milestoneDate.toISOString(),
-      sortOrder: m.sortOrder,
     }));
 
     const [peerPostsRes, peerCatalogRes] = await Promise.all([
@@ -122,8 +120,7 @@ export async function GET() {
       (a, b) =>
         a.titleFr !== b.titleFr ||
         a.titleEn !== b.titleEn ||
-        a.milestoneDate !== b.milestoneDate ||
-        a.sortOrder !== b.sortOrder
+        a.milestoneDate !== b.milestoneDate
     );
 
     return NextResponse.json({

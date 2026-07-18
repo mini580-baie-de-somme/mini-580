@@ -333,7 +333,9 @@ export async function finalizeContentCollection(
   const [themes, tags, milestones] = await Promise.all([
     prisma.theme.findMany(),
     prisma.tag.findMany(),
-    prisma.milestone.findMany({ orderBy: { sortOrder: "asc" } }),
+    prisma.milestone.findMany({
+      orderBy: [{ milestoneDate: "asc" }, { titleFr: "asc" }],
+    }),
   ]);
 
   const parsed = await parseTelegramDraftWithAi({

@@ -1,6 +1,7 @@
 import { PostStatus } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { TimelineContent } from "@/components/TimelineContent";
+import { milestoneOrderBy } from "@/lib/milestones";
 
 export const metadata = {
   title: "Timeline",
@@ -8,7 +9,7 @@ export const metadata = {
 
 export default async function TimelinePage() {
   const milestones = await prisma.milestone.findMany({
-    orderBy: [{ milestoneDate: "asc" }, { sortOrder: "asc" }],
+    orderBy: milestoneOrderBy("fr"),
     include: {
       posts: {
         include: {
@@ -57,7 +58,7 @@ export default async function TimelinePage() {
         date: p.publishedAt,
         post: p,
       })),
-  ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  ];
 
   return <TimelineContent entries={entries} />;
 }
