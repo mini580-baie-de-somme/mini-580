@@ -1,0 +1,73 @@
+name: Ops — Set Telegram user mapping
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Stack (test or prod)"
+        required: true
+        type: choice
+        options:
+          - test
+          - prod
+      email:
+        description: "Platform user email"
+        required: true
+        type: string
+      telegram_user_id:
+        description: "Telegram user id (numeric string)"
+        required: true
+        type: string
+
+jobs:
+  set-telegram-user:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Set User.telegramUserId on VPS
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          OPS_ENV: ${{ inputs.environment }}
+          OPS_EMAIL: ${{ inputs.email }}
+          OPS_TG_ID: ${{ inputs.telegram_user_id }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          timeout: 60s
+          command_timeout: 5m
+          envs: OPS_ENV,OPS_EMAIL,OPS_TG_ID
+          script: |
+            set -euo pipefail
+            ENV="${OPS_ENV:?}"
+            EMAIL="$(printf '%s' "${OPS_EMAIL:?}" | tr '[:upper:]' '[:lower:]')"
+            TG_ID="$(printf '%s' "${OPS_TG_ID:?}" | tr -cd '0-9')"
+            if [[ -z "$TG_ID" ]]; then
+              echo "Invalid telegram_user_id" >&2
+              exit 1
+            fi
+            COMPOSE="/opt/mini580/${ENV}/docker-compose.yml"
+            ENVF="/opt/mini580/${ENV}/.env"
+            if [[ ! -f "$COMPOSE" || ! -f "$ENVF" ]]; then
+              echo "Missing stack files for $ENV" >&2
+              exit 1
+            fi
+            POSTGRES_USER="$(grep -E '^POSTGRES_USER=' "$ENVF" | cut -d= -f2- | tr -d '"' || true)"
+            POSTGRES_DB="$(grep -E '^POSTGRES_DB=' "$ENVF" | cut -d= -f2- | tr -d '"' || true)"
+            POSTGRES_USER="${POSTGRES_USER:-mini580}"
+            if [[ "$ENV" == "prod" ]]; then
+              POSTGRES_DB="${POSTGRES_DB:-mini580_prod}"
+            else
+              POSTGRES_DB="${POSTGRES_DB:-mini580_test}"
+            fi
+            EMAIL_SQL="${EMAIL//\'/\'\'}"
+            docker compose -f "$COMPOSE" --env-file "$ENVF" exec -T db \
+              psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -c \
+              "UPDATE \"User\"
+               SET \"telegramUserId\" = '${TG_ID}'
+               WHERE email = '${EMAIL_SQL}';"
+            docker compose -f "$COMPOSE" --env-file "$ENVF" exec -T db \
+              psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc \
+              "SELECT id, email, name, \"telegramUserId\"
+               FROM \"User\"
+               WHERE email = '${EMAIL_SQL}';"

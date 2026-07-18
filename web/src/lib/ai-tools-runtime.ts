@@ -6,6 +6,7 @@ import {
   type AiToolDef,
 } from "@/lib/ai-tools";
 import { getIngestApiKey } from "@/lib/service-auth";
+import { TELEGRAM_USER_ID_HEADER } from "@/lib/telegram-auth";
 
 export type ToolCallArgs = {
   /** Path params e.g. { id, imageId } */
@@ -62,7 +63,8 @@ function buildQuery(query?: ToolCallArgs["query"]): string {
  */
 export async function executeAiTool(
   nameOrKey: string,
-  args: ToolCallArgs = {}
+  args: ToolCallArgs = {},
+  options?: { telegramUserId?: string }
 ): Promise<{ ok: boolean; status: number; data: unknown }> {
   const tool = findAiTool(nameOrKey);
   if (!tool) {
@@ -102,6 +104,8 @@ export async function executeAiTool(
     Accept: "application/json",
   };
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+  const telegramUserId = options?.telegramUserId?.trim();
+  if (telegramUserId) headers[TELEGRAM_USER_ID_HEADER] = telegramUserId;
 
   const init: RequestInit = { method: tool.method, headers };
   if (tool.method !== "GET" && tool.method !== "DELETE" && args.body !== undefined) {

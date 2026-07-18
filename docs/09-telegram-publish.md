@@ -9,10 +9,10 @@ contenu, traduction, aperçu, ordre des photos, métadonnées et transforms par 
 
 ## Agent intelligent (tools plateforme)
 
-Par défaut, Telegram parle à un **agent Cursor** qui appelle les endpoints via `AI_TOOLS` (`Bearer INGEST_API_KEY`) :
+Par défaut, Telegram parle à un **agent Cursor** qui appelle les endpoints via `AI_TOOLS` (`Bearer INGEST_API_KEY` + header `X-Telegram-User-Id`) :
 
 - lire / rechercher posts, galerie multi-médias, tags, thèmes, jalons
-- CRUD articles + publish/archive
+- CRUD articles + publish/archive — **auteur = utilisateur Telegram mappé** (pas toujours le compte service)
 - médiathèque indépendante `Media` (IMAGE|DOCUMENT|VIDEO) : `media.*` tools — create/update/delete/attach/detach/reorder/set_cover
 - tools `photos.*` conservés en compat (même modèle sous-jacent)
 - liens d’aperçu `preview.create` → `/apercu/t/{token}`
@@ -20,7 +20,25 @@ Par défaut, Telegram parle à un **agent Cursor** qui appelle les endpoints via
 
 Parcours guidé conservé : `/nouveau`.
 
-Fichiers clés : `web/src/lib/telegram/agent.ts`, `ai-tools.ts`, `ai-tools-runtime.ts`, `media-library.ts`.
+Fichiers clés : `web/src/lib/telegram/agent.ts`, `telegram-auth.ts`, `ai-tools.ts`, `ai-tools-runtime.ts`, `media-library.ts`.
+
+## Auteur Telegram → User backoffice
+
+Chaque post créé via Telegram (parcours `/nouveau` ou agent) reçoit `authorId` du **compte plateforme** correspondant à l’utilisateur Telegram, pas systématiquement `TELEGRAM_SERVICE_USER_EMAIL`.
+
+Résolution (uniquement si l’ID Telegram est dans `TELEGRAM_ALLOWED_USER_IDS`) :
+
+1. **`User.telegramUserId`** en base (recommandé — persistant, unique)
+2. **`TELEGRAM_USER_MAP`** — ex. `8137936505:lpatrouix@gmail.com,7257839706:admin@classmini580.blog`
+3. **Fallback** — `TELEGRAM_SERVICE_USER_EMAIL` (ou `SEED_ADMIN_EMAIL`)
+
+Le header `X-Telegram-User-Id` n’est pris en compte qu’avec un `Authorization: Bearer` valide (`INGEST_API_KEY`). Sans header, le compte service est utilisé (comportement machine-to-machine classique).
+
+Configurer en DB (ex. Laurent) :
+
+```sql
+UPDATE "User" SET "telegramUserId" = '8137936505' WHERE email = 'lpatrouix@gmail.com';
+```
 
 ## Prérequis
 
@@ -29,7 +47,8 @@ Fichiers clés : `web/src/lib/telegram/agent.ts`, `ai-tools.ts`, `ai-tools-runti
 | `TELEGRAM_BOT_TOKEN` | Bot Telegram |
 | `TELEGRAM_WEBHOOK_SECRET` | Secret header webhook |
 | `TELEGRAM_ALLOWED_USER_IDS` | IDs numériques autorisés |
-| `TELEGRAM_SERVICE_USER_EMAIL` | Auteur DB des posts bot |
+| `TELEGRAM_SERVICE_USER_EMAIL` | Auteur par défaut (fallback si pas de mapping) |
+| `TELEGRAM_USER_MAP` | Mapping optionnel `telegramId:email,...` (si `User.telegramUserId` absent en DB) |
 | `INGEST_API_KEY` | Bearer pour appels machine (OpenClaw) |
 | `CURSOR_API_KEY` | Accès modèle IA via `@cursor/sdk` (traduction / parsing) |
 | `CURSOR_MODEL` | Modèle Cursor (défaut `composer-2.5`) |
@@ -84,7 +103,7 @@ Les variants IMAGE sont générés au upload (`sharp`). L’affichage applique l
 
 ## API tools médias (éditeur + assistant IA)
 
-Auth : cookie session **ou** `Authorization: Bearer <INGEST_API_KEY>`.
+Auth : cookie session **ou** `Authorization: Bearer <INGEST_API_KEY>` (optionnel : `X-Telegram-User-Id` pour auteur mappé).
 
 | Tool | Méthode |
 |------|---------|

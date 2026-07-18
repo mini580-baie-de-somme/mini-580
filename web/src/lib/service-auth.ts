@@ -3,7 +3,11 @@ import "server-only";
 import { timingSafeEqual } from "crypto";
 import { NextRequest } from "next/server";
 import { getSession, type SessionUser } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import {
+  resolveServiceEditorUser,
+  resolveTelegramAuthorUser,
+  TELEGRAM_USER_ID_HEADER,
+} from "@/lib/telegram-auth";
 
 function safeEqual(a: string, b: string): boolean {
   const aBuf = Buffer.from(a);
@@ -33,7 +37,7 @@ export function extractBearerToken(request: NextRequest): string | null {
 
 /**
  * Session cookie OR `Authorization: Bearer <INGEST_API_KEY>`.
- * Service auth resolves to the configured service editor user.
+ * With Bearer, optional `X-Telegram-User-Id` maps to the platform author; else service user.
  */
 export async function getEditorOrService(
   request: NextRequest
@@ -43,16 +47,12 @@ export async function getEditorOrService(
 
   if (!isValidIngestApiKey(extractBearerToken(request))) return null;
 
-  const email =
-    process.env.TELEGRAM_SERVICE_USER_EMAIL?.trim().toLowerCase() ||
-    process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
-  if (!email) return null;
+  const telegramUserId = request.headers.get(TELEGRAM_USER_ID_HEADER)?.trim();
+  if (telegramUserId) {
+    return resolveTelegramAuthorUser(telegramUserId);
+  }
 
-  const user = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true, email: true, name: true },
-  });
-  return user;
+  return resolveServiceEditorUser();
 }
 
 export function getTelegramAllowedUserIds(): Set<string> {

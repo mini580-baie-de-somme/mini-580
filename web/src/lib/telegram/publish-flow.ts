@@ -11,6 +11,7 @@ import {
   translateArticleToEn,
   translateImagesToEn,
 } from "@/lib/translate";
+import { resolveTelegramAuthorUser } from "@/lib/telegram-auth";
 
 export type DraftMediaItem = {
   urlOrigin: string;
@@ -106,7 +107,7 @@ export async function startSession(
     });
   }
 
-  const authorId = await resolveServiceAuthorId();
+  const authorId = await resolveTelegramAuthorId(telegramUserId);
   const post = await prisma.post.create({
     data: {
       slug: await uniqueSlug("brouillon-telegram"),
@@ -267,13 +268,13 @@ export async function appendContent(
   };
 }
 
-async function resolveServiceAuthorId(): Promise<string> {
-  const email =
-    process.env.TELEGRAM_SERVICE_USER_EMAIL?.trim().toLowerCase() ||
-    process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase() ||
-    "admin@classmini580.blog";
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) throw new Error(`Service user not found: ${email}`);
+async function resolveTelegramAuthorId(telegramUserId: string): Promise<string> {
+  const user = await resolveTelegramAuthorUser(telegramUserId);
+  if (!user) {
+    throw new Error(
+      `Telegram author not found (telegramUserId=${telegramUserId})`
+    );
+  }
   return user.id;
 }
 
@@ -384,7 +385,7 @@ export async function finalizeContentCollection(
 
   let postId = session.postId;
   if (!postId) {
-    const authorId = await resolveServiceAuthorId();
+    const authorId = await resolveTelegramAuthorId(session.telegramUserId);
     const created = await prisma.post.create({
       data: {
         slug,

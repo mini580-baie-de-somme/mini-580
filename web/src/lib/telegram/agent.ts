@@ -117,7 +117,8 @@ async function rememberActiveIds(
 }
 
 function buildPlatformCustomTools(
-  threadId: string
+  threadId: string,
+  telegramUserId: string
 ): Record<string, SDKCustomTool> {
   const tools: Record<string, SDKCustomTool> = {};
 
@@ -150,7 +151,9 @@ function buildPlatformCustomTools(
           query: asStringRecord(args.query) as ToolCallArgs["query"],
           body: args.body,
         };
-        const result = await executeAiTool(def.name, callArgs);
+        const result = await executeAiTool(def.name, callArgs, {
+          telegramUserId,
+        });
         if (result.ok) {
           await rememberActiveIds(
             threadId,
@@ -258,7 +261,7 @@ export async function runTelegramAgentTurn(input: {
     input.telegramUserId,
     input.telegramChatId
   );
-  const customTools = buildPlatformCustomTools(thread.id);
+  const customTools = buildPlatformCustomTools(thread.id, input.telegramUserId);
   const cwd = getCursorCwd();
   const model = { id: getCursorModelId() };
 
