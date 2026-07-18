@@ -199,6 +199,11 @@ const messages = {
     fr: "Permet de rétro-dater ou placer l’article précisément sur la timeline.",
     en: "Backdate or place the post precisely on the timeline.",
   },
+  "editor.author": { fr: "Auteur", en: "Author" },
+  "editor.authorHint": {
+    fr: "Nom affiché sous le titre sur le blog public.",
+    en: "Name shown under the title on the public blog.",
+  },
   "editor.notOnProd": { fr: "hors PROD", en: "not on PROD" },
   "editor.archive": { fr: "Archiver", en: "Archive" },
   "editor.unarchive": { fr: "Désarchiver", en: "Unarchive" },

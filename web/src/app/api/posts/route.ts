@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { PostStatus, Hull } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/auth";
 import { getEditorOrService } from "@/lib/service-auth";
+import { validatePlatformAuthorId } from "@/lib/editors";
 import {
   editorPostWhere,
   postInclude,
@@ -29,6 +31,7 @@ const createPostSchema = z.object({
   tagIds: z.array(z.string()).optional(),
   themeIds: z.array(z.string()).optional(),
   milestoneIds: z.array(z.string()).optional(),
+  authorId: z.string().optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -114,6 +117,16 @@ export async function POST(request: NextRequest) {
     // Slug is always auto-generated from title — never taken from the client.
     const slug = await uniqueSlug(titleFr);
 
+    let authorId = editor.id;
+    const session = await getSession();
+    if (session && data.authorId) {
+      const resolved = await validatePlatformAuthorId(data.authorId);
+      if (!resolved) {
+        return NextResponse.json({ error: "Invalid author" }, { status: 400 });
+      }
+      authorId = resolved;
+    }
+
     const post = await prisma.post.create({
       data: {
         slug,
@@ -125,7 +138,7 @@ export async function POST(request: NextRequest) {
         bodyEn: data.bodyEn ?? "",
         coverImageUrl: data.coverImageUrl ?? null,
         publishedAt: data.publishedAt ? new Date(data.publishedAt) : null,
-        authorId: editor.id,
+        authorId,
         status: PostStatus.DRAFT,
       },
       include: postInclude,

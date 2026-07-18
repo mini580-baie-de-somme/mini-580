@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { postInclude, withLegacyImages } from "@/lib/posts";
+import { listPlatformEditors } from "@/lib/editors";
 import { PostEditor } from "@/components/PostEditor";
 import { getSyncEnv, isSyncConfigured, peerFetch } from "@/lib/sync-crypto";
 import type { SyncPostSummary } from "@/lib/sync";
@@ -13,13 +14,14 @@ export default async function EditPostPage({ params }: PageProps) {
   if (!session) redirect("/connexion");
 
   const { id } = await params;
-  const [post, tags, themes, milestones] = await Promise.all([
+  const [post, tags, themes, milestones, editors] = await Promise.all([
     prisma.post.findUnique({ where: { id }, include: postInclude }),
     prisma.tag.findMany({ orderBy: { name: "asc" } }),
     prisma.theme.findMany({ orderBy: { slug: "asc" } }),
     prisma.milestone.findMany({
       orderBy: [{ milestoneDate: "asc" }, { titleFr: "asc" }],
     }),
+    listPlatformEditors(),
   ]);
 
   if (!post) notFound();
@@ -45,6 +47,7 @@ export default async function EditPostPage({ params }: PageProps) {
         tags={tags}
         themes={themes}
         milestones={milestones}
+        editors={editors}
         isTestEnv={isTestEnv}
         onProd={onProd}
       />

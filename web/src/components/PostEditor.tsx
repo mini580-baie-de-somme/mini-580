@@ -16,6 +16,7 @@ import {
 type Tag = { id: string; name: string; labelFr: string; labelEn: string };
 type Theme = { id: string; slug: string; labelFr: string; labelEn: string };
 type Milestone = { id: string; slug: string; titleFr: string; titleEn: string };
+type PlatformEditor = { id: string; email: string; name: string | null };
 
 export type EditorPost = {
   id: string;
@@ -29,6 +30,8 @@ export type EditorPost = {
   status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   publishedAt: string | Date | null;
   coverImageUrl: string | null;
+  authorId: string;
+  author: PlatformEditor;
   hulls: { hull: HullId }[];
   tags: { tag: Tag }[];
   themes: { theme: Theme }[];
@@ -41,6 +44,7 @@ type Props = {
   tags: Tag[];
   themes: Theme[];
   milestones: Milestone[];
+  editors: PlatformEditor[];
   isTestEnv?: boolean;
   onProd?: boolean;
 };
@@ -52,6 +56,7 @@ export function PostEditor({
   tags,
   themes,
   milestones,
+  editors,
   isTestEnv = false,
   onProd,
 }: Props) {
@@ -67,6 +72,7 @@ export function PostEditor({
     bodyEn: post.bodyEn,
     coverImageUrl: post.coverImageUrl ?? "",
     publishedAt: toDatetimeLocalValue(post.publishedAt),
+    authorId: post.authorId,
     hulls: post.hulls.map((h) => h.hull),
     tagIds: post.tags.map((t) => t.tag.id),
     themeIds: post.themes.map((t) => t.theme.id),
@@ -94,6 +100,7 @@ export function PostEditor({
       bodyEn: current.bodyEn,
       coverImageUrl: current.coverImageUrl || null,
       publishedAt: fromDatetimeLocalValue(current.publishedAt),
+      authorId: current.authorId,
       hulls: current.hulls,
       tagIds: current.tagIds,
       themeIds: current.themeIds,
@@ -384,6 +391,25 @@ export function PostEditor({
             </span>
           </label>
         </div>
+        <label className="block text-sm">
+          <span className="mb-1 block text-[#495867]">{t("editor.author")}</span>
+          <select
+            value={form.authorId}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, authorId: e.target.value }))
+            }
+            className="w-full rounded-md border border-[#d4dde6] bg-white px-3 py-2 text-sm"
+          >
+            {editors.map((editor) => (
+              <option key={editor.id} value={editor.id}>
+                {editor.name?.trim() || editor.email}
+              </option>
+            ))}
+          </select>
+          <span className="mt-1 block text-[11px] text-[#495867]">
+            {t("editor.authorHint")}
+          </span>
+        </label>
         <textarea
           value={lang === "fr" ? form.excerptFr : form.excerptEn}
           onChange={(e) =>
