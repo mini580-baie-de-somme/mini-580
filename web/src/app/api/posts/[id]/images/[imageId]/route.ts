@@ -9,6 +9,7 @@ import {
   deleteMediaById,
   mediaAsPostImage,
 } from "@/lib/media-library";
+import { optionalNullableDateTime } from "@/lib/date-schema";
 
 type RouteContext = { params: Promise<{ id: string; imageId: string }> };
 
@@ -25,7 +26,7 @@ const patchSchema = z.object({
   descriptionEn: z.string().optional(),
   captionFr: z.string().optional(),
   captionEn: z.string().optional(),
-  takenAt: z.string().datetime().nullable().optional(),
+  takenAt: optionalNullableDateTime,
   sortOrder: z.number().int().optional(),
   offsetX: z.number().min(-2).max(2).optional(),
   offsetY: z.number().min(-2).max(2).optional(),
@@ -78,45 +79,17 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   if (!link) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  const existing = link.media;
 
   try {
     const body = await request.json();
     const data = patchSchema.parse(body);
 
-    const transformChanged = TRANSFORM_KEYS.some((k) => data[k] !== undefined);
-    let bakedUrls: {
-      urlPicto: string;
-      urlPetite: string;
-      urlMoyenne: string;
-      urlGrande: string;
-    } | null = null;
-
-    if (transformChanged && existing.kind === "IMAGE") {
-      const merged = layoutFromLegacy({ ...existing, ...data });
-      bakedUrls = await bakeVariantsFromOrigin(existing.urlOrigin, merged, [
-        existing.urlPicto,
-        existing.urlPetite,
-        existing.urlMoyenne,
-        existing.urlGrande,
-      ]);
-    }
-
+    // Persist meta (incl. takenAt) first so a rebake failure cannot drop the date.
     const media = await prisma.media.update({
       where: { id: imageId },
       data: {
         ...(data.urlOrigin !== undefined && { urlOrigin: data.urlOrigin }),
         ...(data.url !== undefined && { urlOrigin: data.url }),
-        ...(bakedUrls
-          ? bakedUrls
-          : {
-              ...(data.urlPicto !== undefined && { urlPicto: data.urlPicto }),
-              ...(data.urlPetite !== undefined && { urlPetite: data.urlPetite }),
-              ...(data.urlMoyenne !== undefined && {
-                urlMoyenne: data.urlMoyenne,
-              }),
-              ...(data.urlGrande !== undefined && { urlGrande: data.urlGrande }),
-            }),
         ...(data.titleFr !== undefined && { titleFr: data.titleFr }),
         ...(data.titleEn !== undefined && { titleEn: data.titleEn }),
         ...(data.descriptionFr !== undefined && {
@@ -151,6 +124,27 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       },
     });
 
+    const transformChanged = TRANSFORM_KEYS.some((k) => data[k] !== undefined);
+    let finalMedia = media;
+
+    if (transformChanged && media.kind === "IMAGE") {
+      try {
+        const merged = layoutFromLegacy(media);
+        const bakedUrls = await bakeVariantsFromOrigin(media.urlOrigin, merged, [
+          media.urlPicto,
+          media.urlPetite,
+          media.urlMoyenne,
+          media.urlGrande,
+        ]);
+        finalMedia = await prisma.media.update({
+          where: { id: imageId },
+          data: bakedUrls,
+        });
+      } catch (err) {
+        console.error("image layout rebake failed (meta already saved)", err);
+      }
+    }
+
     if (data.sortOrder !== undefined) {
       await prisma.postMedia.update({
         where: { postId_mediaId: { postId, mediaId: imageId } },
@@ -163,7 +157,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     });
 
     return NextResponse.json(
-      mediaAsPostImage(media, { ...updatedLink, postId })
+      mediaAsPostImage(finalMedia, { ...updatedLink, postId })
     );
   } catch (error) {
     if (error instanceof z.ZodError) {

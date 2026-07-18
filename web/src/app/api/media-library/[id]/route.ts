@@ -10,6 +10,7 @@ import {
 import { layoutFromLegacy } from "@/lib/image-layout";
 import { deleteMediaById, mediaInclude } from "@/lib/media-library";
 import { MediaKind } from "@/generated/prisma/client";
+import { optionalNullableDateTime } from "@/lib/date-schema";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -18,7 +19,7 @@ const patchSchema = z.object({
   titleEn: z.string().optional(),
   descriptionFr: z.string().optional(),
   descriptionEn: z.string().optional(),
-  takenAt: z.string().datetime().nullable().optional(),
+  takenAt: optionalNullableDateTime,
   // New layout editor
   offsetX: z.number().min(-2).max(2).optional(),
   offsetY: z.number().min(-2).max(2).optional(),
@@ -88,6 +89,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const data = patchSchema.parse(body);
     const transformChanged = LAYOUT_KEYS.some((k) => data[k] !== undefined);
 
+    // Persist meta first (takenAt/titles/layout fields) before rebake.
     const updated = await prisma.media.update({
       where: { id },
       data: {
@@ -146,7 +148,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         });
         return NextResponse.json(rebaked);
       } catch (err) {
-        console.error("layout rebake failed", err);
+        console.error("layout rebake failed (meta already saved)", err);
       }
     }
 

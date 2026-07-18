@@ -253,8 +253,18 @@ describe("API integration — IA tools full capacity (Bearer)", () => {
     themeId = (await themeRes.json()).id;
 
     const miles = await import("@/app/api/milestones/route");
+    const mileTool = AI_TOOLS.find((t) => t.name === "milestones.create");
+    expect(mileTool?.description).not.toMatch(/sortOrder/i);
+    expect(mileTool?.description).toMatch(/milestoneDate/);
+    expect(mileTool?.description).toMatch(/no manual order|Sorted by date/i);
+
+    const listTool = AI_TOOLS.find((t) => t.name === "milestones.list");
+    expect(listTool?.description).toMatch(/locale/);
+    expect(listTool?.description).toMatch(/milestoneDate/);
+    expect(listTool?.description).not.toMatch(/sortOrder/i);
+
     const mileRes = await miles.POST(
-      jsonRequest("http://localhost/api/milestones", {
+      jsonRequest(`http://localhost${resolveToolPath("/api/milestones", {})}`, {
         method: "POST",
         headers: bearerHeaders(),
         body: JSON.stringify({
@@ -262,11 +272,45 @@ describe("API integration — IA tools full capacity (Bearer)", () => {
           titleFr: "IA Jalon",
           titleEn: "AI Milestone",
           milestoneDate: "2026-06-01T00:00:00.000Z",
+          sortOrder: 99, // ignored / stripped — field removed from API
         }),
       })
     );
     expect(mileRes.status).toBe(201);
-    milestoneId = (await mileRes.json()).id;
+    const mile = await mileRes.json();
+    milestoneId = mile.id;
+    expect(mile.sortOrder).toBeUndefined();
+    expect(mile.titleFr).toBe("IA Jalon");
+
+    const listed = await miles.GET(
+      jsonRequest("http://localhost/api/milestones", {
+        searchParams: { locale: "fr", q: "IA Jalon" },
+      })
+    );
+    expect(listed.status).toBe(200);
+    const listBody = await listed.json();
+    const found = Array.isArray(listBody)
+      ? listBody.find((x: { id: string }) => x.id === milestoneId)
+      : listBody.items?.find((x: { id: string }) => x.id === milestoneId);
+    expect(found).toBeTruthy();
+
+    const { PATCH: patchMile } = await import("@/app/api/milestones/[id]/route");
+    const patchedMile = await patchMile(
+      jsonRequest(
+        `http://localhost${resolveToolPath("/api/milestones/:id", { id: milestoneId })}`,
+        {
+          method: "PATCH",
+          headers: bearerHeaders(),
+          body: JSON.stringify({
+            titleEn: "AI Milestone v2",
+            milestoneDate: "2026-06-15T00:00:00.000Z",
+          }),
+        }
+      ),
+      { params: Promise.resolve({ id: milestoneId }) }
+    );
+    expect(patchedMile.status).toBe(200);
+    expect((await patchedMile.json()).titleEn).toBe("AI Milestone v2");
 
     // Link relations on post (assisted CRUD)
     const { PATCH } = await import("@/app/api/posts/[id]/route");
@@ -285,6 +329,9 @@ describe("API integration — IA tools full capacity (Bearer)", () => {
     expect(linked.status).toBe(200);
     const full = await linked.json();
     expect(full.tags?.length ?? full.tags).toBeTruthy();
+    expect(full.milestones?.some((m: { milestoneId?: string; milestone?: { id: string } }) =>
+      m.milestoneId === milestoneId || m.milestone?.id === milestoneId
+    )).toBe(true);
   });
 
   it("lists sync + translate tools as agent-callable surface", () => {
@@ -295,5 +342,13 @@ describe("API integration — IA tools full capacity (Bearer)", () => {
     expect(aiToolsByCategory("translate").some((t) => t.name === "translate")).toBe(
       true
     );
+  });
+
+  it("posts tools document auto-slug (no client slug)", () => {
+    const create = AI_TOOLS.find((t) => t.name === "posts.create");
+    const update = AI_TOOLS.find((t) => t.name === "posts.update");
+    expect(create?.description).toMatch(/auto-generated|titleFr/i);
+    expect(create?.description).toMatch(/slug/i);
+    expect(update?.description).toMatch(/frozen|DRAFT/i);
   });
 });

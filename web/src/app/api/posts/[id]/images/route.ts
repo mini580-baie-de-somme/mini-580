@@ -15,6 +15,7 @@ import {
   createMediaFromUrls,
   listPostMediaAsImages,
 } from "@/lib/media-library";
+import { optionalNullableDateTime } from "@/lib/date-schema";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -38,7 +39,7 @@ const imageMetaSchema = z.object({
   captionFr: z.string().optional(),
   captionEn: z.string().optional(),
   url: z.string().optional(),
-  takenAt: z.string().datetime().nullable().optional(),
+  takenAt: optionalNullableDateTime,
   sortOrder: z.number().int().optional(),
   focusX: z.number().min(0).max(1).optional(),
   focusY: z.number().min(0).max(1).optional(),

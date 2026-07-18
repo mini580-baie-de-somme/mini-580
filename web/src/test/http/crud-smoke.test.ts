@@ -14,7 +14,7 @@ describe("HTTP — real TEST server CRUD smoke", () => {
   let env: HttpEnv;
   let cookie: string;
   let postId: string;
-  const slug = `http-it-${Date.now().toString(36)}`;
+  const titleMarker = `http-it-${Date.now().toString(36)}`;
 
   beforeAll(() => {
     env = requireHttpEnv();
@@ -30,17 +30,25 @@ describe("HTTP — real TEST server CRUD smoke", () => {
       method: "POST",
       bearer: true,
       body: JSON.stringify({
-        titleFr: "HTTP IT FR",
+        titleFr: titleMarker,
         titleEn: "HTTP IT EN",
         bodyFr: "Corps FR",
         bodyEn: "Body EN",
-        slug,
+        slug: "client-slug-ignored",
       }),
     });
     expect(res.status).toBe(201);
-    const post = res.json as { id: string; titleFr: string; status: string };
-    expect(post.titleFr).toBe("HTTP IT FR");
+    const post = res.json as {
+      id: string;
+      titleFr: string;
+      status: string;
+      slug: string;
+    };
+    expect(post.titleFr).toBe(titleMarker);
     expect(post.status).toBe("DRAFT");
+    // Slug is auto-generated from titleFr — client slug ignored.
+    expect(post.slug).toBe(titleMarker);
+    expect(post.slug).not.toBe("client-slug-ignored");
     postId = post.id;
   });
 
@@ -52,6 +60,33 @@ describe("HTTP — real TEST server CRUD smoke", () => {
     });
     expect(res.status).toBe(200);
     expect((res.json as { titleEn: string }).titleEn).toBe("HTTP IT EN updated");
+  });
+
+  it("CRUD milestone via Bearer (date order, no sortOrder)", async () => {
+    const mileSlug = `http-mile-${Date.now().toString(36)}`;
+    const create = await httpJson(env, "/api/milestones", {
+      method: "POST",
+      bearer: true,
+      body: JSON.stringify({
+        slug: mileSlug,
+        titleFr: `HTTP Jalon ${mileSlug}`,
+        titleEn: `HTTP Mile ${mileSlug}`,
+        milestoneDate: "2026-07-18T00:00:00.000Z",
+      }),
+    });
+    expect(create.status).toBe(201);
+    const mile = create.json as { id: string; titleFr: string };
+    expect(mile.titleFr).toContain("HTTP Jalon");
+
+    const list = await httpJson(env, "/api/milestones?locale=fr");
+    expect(list.status).toBe(200);
+    expect(Array.isArray(list.json)).toBe(true);
+
+    const del = await httpJson(env, `/api/milestones/${mile.id}`, {
+      method: "DELETE",
+      bearer: true,
+    });
+    expect(del.status).toBe(200);
   });
 
   it("CRUD tag via Bearer", async () => {

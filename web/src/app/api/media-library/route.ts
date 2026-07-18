@@ -15,6 +15,7 @@ import {
   mediaWhere,
   parseMediaListParams,
 } from "@/lib/media-library";
+import { optionalNullableDateTime } from "@/lib/date-schema";
 
 export const runtime = "nodejs";
 
@@ -58,7 +59,7 @@ const jsonCreateSchema = z.object({
   titleEn: z.string().optional(),
   descriptionFr: z.string().optional(),
   descriptionEn: z.string().optional(),
-  takenAt: z.string().datetime().nullable().optional(),
+  takenAt: optionalNullableDateTime,
 });
 
 export async function POST(request: NextRequest) {

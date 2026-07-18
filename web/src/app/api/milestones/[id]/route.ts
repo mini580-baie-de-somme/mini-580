@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
+import { requiredDateTime } from "@/lib/date-schema";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -10,7 +11,7 @@ const updateSchema = z.object({
   titleEn: z.string().optional(),
   descriptionFr: z.string().optional(),
   descriptionEn: z.string().optional(),
-  milestoneDate: z.string().optional(),
+  milestoneDate: requiredDateTime.optional(),
   slug: z.string().optional(),
 });
 

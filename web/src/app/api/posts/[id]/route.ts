@@ -4,6 +4,7 @@ import { Hull } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
 import { postInclude, uniqueSlug, syncPostRelations, withLegacyImages } from "@/lib/posts";
+import { optionalNullableDateTime } from "@/lib/date-schema";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -32,7 +33,7 @@ const updateSchema = z.object({
   bodyEn: z.string().optional(),
   slug: z.string().optional(),
   coverImageUrl: z.string().nullable().optional(),
-  publishedAt: z.string().datetime().nullable().optional(),
+  publishedAt: optionalNullableDateTime,
   hulls: z.array(z.nativeEnum(Hull)).optional(),
   tagIds: z.array(z.string()).optional(),
   themeIds: z.array(z.string()).optional(),

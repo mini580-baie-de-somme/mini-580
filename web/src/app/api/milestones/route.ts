@@ -8,6 +8,7 @@ import {
   milestoneOrderBy,
   parseMilestoneLocale,
 } from "@/lib/milestones";
+import { requiredDateTime } from "@/lib/date-schema";
 import { slugify } from "@/lib/utils";
 
 const milestoneInclude = {
@@ -75,7 +76,7 @@ const createSchema = z.object({
   titleEn: z.string().min(1),
   descriptionFr: z.string().optional(),
   descriptionEn: z.string().optional(),
-  milestoneDate: z.string().datetime().or(z.string()),
+  milestoneDate: requiredDateTime,
   slug: z.string().optional(),
 });
 

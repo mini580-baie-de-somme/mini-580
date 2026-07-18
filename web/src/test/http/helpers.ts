@@ -11,7 +11,9 @@ export type HttpEnv = {
 
 export function requireHttpEnv(): HttpEnv {
   const baseUrl = (process.env.TEST_BASE_URL || "").replace(/\/$/, "");
-  const ingestApiKey = process.env.TEST_INGEST_API_KEY || process.env.INGEST_API_KEY || "";
+  // Prefer TEST_INGEST_API_KEY only — never fall back to .env.test INGEST_API_KEY
+  // (that local IT key is invalid against the live TEST server).
+  const ingestApiKey = process.env.TEST_INGEST_API_KEY || "";
   const adminEmail =
     process.env.TEST_ADMIN_EMAIL ||
     process.env.SEED_ADMIN_EMAIL ||

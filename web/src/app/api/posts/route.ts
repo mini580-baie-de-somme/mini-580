@@ -13,6 +13,7 @@ import {
 import { EDITOR_POSTS_PAGE_SIZE } from "@/lib/constants";
 import { getSyncEnv, isSyncConfigured, peerFetch } from "@/lib/sync-crypto";
 import type { SyncPostSummary } from "@/lib/sync";
+import { optionalNullableDateTime } from "@/lib/date-schema";
 
 const createPostSchema = z.object({
   titleFr: z.string().optional(),
@@ -23,7 +24,7 @@ const createPostSchema = z.object({
   bodyEn: z.string().optional(),
   slug: z.string().optional(),
   coverImageUrl: z.string().nullable().optional(),
-  publishedAt: z.string().datetime().nullable().optional(),
+  publishedAt: optionalNullableDateTime,
   hulls: z.array(z.nativeEnum(Hull)).optional(),
   tagIds: z.array(z.string()).optional(),
   themeIds: z.array(z.string()).optional(),

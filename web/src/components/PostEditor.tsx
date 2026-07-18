@@ -80,29 +80,79 @@ export function PostEditor({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const formRef = useRef(form);
   const skipInitialAutosave = useRef(true);
+  const saveGenRef = useRef(0);
   formRef.current = form;
 
+  const buildPayload = useCallback(() => {
+    const current = formRef.current;
+    return {
+      titleFr: current.titleFr,
+      titleEn: current.titleEn,
+      excerptFr: current.excerptFr,
+      excerptEn: current.excerptEn,
+      bodyFr: current.bodyFr,
+      bodyEn: current.bodyEn,
+      coverImageUrl: current.coverImageUrl || null,
+      publishedAt: fromDatetimeLocalValue(current.publishedAt),
+      hulls: current.hulls,
+      tagIds: current.tagIds,
+      themeIds: current.themeIds,
+      milestoneIds: current.milestoneIds,
+    };
+  }, []);
+
   const save = useCallback(async () => {
+    const gen = ++saveGenRef.current;
     setSaveState("saving");
     try {
-      const payload = {
-        ...formRef.current,
-        coverImageUrl: formRef.current.coverImageUrl || null,
-        publishedAt: fromDatetimeLocalValue(formRef.current.publishedAt),
-      };
+      const payload = buildPayload();
       const res = await fetch(`/api/posts/${post.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        keepalive: true,
       });
+      if (gen !== saveGenRef.current) return;
       if (!res.ok) throw new Error("Save failed");
       const updated = (await res.json()) as { slug?: string };
       if (updated.slug) setSlug(updated.slug);
       setSaveState("saved");
     } catch {
+      if (gen !== saveGenRef.current) return;
       setSaveState("error");
     }
-  }, [post.id]);
+  }, [buildPayload, post.id]);
+
+  // Flush pending autosave on leave so date/title edits are not lost.
+  useEffect(() => {
+    function flush() {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+      const payload = buildPayload();
+      void fetch(`/api/posts/${post.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        keepalive: true,
+      });
+    }
+    const onHide = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onHide);
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+        flush();
+      }
+    };
+  }, [buildPayload, post.id]);
 
   useEffect(() => {
     if (skipInitialAutosave.current) {

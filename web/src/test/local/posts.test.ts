@@ -91,6 +91,34 @@ describe("API integration — Posts CRUD + FR/EN", () => {
     const got = await getRes.json();
     expect(got.slug).toBe(created.slug);
 
+    // publishedAt must accept datetime-local (editor) and persist.
+    const datePatch = await PATCH(
+      jsonRequest(`http://localhost/api/posts/${created.id}`, {
+        method: "PATCH",
+        headers: bearerHeaders(),
+        body: JSON.stringify({
+          publishedAt: "2025-06-15T10:30",
+        }),
+      }),
+      ctx
+    );
+    expect(datePatch.status).toBe(200);
+    const dated = await datePatch.json();
+    expect(dated.publishedAt).toBeTruthy();
+    expect(new Date(dated.publishedAt).getUTCFullYear()).toBe(2025);
+    expect(new Date(dated.publishedAt).getUTCMonth()).toBe(5);
+
+    const clearDate = await PATCH(
+      jsonRequest(`http://localhost/api/posts/${created.id}`, {
+        method: "PATCH",
+        headers: bearerHeaders(),
+        body: JSON.stringify({ publishedAt: null }),
+      }),
+      ctx
+    );
+    expect(clearDate.status).toBe(200);
+    expect((await clearDate.json()).publishedAt).toBeNull();
+
     const updatedTitle = uniqueSlug(`${PREFIX}-upd`);
     const patchRes = await PATCH(
       jsonRequest(`http://localhost/api/posts/${created.id}`, {

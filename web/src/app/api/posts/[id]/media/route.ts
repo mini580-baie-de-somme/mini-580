@@ -14,6 +14,7 @@ import {
   listPostMediaAsImages,
 } from "@/lib/media-library";
 import { MediaKind } from "@/generated/prisma/client";
+import { optionalNullableDateTime } from "@/lib/date-schema";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -62,7 +63,7 @@ const createUrlSchema = z.object({
   captionEn: z.string().optional(),
   kind: z.nativeEnum(MediaKind).optional(),
   mimeType: z.string().optional(),
-  takenAt: z.string().datetime().nullable().optional(),
+  takenAt: optionalNullableDateTime,
   setCover: z.boolean().optional(),
 });
 
