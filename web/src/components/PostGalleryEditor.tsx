@@ -517,6 +517,11 @@ export function PostGalleryEditor({
 
       {modal.kind !== "closed" && modal.kind !== "pick-library" && (
         <PhotoEditModal
+          key={
+            modal.kind === "edit" || modal.kind === "edit-cover"
+              ? `edit-${modal.imageId}`
+              : modal.kind
+          }
           postId={postId}
           lang={lang}
           mode={

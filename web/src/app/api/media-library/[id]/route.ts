@@ -7,7 +7,7 @@ import {
   deleteMediaUrls,
   type ImageTransformParams,
 } from "@/lib/media-variants";
-import { layoutFromLegacy } from "@/lib/image-layout";
+import { layoutFromLegacy, legacyFieldsFromLayout, mergeLayoutPatch } from "@/lib/image-layout";
 import { deleteMediaById, mediaInclude } from "@/lib/media-library";
 import { MediaKind } from "@/generated/prisma/client";
 import { optionalNullableDateTime } from "@/lib/date-schema";
@@ -72,6 +72,18 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   return NextResponse.json(media);
 }
 
+const NEW_LAYOUT_KEYS = [
+  "offsetX",
+  "offsetY",
+  "scaleX",
+  "scaleY",
+  "lockAspect",
+  "rotation",
+  "cropShape",
+  "backgroundColor",
+  "cropInset",
+] as const;
+
 export async function PATCH(request: NextRequest, context: RouteContext) {
   const editor = await getEditorOrService(request);
   if (!editor) {
@@ -88,6 +100,16 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const body = await request.json();
     const data = patchSchema.parse(body);
     const transformChanged = LAYOUT_KEYS.some((k) => data[k] !== undefined);
+
+    const layoutPatch = Object.fromEntries(
+      NEW_LAYOUT_KEYS.filter((k) => data[k] !== undefined).map((k) => [k, data[k]])
+    ) as Partial<Record<(typeof NEW_LAYOUT_KEYS)[number], unknown>>;
+    const legacySync =
+      Object.keys(layoutPatch).length > 0
+        ? legacyFieldsFromLayout(
+            mergeLayoutPatch(existing, layoutPatch as Parameters<typeof mergeLayoutPatch>[1])
+          )
+        : null;
 
     // Persist meta first (takenAt/titles/layout fields) before rebake.
     const updated = await prisma.media.update({
@@ -112,13 +134,18 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         cropShape: data.cropShape,
         backgroundColor: data.backgroundColor,
         cropInset: data.cropInset,
-        focusX: data.focusX,
-        focusY: data.focusY,
-        zoom: data.zoom,
-        cropX: data.cropX,
-        cropY: data.cropY,
-        cropW: data.cropW,
-        cropH: data.cropH,
+        ...(legacySync && {
+          focusX: legacySync.focusX,
+          focusY: legacySync.focusY,
+          zoom: legacySync.zoom,
+        }),
+        ...(data.focusX !== undefined && { focusX: data.focusX }),
+        ...(data.focusY !== undefined && { focusY: data.focusY }),
+        ...(data.zoom !== undefined && { zoom: data.zoom }),
+        ...(data.cropX !== undefined && { cropX: data.cropX }),
+        ...(data.cropY !== undefined && { cropY: data.cropY }),
+        ...(data.cropW !== undefined && { cropW: data.cropW }),
+        ...(data.cropH !== undefined && { cropH: data.cropH }),
       },
       include: mediaInclude,
     });

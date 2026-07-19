@@ -158,8 +158,7 @@ export const BACKGROUND_PRESETS: { id: string; value: string; labelFr: string; l
     { id: "red", value: "#991b1b", labelFr: "Rouge", labelEn: "Red" },
   ];
 
-/** Map legacy Media transform fields → layout params. */
-export function layoutFromLegacy(raw: {
+export type LegacyMediaTransform = {
   focusX?: number | null;
   focusY?: number | null;
   zoom?: number | null;
@@ -176,38 +175,71 @@ export function layoutFromLegacy(raw: {
   cropShape?: string | null;
   backgroundColor?: string | null;
   cropInset?: number | null;
-}): ImageLayoutParams {
-  const hasNew =
-    raw.scaleX != null ||
-    raw.scaleY != null ||
-    raw.offsetX != null ||
-    raw.offsetY != null;
+};
 
-  if (hasNew) {
-    return {
-      offsetX: raw.offsetX ?? 0,
-      offsetY: raw.offsetY ?? 0,
-      scaleX: raw.scaleX ?? raw.zoom ?? 1,
-      scaleY: raw.scaleY ?? raw.zoom ?? 1,
-      rotation: raw.rotation ?? 0,
-      lockAspect: raw.lockAspect ?? true,
-      cropShape: raw.cropShape === "CIRCLE" ? "CIRCLE" : "RECT",
-      backgroundColor: raw.backgroundColor ?? "#000000",
-      cropInset: raw.cropInset ?? 0.06,
-    };
+function resolveScale(
+  rawScale: number | null | undefined,
+  rawZoom: number | null | undefined
+): number {
+  const zoom = rawZoom != null && rawZoom > 0 ? rawZoom : 1;
+  if (rawScale != null && (rawScale !== 1 || Math.abs(zoom - 1) < 1e-6)) {
+    return rawScale;
   }
+  return zoom;
+}
 
-  // Legacy: focus 0–1 + zoom → approximate offsets / scale
-  const zoom = raw.zoom && raw.zoom > 0 ? raw.zoom : 1;
+function resolveOffset(
+  rawOffset: number | null | undefined,
+  focus: number | null | undefined
+): number {
+  const focusVal = focus ?? 0.5;
+  const legacy = (focusVal - 0.5) * -2;
+  if (rawOffset != null && (rawOffset !== 0 || Math.abs(focusVal - 0.5) < 1e-6)) {
+    return rawOffset;
+  }
+  return legacy;
+}
+
+/** Map legacy Media transform fields → layout params. */
+export function layoutFromLegacy(raw: LegacyMediaTransform): ImageLayoutParams {
+  const scaleX = resolveScale(raw.scaleX, raw.zoom);
+  const scaleY = resolveScale(
+    raw.scaleY ?? raw.scaleX,
+    raw.zoom
+  );
+
   return {
-    offsetX: ((raw.focusX ?? 0.5) - 0.5) * -2,
-    offsetY: ((raw.focusY ?? 0.5) - 0.5) * -2,
-    scaleX: zoom,
-    scaleY: zoom,
+    offsetX: resolveOffset(raw.offsetX, raw.focusX),
+    offsetY: resolveOffset(raw.offsetY, raw.focusY),
+    scaleX,
+    scaleY,
     rotation: raw.rotation ?? 0,
-    lockAspect: true,
-    cropShape: "RECT",
-    backgroundColor: "#000000",
-    cropInset: 0.06,
+    lockAspect: raw.lockAspect ?? true,
+    cropShape: raw.cropShape === "CIRCLE" ? "CIRCLE" : "RECT",
+    backgroundColor: raw.backgroundColor ?? "#000000",
+    cropInset: raw.cropInset ?? 0.06,
   };
+}
+
+/** Keep legacy focus/zoom columns aligned when saving new layout fields. */
+export function legacyFieldsFromLayout(layout: ImageLayoutParams): {
+  focusX: number;
+  focusY: number;
+  zoom: number;
+} {
+  return {
+    focusX: 0.5 - layout.offsetX / 2,
+    focusY: 0.5 - layout.offsetY / 2,
+    zoom: layout.lockAspect
+      ? layout.scaleX
+      : Math.max(layout.scaleX, layout.scaleY),
+  };
+}
+
+/** Merge a partial layout patch onto stored media before bake/persist. */
+export function mergeLayoutPatch(
+  existing: LegacyMediaTransform,
+  patch: Partial<ImageLayoutParams>
+): ImageLayoutParams {
+  return layoutFromLegacy({ ...existing, ...patch });
 }

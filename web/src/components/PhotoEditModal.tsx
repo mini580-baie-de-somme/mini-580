@@ -319,9 +319,28 @@ export function PhotoEditModal({
       });
       if (!res.ok) throw new Error("patch failed");
       const updated = toEditorImage(await res.json());
+      const saved: GalleryEditorImage = isImage
+        ? {
+            ...updated,
+            offsetX: layout.offsetX,
+            offsetY: layout.offsetY,
+            scaleX: layout.scaleX,
+            scaleY: layout.scaleY,
+            lockAspect: layout.lockAspect,
+            rotation: layout.rotation,
+            cropShape: layout.cropShape,
+            backgroundColor: layout.backgroundColor,
+            cropInset: layout.cropInset,
+            focusX: 0.5 - layout.offsetX / 2,
+            focusY: 0.5 - layout.offsetY / 2,
+            zoom: layout.lockAspect
+              ? layout.scaleX
+              : Math.max(layout.scaleX, layout.scaleY),
+          }
+        : updated;
       setPendingFile(null);
       setDirty(false);
-      onSaved(updated);
+      onSaved(saved);
       onClose();
     } catch {
       setError(

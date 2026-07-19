@@ -8,6 +8,7 @@ import {
   computeEditorPhotoLayout,
   cropWindowFractions,
   layoutFromLegacy,
+  legacyFieldsFromLayout,
 } from "@/lib/image-layout";
 
 describe("image-layout constants", () => {
@@ -137,6 +138,55 @@ describe("layoutFromLegacy", () => {
     expect(layout.rotation).toBe(90);
     expect(layout.offsetX).toBeCloseTo(0.5, 5); // (0.25-0.5)*-2
     expect(layout.offsetY).toBeCloseTo(-0.5, 5);
+  });
+
+  it("falls back to legacy zoom when scaleX is still at default", () => {
+    const layout = layoutFromLegacy({
+      scaleX: 1,
+      scaleY: 1,
+      offsetX: 0,
+      offsetY: 0,
+      zoom: 1.85,
+      focusX: 0.5,
+      focusY: 0.5,
+    });
+    expect(layout.scaleX).toBeCloseTo(1.85, 5);
+    expect(layout.scaleY).toBeCloseTo(1.85, 5);
+  });
+
+  it("syncs legacy focus into offset when offset is still default", () => {
+    const layout = layoutFromLegacy({
+      scaleX: 1.2,
+      offsetX: 0,
+      offsetY: 0,
+      focusX: 0.25,
+      focusY: 0.75,
+      zoom: 1.2,
+    });
+    expect(layout.offsetX).toBeCloseTo(0.5, 5);
+    expect(layout.offsetY).toBeCloseTo(-0.5, 5);
+  });
+
+  it("legacyFieldsFromLayout mirrors layoutFromLegacy", () => {
+    const layout = {
+      offsetX: 0.22,
+      offsetY: -0.15,
+      scaleX: 1.85,
+      scaleY: 1.85,
+      rotation: 45,
+      lockAspect: true,
+      cropShape: "RECT" as const,
+      backgroundColor: "#000000",
+      cropInset: 0.06,
+    };
+    const legacy = legacyFieldsFromLayout(layout);
+    const roundTrip = layoutFromLegacy({
+      ...legacy,
+      ...layout,
+    });
+    expect(roundTrip.scaleX).toBeCloseTo(1.85, 5);
+    expect(roundTrip.offsetX).toBeCloseTo(0.22, 5);
+    expect(roundTrip.rotation).toBe(45);
   });
 
   it("keeps DEFAULT_IMAGE_LAYOUT stable for identity bake", () => {

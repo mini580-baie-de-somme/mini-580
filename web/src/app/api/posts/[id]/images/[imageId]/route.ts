@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
 import { bakeVariantsFromOrigin } from "@/lib/media-variants";
-import { layoutFromLegacy } from "@/lib/image-layout";
+import { layoutFromLegacy, legacyFieldsFromLayout, mergeLayoutPatch } from "@/lib/image-layout";
 import {
   detachMediaFromPost,
   deleteMediaById,
@@ -65,6 +65,18 @@ const TRANSFORM_KEYS = [
   "cropH",
 ] as const;
 
+const NEW_LAYOUT_KEYS = [
+  "offsetX",
+  "offsetY",
+  "scaleX",
+  "scaleY",
+  "lockAspect",
+  "rotation",
+  "cropShape",
+  "backgroundColor",
+  "cropInset",
+] as const;
+
 export async function PATCH(request: NextRequest, context: RouteContext) {
   const editor = await getEditorOrService(request);
   if (!editor) {
@@ -83,6 +95,16 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
     const body = await request.json();
     const data = patchSchema.parse(body);
+
+    const layoutPatch = Object.fromEntries(
+      NEW_LAYOUT_KEYS.filter((k) => data[k] !== undefined).map((k) => [k, data[k]])
+    ) as Partial<Record<(typeof NEW_LAYOUT_KEYS)[number], unknown>>;
+    const legacySync =
+      Object.keys(layoutPatch).length > 0
+        ? legacyFieldsFromLayout(
+            mergeLayoutPatch(link.media, layoutPatch as Parameters<typeof mergeLayoutPatch>[1])
+          )
+        : null;
 
     // Persist meta (incl. takenAt) first so a rebake failure cannot drop the date.
     const media = await prisma.media.update({
@@ -114,6 +136,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           backgroundColor: data.backgroundColor,
         }),
         ...(data.cropInset !== undefined && { cropInset: data.cropInset }),
+        ...(legacySync && {
+          focusX: legacySync.focusX,
+          focusY: legacySync.focusY,
+          zoom: legacySync.zoom,
+        }),
         ...(data.focusX !== undefined && { focusX: data.focusX }),
         ...(data.focusY !== undefined && { focusY: data.focusY }),
         ...(data.zoom !== undefined && { zoom: data.zoom }),
