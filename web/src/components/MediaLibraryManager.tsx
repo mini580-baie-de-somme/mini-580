@@ -13,6 +13,7 @@ import {
 import { useEditorInfiniteList } from "./useEditorInfiniteList";
 import { MediaPreview } from "./MediaPreview";
 import { MediaKindThumb } from "./MediaKindThumb";
+import { EditorSheetPanel } from "./EditorSheetPanel";
 import { PhotoCanvasEditor } from "./PhotoCanvasEditor";
 import { FullscreenEditorModal } from "./FullscreenEditorModal";
 import {
@@ -535,14 +536,14 @@ export function MediaLibraryManager() {
         >
           <div className="flex h-full min-h-0 flex-col md:flex-row">
             <section
-              className={`flex shrink-0 bg-[#eef3f7] md:min-h-0 md:flex-1 md:shrink ${
+              className={`flex min-h-0 flex-1 bg-[#eef3f7] md:min-h-0 md:flex-1 md:shrink ${
                 (previewKind === "IMAGE" || editingMedia?.kind === "IMAGE") &&
                 (filePreviewUrl ||
                   (editingMedia &&
                     (editingMedia.urlOrigin || editingMedia.urlGrande)))
-                  ? "h-[min(52vh,520px)] touch-none items-center justify-center p-3 md:h-auto md:max-h-none md:min-h-0"
+                  ? "min-h-[24vh] touch-none items-center justify-center p-3 md:h-auto md:max-h-none md:min-h-0"
                   : previewKind && previewSrc
-                    ? "h-[min(40vh,420px)] items-stretch justify-stretch p-0 md:h-auto md:max-h-none md:min-h-0"
+                    ? "min-h-[24vh] items-stretch justify-stretch p-0 md:h-auto md:max-h-none md:min-h-0"
                     : "min-h-[28vh] items-center justify-center p-3 md:min-h-0"
               }`}
             >
@@ -618,7 +619,14 @@ export function MediaLibraryManager() {
               )}
             </section>
 
-            <aside className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain border-t border-[#d4dde6] md:w-[min(100%,24rem)] md:flex-none md:shrink-0 md:border-l md:border-t-0">
+            <EditorSheetPanel
+              handleLabel={
+                locale === "fr"
+                  ? "Redimensionner le panneau de saisie"
+                  : "Resize input panel"
+              }
+              className="md:w-[min(100%,24rem)] md:flex-none md:shrink-0 md:border-l md:border-t-0"
+            >
               <div className="flex flex-col gap-3 p-3 sm:p-4">
                 {(previewKind === "IMAGE" || editingMedia?.kind === "IMAGE") &&
                   (filePreviewUrl ||
@@ -689,58 +697,60 @@ export function MediaLibraryManager() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="space-y-2 text-sm">
+                  <div className="flex gap-2">
+                    <label className="block min-w-0 flex-1">
+                      <span className="text-[11px] text-[#495867]">
+                        {t("media.titleFr")}
+                      </span>
+                      <input
+                        className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
+                        value={form.titleFr}
+                        onChange={(e) =>
+                          setForm({ ...form, titleFr: e.target.value })
+                        }
+                      />
+                    </label>
+                    <label className="block min-w-0 flex-1">
+                      <span className="text-[11px] text-[#495867]">
+                        {t("media.titleEn")}
+                      </span>
+                      <input
+                        className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
+                        value={form.titleEn}
+                        onChange={(e) =>
+                          setForm({ ...form, titleEn: e.target.value })
+                        }
+                      />
+                    </label>
+                  </div>
                   <label className="block">
-                    <span className="text-[11px] text-[#495867]">
-                      {t("media.titleFr")}
-                    </span>
-                    <input
-                      className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
-                      value={form.titleFr}
-                      onChange={(e) =>
-                        setForm({ ...form, titleFr: e.target.value })
-                      }
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="text-[11px] text-[#495867]">
-                      {t("media.titleEn")}
-                    </span>
-                    <input
-                      className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
-                      value={form.titleEn}
-                      onChange={(e) =>
-                        setForm({ ...form, titleEn: e.target.value })
-                      }
-                    />
-                  </label>
-                  <label className="col-span-2 block">
                     <span className="text-[11px] text-[#495867]">
                       {t("media.descFr")}
                     </span>
                     <textarea
-                      rows={2}
-                      className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
+                      rows={4}
+                      className="mt-0.5 min-h-[5.5rem] w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
                       value={form.descriptionFr}
                       onChange={(e) =>
                         setForm({ ...form, descriptionFr: e.target.value })
                       }
                     />
                   </label>
-                  <label className="col-span-2 block">
+                  <label className="block">
                     <span className="text-[11px] text-[#495867]">
                       {t("media.descEn")}
                     </span>
                     <textarea
-                      rows={2}
-                      className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
+                      rows={4}
+                      className="mt-0.5 min-h-[5.5rem] w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
                       value={form.descriptionEn}
                       onChange={(e) =>
                         setForm({ ...form, descriptionEn: e.target.value })
                       }
                     />
                   </label>
-                  <label className="col-span-2 block">
+                  <label className="block">
                     <span className="text-[11px] text-[#495867]">
                       {t("media.takenAt")}
                     </span>
@@ -760,7 +770,7 @@ export function MediaLibraryManager() {
 
                 </div>
               </div>
-            </aside>
+            </EditorSheetPanel>
           </div>
         </FullscreenEditorModal>
       )}

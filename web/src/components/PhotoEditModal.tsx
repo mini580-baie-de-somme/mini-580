@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { EditorSheetPanel } from "./EditorSheetPanel";
 import { PhotoCanvasEditor } from "./PhotoCanvasEditor";
 import { FullscreenEditorModal } from "./FullscreenEditorModal";
 import { MediaPreview } from "./MediaPreview";
@@ -419,11 +420,11 @@ export function PhotoEditModal({
     >
       <div className="flex h-full min-h-0 flex-col md:flex-row">
         <section
-          className={`flex shrink-0 bg-[#eef3f7] md:min-h-0 md:flex-1 md:shrink ${
+          className={`flex min-h-0 flex-1 bg-[#eef3f7] md:min-h-0 md:flex-1 md:shrink ${
             hasPreview && isImage
-              ? "h-[min(52vh,520px)] touch-none items-center justify-center md:h-auto md:max-h-none md:min-h-0"
+              ? "min-h-[24vh] touch-none items-center justify-center md:h-auto md:max-h-none md:min-h-0"
               : hasPreview
-                ? "h-[min(40vh,420px)] items-stretch p-0 md:h-auto md:max-h-none md:min-h-0"
+                ? "min-h-[24vh] items-stretch p-0 md:h-auto md:max-h-none md:min-h-0"
                 : "min-h-[28vh] items-center justify-center md:min-h-0"
           }`}
         >
@@ -504,7 +505,14 @@ export function PhotoEditModal({
           )}
         </section>
 
-        <aside className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain border-t border-[#d4dde6] md:w-[min(100%,24rem)] md:flex-none md:shrink-0 md:border-l md:border-t-0">
+        <EditorSheetPanel
+          handleLabel={
+            lang === "fr"
+              ? "Redimensionner le panneau de saisie"
+              : "Resize input panel"
+          }
+          className="md:w-[min(100%,24rem)] md:flex-none md:shrink-0 md:border-l md:border-t-0"
+        >
           <div className="flex flex-col gap-3 p-3 sm:p-4">
             {hasPreview && isImage && (
               <div className="order-first border-b border-[#eef3f7] pb-3 md:order-last md:border-b-0 md:border-t md:pt-3 md:pb-0">
@@ -561,46 +569,48 @@ export function PhotoEditModal({
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="space-y-2 text-sm">
+              <div className="flex gap-2">
+                <label className="block min-w-0 flex-1">
+                  <span className="text-[11px] text-[#495867]">Titre FR</span>
+                  <input
+                    value={draft?.titleFr ?? ""}
+                    onChange={(e) => patchDraft({ titleFr: e.target.value })}
+                    className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
+                  />
+                </label>
+                <label className="block min-w-0 flex-1">
+                  <span className="text-[11px] text-[#495867]">Title EN</span>
+                  <input
+                    value={draft?.titleEn ?? ""}
+                    onChange={(e) => patchDraft({ titleEn: e.target.value })}
+                    className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
+                  />
+                </label>
+              </div>
               <label className="block">
-                <span className="text-[11px] text-[#495867]">Titre FR</span>
-                <input
-                  value={draft?.titleFr ?? ""}
-                  onChange={(e) => patchDraft({ titleFr: e.target.value })}
-                  className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
-                />
-              </label>
-              <label className="block">
-                <span className="text-[11px] text-[#495867]">Title EN</span>
-                <input
-                  value={draft?.titleEn ?? ""}
-                  onChange={(e) => patchDraft({ titleEn: e.target.value })}
-                  className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
-                />
-              </label>
-              <label className="col-span-2 block">
                 <span className="text-[11px] text-[#495867]">Description FR</span>
                 <textarea
                   value={draft?.descriptionFr ?? ""}
                   onChange={(e) =>
                     patchDraft({ descriptionFr: e.target.value })
                   }
-                  rows={2}
-                  className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
+                  rows={4}
+                  className="mt-0.5 min-h-[5.5rem] w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
                 />
               </label>
-              <label className="col-span-2 block">
+              <label className="block">
                 <span className="text-[11px] text-[#495867]">Description EN</span>
                 <textarea
                   value={draft?.descriptionEn ?? ""}
                   onChange={(e) =>
                     patchDraft({ descriptionEn: e.target.value })
                   }
-                  rows={2}
-                  className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
+                  rows={4}
+                  className="mt-0.5 min-h-[5.5rem] w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
                 />
               </label>
-              <label className="col-span-2 block">
+              <label className="block">
                 <span className="text-[11px] text-[#495867]">
                   {lang === "fr"
                     ? "Date (galerie / chronologie)"
@@ -618,14 +628,14 @@ export function PhotoEditModal({
                 />
                 <span className="mt-1 block text-[10px] text-[#495867]">
                   {lang === "fr"
-                    ? "Permet de rétro-dater le média pour l’ordre en galerie."
+                    ? "Permet de dater le média pour l'ordre dans la galerie."
                     : "Backdate the media for gallery ordering."}
                 </span>
               </label>
             </div>
             </div>
           </div>
-        </aside>
+        </EditorSheetPanel>
       </div>
 
       <input

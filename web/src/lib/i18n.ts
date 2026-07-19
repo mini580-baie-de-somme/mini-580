@@ -333,7 +333,7 @@ const messages = {
     en: "Date (gallery / chronology)",
   },
   "media.takenAtHint": {
-    fr: "Permet de rétro-dater le média pour l’ordre en galerie.",
+    fr: "Permet de dater le média pour l'ordre dans la galerie.",
     en: "Backdate the media for gallery ordering.",
   },
   "media.transforms": { fr: "Transformations", en: "Transforms" },
