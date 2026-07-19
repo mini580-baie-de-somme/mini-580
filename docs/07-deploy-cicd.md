@@ -110,15 +110,40 @@ Après un changement de secret : relancer **Deploy TEST** (push `main` ou manuel
 
 ## Déploiements
 
-### TEST (automatique)
+### Versioning (build TEST uniquement)
 
-Chaque push sur `main` → workflow **Deploy TEST** → build → `ghcr.io/.../mini-580:test` → `/opt/mini580/bin/deploy.sh test`.
+- Source : `web/versions.json` (major/minor manuels) + `BUILD_NUMBER` = numéro de run du workflow **Deploy TEST**
+- Patch baked au build : ex. run #89 → **v1.0.89** (`GET /api/version`)
+- Tags GHCR par build TEST :
+  - `:test` — pointeur flottant (dernier build TEST validé)
+  - `:v1.0.89` — immuable (promotion PROD)
+  - `:sha-<commit>` — immuable (audit)
+
+**Règle :** seul **Deploy TEST** rebuild l’image. **Deploy PROD ne rebuild jamais.**
+
+### TEST (automatique — build)
+
+Chaque push sur `main` → workflow **Deploy TEST** → build Docker → push `:test` + `:vX.Y.Z` → `/opt/mini580/bin/deploy.sh test`.
 
 Relancer à la main : Actions → Deploy TEST → Run workflow.
 
-### PROD (manuel)
+Vérifier la version recette : `curl -sS https://test.classmini580.blog/api/version`
 
-Actions → **Deploy PROD** → Run workflow → saisir `deploy-prod` dans le champ confirm.
+### PROD (manuel — promotion du package TEST)
+
+Actions → **Deploy PROD** → Run workflow :
+
+1. `confirm` = `deploy-prod`
+2. `expected_version` = version TEST validée (ex. `1.0.89`) — **doit matcher** `test.classmini580.blog/api/version`
+
+Le workflow :
+
+1. Vérifie que TEST live = `expected_version`
+2. **Promouvoit** l’image `:test` → `:prod` (même digest, zéro rebuild)
+3. Déploie sur le VPS
+4. Vérifie que PROD live = même version
+
+**Ne jamais** livrer PROD avec une version différente de celle testée en recette.
 
 ## TLS (après DNS propagé)
 

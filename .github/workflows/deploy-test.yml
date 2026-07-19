@@ -24,6 +24,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Compute build version
+        id: ver
+        working-directory: web
+        run: |
+          VERSION=$(BUILD_NUMBER=${{ github.run_number }} node scripts/compute-build-version.mjs)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Build version: v$VERSION (tag v$VERSION + :test)"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -34,23 +42,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=test
-            type=sha,prefix=,format=short
-
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: ./web
           file: ./web/Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:test
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ steps.ver.outputs.version }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.version=${{ steps.ver.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
           build-args: |
             BUILD_NUMBER=${{ github.run_number }}
           cache-from: type=gha
@@ -127,3 +131,13 @@ jobs:
             ls -lad /opt/mini580/test/media
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             /opt/mini580/bin/deploy.sh test "$IMAGE"
+
+      - name: Verify TEST version
+        run: |
+          EXPECTED="${{ steps.ver.outputs.version }}"
+          ACTUAL=$(curl -fsS https://test.classmini580.blog/api/version | jq -r .version)
+          echo "Expected v$EXPECTED, live v$ACTUAL"
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "::error::TEST version mismatch after deploy"
+            exit 1
+          fi
