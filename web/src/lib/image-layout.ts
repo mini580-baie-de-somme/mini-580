@@ -47,6 +47,48 @@ export function cropWindowFractions(cropInset: number) {
   return { inset, cropLeft: inset, cropTop: inset, cropW, cropH };
 }
 
+/**
+ * Fixed logical canvas for editor crop/layout — decoupled from on-screen stage resize
+ * (e.g. mobile bottom-sheet handle must not change crop pixel size).
+ */
+export const EDITOR_REFERENCE_SIZE = VARIANT_SIZE.petite;
+
+export type EditorCropWindow = {
+  cropLeft: number;
+  cropTop: number;
+  cropW: number;
+  cropH: number;
+  refLeft: number;
+  refTop: number;
+  refW: number;
+  refH: number;
+};
+
+/** Crop window in stage pixels — fixed reference size, centered in the live stage. */
+export function computeEditorCropWindow(
+  cropInset: number,
+  stageWidth: number,
+  stageHeight: number,
+  refW: number = EDITOR_REFERENCE_SIZE.w,
+  refH: number = EDITOR_REFERENCE_SIZE.h
+): EditorCropWindow {
+  const inset = clampCropInset(cropInset);
+  const refLeft = (stageWidth - refW) / 2;
+  const refTop = (stageHeight - refH) / 2;
+  const innerW = refW * (1 - 2 * inset);
+  const innerH = refH * (1 - 2 * inset);
+  return {
+    refLeft,
+    refTop,
+    refW,
+    refH,
+    cropLeft: refLeft + refW * inset,
+    cropTop: refTop + refH * inset,
+    cropW: innerW,
+    cropH: innerH,
+  };
+}
+
 export type EditorPhotoLayoutInput = {
   layout: ImageLayoutParams;
   stageWidth: number;
@@ -69,11 +111,11 @@ export function computeEditorPhotoLayout(input: EditorPhotoLayoutInput): {
   const W = Math.max(1, stageWidth);
   const H = Math.max(1, stageHeight);
 
-  const { inset } = cropWindowFractions(layout.cropInset);
-  const cropW = W * (1 - 2 * inset);
-  const cropH = H * (1 - 2 * inset);
-  const cropLeft = W * inset;
-  const cropTop = H * inset;
+  const { cropLeft, cropTop, cropW, cropH } = computeEditorCropWindow(
+    layout.cropInset,
+    W,
+    H
+  );
 
   const coverScale = Math.max(cropW / iw, cropH / ih);
   const width = Math.max(1, iw * coverScale * layout.scaleX);

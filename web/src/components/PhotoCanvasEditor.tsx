@@ -5,6 +5,7 @@ import {
   BACKGROUND_PRESETS,
   DEFAULT_IMAGE_LAYOUT,
   IMAGE_ASPECT,
+  computeEditorCropWindow,
   computeEditorPhotoLayout,
   cropWindowFractions,
   type CropShape,
@@ -126,6 +127,7 @@ export function PhotoCanvasEditor({
   const pointers = useRef<Map<number, Point>>(new Map());
   const pinchStart = useRef<PinchSnapshot | null>(null);
   const valueRef = useRef(value);
+  const cropWindowRef = useRef({ cropW: 1, cropH: 1 });
   valueRef.current = value;
 
   const mobileToolbar =
@@ -228,7 +230,6 @@ export function PhotoCanvasEditor({
     if (!pointers.current.has(e.pointerId)) return;
 
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    const rect = stageRef.current.getBoundingClientRect();
     const pts = pointerList();
     const cur = valueRef.current;
 
@@ -247,8 +248,8 @@ export function PhotoCanvasEditor({
 
     if (pts.length !== 1 || !lastPoint.current) return;
 
-    const dx = (e.clientX - lastPoint.current.x) / rect.width;
-    const dy = (e.clientY - lastPoint.current.y) / rect.height;
+    const dx = (e.clientX - lastPoint.current.x) / cropWindowRef.current.cropW;
+    const dy = (e.clientY - lastPoint.current.y) / cropWindowRef.current.cropH;
     lastPoint.current = { x: e.clientX, y: e.clientY };
 
     if (dragMode.current === "pan") {
@@ -312,11 +313,18 @@ export function PhotoCanvasEditor({
   }
 
   const inset = clamp(value.cropInset, 0, 0.4);
-  const { cropLeft, cropTop, cropW, cropH } = cropWindowFractions(inset);
-  const cropLeftPct = cropLeft * 100;
-  const cropTopPct = cropTop * 100;
-  const cropWPct = cropW * 100;
-  const cropHPct = cropH * 100;
+  const { cropW: cropWFrac, cropH: cropHFrac } = cropWindowFractions(inset);
+  const cropWPct = cropWFrac * 100;
+  const cropHPct = cropHFrac * 100;
+
+  const cropWindow =
+    stageSize.width > 0 && stageSize.height > 0
+      ? computeEditorCropWindow(inset, stageSize.width, stageSize.height)
+      : null;
+
+  if (cropWindow) {
+    cropWindowRef.current = { cropW: cropWindow.cropW, cropH: cropWindow.cropH };
+  }
 
   const hasLayoutMetrics =
     stageSize.width > 0 &&
@@ -434,10 +442,10 @@ export function PhotoCanvasEditor({
           <mask id={dimMaskId}>
             <rect width="100%" height="100%" fill="white" />
             <rect
-              x={`${cropLeftPct}%`}
-              y={`${cropTopPct}%`}
-              width={`${cropWPct}%`}
-              height={`${cropHPct}%`}
+              x={cropWindow?.cropLeft ?? 0}
+              y={cropWindow?.cropTop ?? 0}
+              width={cropWindow?.cropW ?? 0}
+              height={cropWindow?.cropH ?? 0}
               rx={value.cropShape === "CIRCLE" ? "50%" : "2"}
               ry={value.cropShape === "CIRCLE" ? "50%" : "2"}
               fill="black"
@@ -465,13 +473,17 @@ export function PhotoCanvasEditor({
 
       <div
         className="pointer-events-none absolute z-20 border-2 border-white/90"
-        style={{
-          left: `${cropLeftPct}%`,
-          top: `${cropTopPct}%`,
-          width: `${cropWPct}%`,
-          height: `${cropHPct}%`,
-          borderRadius: value.cropShape === "CIRCLE" ? "50%" : "2px",
-        }}
+        style={
+          cropWindow
+            ? {
+                left: `${cropWindow.cropLeft}px`,
+                top: `${cropWindow.cropTop}px`,
+                width: `${cropWindow.cropW}px`,
+                height: `${cropWindow.cropH}px`,
+                borderRadius: value.cropShape === "CIRCLE" ? "50%" : "2px",
+              }
+            : undefined
+        }
       />
 
       {mobileToolbarNode}

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_IMAGE_LAYOUT,
+  EDITOR_REFERENCE_SIZE,
   IMAGE_ASPECT,
   VARIANT_SIZE,
+  computeEditorCropWindow,
   computeEditorPhotoLayout,
   cropWindowFractions,
   layoutFromLegacy,
@@ -58,6 +60,31 @@ describe("computeEditorPhotoLayout", () => {
     expect(cropW).toBeCloseTo(0.88, 5);
     expect(cropH).toBeCloseTo(0.88, 5);
     expect(cropW / cropH).toBeCloseTo(IMAGE_ASPECT / IMAGE_ASPECT, 5);
+  });
+});
+
+describe("computeEditorCropWindow", () => {
+  it("keeps crop pixel size and 3:4 ratio when the stage resizes", () => {
+    const inset = DEFAULT_IMAGE_LAYOUT.cropInset;
+    const small = computeEditorCropWindow(inset, 320, 520);
+    const large = computeEditorCropWindow(inset, 400, 680);
+
+    expect(small.cropW).toBeCloseTo(large.cropW, 5);
+    expect(small.cropH).toBeCloseTo(large.cropH, 5);
+    expect(small.cropW / small.cropH).toBeCloseTo(IMAGE_ASPECT, 5);
+
+    const expectedW = EDITOR_REFERENCE_SIZE.w * (1 - 2 * inset);
+    const expectedH = EDITOR_REFERENCE_SIZE.h * (1 - 2 * inset);
+    expect(small.cropW).toBeCloseTo(expectedW, 5);
+    expect(small.cropH).toBeCloseTo(expectedH, 5);
+  });
+
+  it("centers the fixed reference canvas within the live stage", () => {
+    const win = computeEditorCropWindow(DEFAULT_IMAGE_LAYOUT.cropInset, 360, 600);
+    expect(win.refLeft).toBeCloseTo((360 - EDITOR_REFERENCE_SIZE.w) / 2, 5);
+    expect(win.refTop).toBeCloseTo((600 - EDITOR_REFERENCE_SIZE.h) / 2, 5);
+    expect(win.cropLeft).toBeGreaterThanOrEqual(win.refLeft);
+    expect(win.cropTop).toBeGreaterThanOrEqual(win.refTop);
   });
 });
 
