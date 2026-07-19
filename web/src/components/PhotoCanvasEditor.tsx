@@ -118,6 +118,7 @@ export function PhotoCanvasEditor({
   const { locale } = useLocale();
   const dimMaskId = useId();
   const stageRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
   const [imageNatural, setImageNatural] = useState({ width: 0, height: 0 });
   const dragMode = useRef<DragMode>(null);
@@ -133,6 +134,20 @@ export function PhotoCanvasEditor({
   useEffect(() => {
     setImageNatural({ width: 0, height: 0 });
   }, [imageSrc]);
+
+  const syncImageNatural = useCallback((img: HTMLImageElement) => {
+    if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+      setImageNatural({
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    const img = imageRef.current;
+    if (img?.complete) syncImageNatural(img);
+  }, [imageSrc, syncImageNatural]);
 
   useEffect(() => {
     const el = stageRef.current;
@@ -326,6 +341,8 @@ export function PhotoCanvasEditor({
         top: `${photoLayout.centerY}px`,
         width: `${photoLayout.width}px`,
         height: `${photoLayout.height}px`,
+        maxWidth: "none",
+        maxHeight: "none",
         transform: `translate(-50%, -50%) rotate(${photoLayout.rotation}deg)`,
         transformOrigin: "center center",
         objectFit: "fill",
@@ -338,6 +355,8 @@ export function PhotoCanvasEditor({
         top: `${50 + value.offsetY * cropHPct}%`,
         width: `${cropWPct * value.scaleX}%`,
         height: `${cropHPct * value.scaleY}%`,
+        maxWidth: "none",
+        maxHeight: "none",
         transform: `translate(-50%, -50%) rotate(${value.rotation}deg)`,
         transformOrigin: "center center",
         objectFit: value.lockAspect ? "cover" : "fill",
@@ -435,20 +454,13 @@ export function PhotoCanvasEditor({
 
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
+        ref={imageRef}
         src={imageSrc}
         alt=""
         draggable={false}
-        className="relative z-10"
+        className="relative z-10 !max-h-none !max-w-none"
         style={photoStyle}
-        onLoad={(e) => {
-          const img = e.currentTarget;
-          if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-            setImageNatural({
-              width: img.naturalWidth,
-              height: img.naturalHeight,
-            });
-          }
-        }}
+        onLoad={(e) => syncImageNatural(e.currentTarget)}
       />
 
       <div
