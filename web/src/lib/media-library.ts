@@ -444,6 +444,7 @@ export async function deleteMediaById(id: string, opts?: { force?: boolean }) {
 
 type RebakeableMedia = LegacyMediaTransform & {
   id: string;
+  kind?: string;
   urlOrigin: string;
   urlPicto: string | null;
   urlPetite: string | null;
@@ -472,7 +473,7 @@ export async function rebakeMediaVariants(
     urlOrigin: media.urlOrigin,
     layout,
   });
-  await assertEditableImageOrigin(media);
+  await assertEditableImageOrigin({ ...media, kind: media.kind ?? "IMAGE" });
   return bakeVariantsFromOrigin(media.urlOrigin, layout, stale, ctx);
 }
 
