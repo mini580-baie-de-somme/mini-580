@@ -243,3 +243,14 @@ export function mergeLayoutPatch(
 ): ImageLayoutParams {
   return layoutFromLegacy({ ...existing, ...patch });
 }
+
+/** Layout used for server-side rebake — prefer explicit patch over DB round-trip. */
+export function layoutForRebake(
+  existing: LegacyMediaTransform,
+  patch: Partial<ImageLayoutParams>
+): ImageLayoutParams {
+  if (Object.keys(patch).length > 0) {
+    return mergeLayoutPatch(existing, patch);
+  }
+  return layoutFromLegacy(existing);
+}

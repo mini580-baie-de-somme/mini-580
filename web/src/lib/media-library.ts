@@ -7,7 +7,17 @@ import {
   maxBytesForContentType,
   normalizeContentType,
 } from "@/lib/media-bucket";
-import { deleteMediaUrls, storeOriginAndVariants } from "@/lib/media-variants";
+import {
+  bakeVariantsFromOrigin,
+  deleteMediaUrls,
+  storeOriginAndVariants,
+  type MediaVariantUrls,
+} from "@/lib/media-variants";
+import {
+  layoutForRebake,
+  type ImageLayoutParams,
+  type LegacyMediaTransform,
+} from "@/lib/image-layout";
 import { EDITOR_LIST_PAGE_SIZE } from "@/lib/constants";
 
 export const mediaInclude = {
@@ -410,6 +420,70 @@ export async function deleteMediaById(id: string, opts?: { force?: boolean }) {
   ]);
   await prisma.media.delete({ where: { id } });
   return { ok: true as const };
+}
+
+type RebakeableMedia = LegacyMediaTransform & {
+  id: string;
+  urlOrigin: string;
+  urlPicto: string | null;
+  urlPetite: string | null;
+  urlMoyenne: string | null;
+  urlGrande: string | null;
+};
+
+/** Rebake display variants from origin using stored layout + optional patch. */
+export async function rebakeMediaVariants(
+  media: RebakeableMedia,
+  layoutPatch: Partial<ImageLayoutParams> = {}
+): Promise<Omit<MediaVariantUrls, "urlOrigin">> {
+  const layout = layoutForRebake(media, layoutPatch);
+  return bakeVariantsFromOrigin(media.urlOrigin, layout, [
+    media.urlPicto,
+    media.urlPetite,
+    media.urlMoyenne,
+    media.urlGrande,
+  ]);
+}
+
+/** Keep post.coverImageUrl aligned when variant URLs rotate after a rebake. */
+export async function syncCoverImageUrlsAfterRebake(
+  mediaId: string,
+  baked: Pick<MediaVariantUrls, "urlPicto" | "urlPetite" | "urlMoyenne" | "urlGrande">,
+  previousVariantUrls: (string | null | undefined)[] = []
+) {
+  const newCover =
+    baked.urlMoyenne || baked.urlGrande || baked.urlPetite || baked.urlPicto;
+  if (!newCover) return;
+
+  const stale = new Set(
+    previousVariantUrls.filter((url): url is string => Boolean(url))
+  );
+  const postIds = new Set<string>();
+
+  const coverLinks = await prisma.postMedia.findMany({
+    where: { mediaId, isCover: true },
+    select: { postId: true },
+  });
+  for (const link of coverLinks) {
+    postIds.add(link.postId);
+  }
+
+  if (stale.size > 0) {
+    const stalePosts = await prisma.post.findMany({
+      where: { coverImageUrl: { in: [...stale] } },
+      select: { id: true },
+    });
+    for (const post of stalePosts) {
+      postIds.add(post.id);
+    }
+  }
+
+  if (postIds.size === 0) return;
+
+  await prisma.post.updateMany({
+    where: { id: { in: [...postIds] } },
+    data: { coverImageUrl: newCover },
+  });
 }
 
 export async function collectMediaUrlKeys(media: {

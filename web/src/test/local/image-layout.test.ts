@@ -9,6 +9,8 @@ import {
   cropWindowFractions,
   layoutFromLegacy,
   legacyFieldsFromLayout,
+  mergeLayoutPatch,
+  layoutForRebake,
 } from "@/lib/image-layout";
 
 describe("image-layout constants", () => {
@@ -193,5 +195,25 @@ describe("layoutFromLegacy", () => {
     expect(DEFAULT_IMAGE_LAYOUT.cropShape).toBe("RECT");
     expect(DEFAULT_IMAGE_LAYOUT.lockAspect).toBe(true);
     expect(DEFAULT_IMAGE_LAYOUT.scaleX).toBe(1);
+  });
+
+  it("layoutForRebake prefers explicit patch over stale legacy zoom/focus", () => {
+    const existing = {
+      offsetX: 0,
+      offsetY: 0,
+      scaleX: 1,
+      scaleY: 1,
+      zoom: 1,
+      focusX: 0.5,
+      focusY: 0.5,
+    };
+    const rebaked = layoutForRebake(existing, {
+      offsetX: 0.25,
+      scaleX: 2.1,
+      rotation: 30,
+    });
+    expect(rebaked.offsetX).toBeCloseTo(0.25, 5);
+    expect(rebaked.scaleX).toBeCloseTo(2.1, 5);
+    expect(rebaked.rotation).toBe(30);
   });
 });

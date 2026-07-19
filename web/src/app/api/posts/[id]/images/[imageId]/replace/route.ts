@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
 import {
   contentTypeFromFilename,
+  extensionForContentType,
+  getMediaBucket,
   isAllowedContentType,
   normalizeContentType,
 } from "@/lib/media-bucket";
-import { deleteMediaUrls, storeOriginAndVariants } from "@/lib/media-variants";
-import { listPostMediaAsImages, mediaAsPostImage } from "@/lib/media-library";
+import { deleteMediaUrls } from "@/lib/media-variants";
+import { mediaAsPostImage, rebakeMediaVariants, syncCoverImageUrlsAfterRebake } from "@/lib/media-library";
 
 type RouteContext = { params: Promise<{ id: string; imageId: string }> };
 
@@ -43,24 +46,44 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: "Unsupported Content-Type" }, { status: 415 });
     }
 
-    const variants = await storeOriginAndVariants(buffer, ct, file.name);
-
-    await deleteMediaUrls([
+    const previousUrls = [
       existing.urlOrigin,
       existing.urlPicto,
       existing.urlPetite,
       existing.urlMoyenne,
       existing.urlGrande,
-    ]);
+    ];
+
+    const bucket = getMediaBucket();
+    const ext = extensionForContentType(ct) ?? "jpg";
+    const now = new Date();
+    const yyyy = String(now.getUTCFullYear());
+    const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
+    const uploadId = randomUUID();
+    const base = `${yyyy}/${mm}/${uploadId}`;
+    const originKey = `${base}/origin.${ext}`;
+    const origin = await bucket.putObject(originKey, buffer, ct);
+    const variants = await rebakeMediaVariants({
+      ...existing,
+      urlOrigin: origin.url,
+    });
+
+    await deleteMediaUrls(previousUrls);
 
     const media = await prisma.media.update({
       where: { id: imageId },
       data: {
-        ...variants,
+        urlOrigin: origin.url,
+        urlPicto: variants.urlPicto,
+        urlPetite: variants.urlPetite,
+        urlMoyenne: variants.urlMoyenne,
+        urlGrande: variants.urlGrande,
         mimeType: ct,
         byteSize: buffer.byteLength,
       },
     });
+
+    await syncCoverImageUrlsAfterRebake(imageId, variants, previousUrls.slice(1));
 
     return NextResponse.json(mediaAsPostImage(media, { ...link, postId }));
   } catch (err) {

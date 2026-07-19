@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
 import {
@@ -7,10 +8,11 @@ import {
   isAllowedContentType,
   kindFromContentType,
   normalizeContentType,
+  extensionForContentType,
 } from "@/lib/media-bucket";
 import { MediaKind } from "@/generated/prisma/client";
-import { storeOriginAndVariants, deleteMediaUrls } from "@/lib/media-variants";
-import { mediaInclude } from "@/lib/media-library";
+import { deleteMediaUrls } from "@/lib/media-variants";
+import { mediaInclude, rebakeMediaVariants, syncCoverImageUrlsAfterRebake } from "@/lib/media-library";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -65,7 +67,24 @@ export async function POST(request: NextRequest, context: RouteContext) {
     };
 
     if (kindHint === "IMAGE") {
-      urls = await storeOriginAndVariants(buffer, contentType, file.name);
+      const bucket = getMediaBucket();
+      const ct = normalizeContentType(contentType);
+      const ext = extensionForContentType(ct) ?? "jpg";
+      const now = new Date();
+      const yyyy = String(now.getUTCFullYear());
+      const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
+      const uploadId = randomUUID();
+      const base = `${yyyy}/${mm}/${uploadId}`;
+      const originKey = `${base}/origin.${ext}`;
+      const origin = await bucket.putObject(originKey, buffer, ct);
+      const variants = await rebakeMediaVariants({
+        ...existing,
+        urlOrigin: origin.url,
+      });
+      urls = {
+        urlOrigin: origin.url,
+        ...variants,
+      };
     } else {
       const bucket = getMediaBucket();
       const put = await bucket.putObject(
@@ -97,6 +116,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
       include: mediaInclude,
     });
 
+    if (kindHint === "IMAGE") {
+      await syncCoverImageUrlsAfterRebake(id, urls, previousUrls.slice(1));
+    }
     await deleteMediaUrls(previousUrls);
     return NextResponse.json(updated);
   } catch (err) {

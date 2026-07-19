@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
-import {
-  bakeVariantsFromOrigin,
-  deleteMediaUrls,
-  type ImageTransformParams,
-} from "@/lib/media-variants";
+import { deleteMediaUrls } from "@/lib/media-variants";
 import { layoutFromLegacy, legacyFieldsFromLayout, mergeLayoutPatch } from "@/lib/image-layout";
-import { deleteMediaById, mediaInclude } from "@/lib/media-library";
+import {
+  deleteMediaById,
+  mediaInclude,
+  rebakeMediaVariants,
+  syncCoverImageUrlsAfterRebake,
+} from "@/lib/media-library";
 import { MediaKind } from "@/generated/prisma/client";
 import { optionalNullableDateTime } from "@/lib/date-schema";
 
@@ -151,17 +152,16 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     });
 
     if (transformChanged && updated.kind === MediaKind.IMAGE) {
-      const transform: ImageTransformParams = layoutFromLegacy(updated);
+      const previousVariantUrls = [
+        existing.urlPicto,
+        existing.urlPetite,
+        existing.urlMoyenne,
+        existing.urlGrande,
+      ];
       try {
-        const variants = await bakeVariantsFromOrigin(
-          updated.urlOrigin,
-          transform,
-          [
-            updated.urlPicto,
-            updated.urlPetite,
-            updated.urlMoyenne,
-            updated.urlGrande,
-          ]
+        const variants = await rebakeMediaVariants(
+          existing,
+          layoutPatch as Parameters<typeof mergeLayoutPatch>[1]
         );
         const rebaked = await prisma.media.update({
           where: { id },
@@ -173,9 +173,16 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           },
           include: mediaInclude,
         });
+        await syncCoverImageUrlsAfterRebake(id, variants, previousVariantUrls);
         return NextResponse.json(rebaked);
       } catch (err) {
         console.error("layout rebake failed (meta already saved)", err);
+        if (Object.keys(layoutPatch).length > 0) {
+          return NextResponse.json(
+            { error: "Variant rebake failed — layout saved but display sizes were not regenerated" },
+            { status: 500 }
+          );
+        }
       }
     }
 

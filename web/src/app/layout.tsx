@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     template: "%s | Class Mini 5.80 Baie de Somme",
   },
   description:
-    "Blog de construction bilingue pour trois Class Globe 5.80 à Class Mini 5.80 Baie de Somme.",
+    "Class Mini 5.80 baie de Somme. Blog bilingue de construction de trois Class Globe 5.80 en baie de Somme.",
 };
 
 export default function RootLayout({

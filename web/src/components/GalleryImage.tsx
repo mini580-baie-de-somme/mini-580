@@ -104,7 +104,7 @@ export function GalleryImage({
   const src = displaySrc(image);
   return (
     <figure className="overflow-hidden rounded-lg border border-[#d4dde6] bg-white">
-      <div className="relative w-full overflow-hidden bg-[#eef3f7] aspect-[4/3]">
+      <div className="relative w-full overflow-hidden bg-[#eef3f7] aspect-[3/4]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={src}

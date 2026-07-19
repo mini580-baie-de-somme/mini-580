@@ -19,8 +19,8 @@ const messages = {
   "nav.sectionAccount": { fr: "Compte", en: "Account" },
 
   "footer.tagline": {
-    fr: "Construction de trois Class Globe 5.80 — coques #268, #269 et #270.",
-    en: "Building three Class Globe 5.80 boats — hulls #268, #269 and #270.",
+    fr: "Class Mini 5.80 baie de Somme. Blog bilingue de construction de trois Class Globe 5.80 en baie de Somme.",
+    en: "Class Mini 5.80 Baie de Somme. Bilingual blog documenting the construction of three Class Globe 5.80 boats in the Baie de Somme.",
   },
   "footer.officialSite": { fr: "Site officiel", en: "Official website" },
   "footer.builderBlogs": { fr: "Blogs constructeurs", en: "Builder blogs" },
