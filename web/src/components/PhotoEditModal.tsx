@@ -505,8 +505,27 @@ export function PhotoEditModal({
         </section>
 
         <aside className="flex w-full shrink-0 flex-col overflow-y-auto border-t border-[#d4dde6] md:w-[min(100%,24rem)] md:border-l md:border-t-0">
-          <div className="space-y-3 p-3 sm:p-4">
-            <div className="space-y-1.5">
+          <div className="flex flex-col gap-3 p-3 sm:p-4">
+            {hasPreview && isImage && (
+              <div className="order-first border-b border-[#eef3f7] pb-3 md:order-last md:border-b-0 md:border-t md:pt-3 md:pb-0">
+                <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-[#495867]">
+                  {lang === "fr" ? "Mise en page" : "Layout"}
+                </p>
+                <PhotoCanvasEditor
+                  imageSrc={previewSrc}
+                  value={layout}
+                  onChange={(next) => {
+                    setLayout(next);
+                    setDirty(true);
+                  }}
+                  disabled={busy}
+                  showStage={false}
+                />
+              </div>
+            )}
+
+            <div className="order-last space-y-3 md:order-first">
+              <div className="space-y-1.5">
               {!imagesOnly && (
                 <p className="rounded-md bg-[#eef3f7] px-2.5 py-1.5 text-[11px] leading-snug text-[#495867]">
                   {sizeLimitsHint(lang)}
@@ -604,24 +623,7 @@ export function PhotoEditModal({
                 </span>
               </label>
             </div>
-
-            {hasPreview && isImage && (
-              <div className="border-t border-[#eef3f7] pt-3">
-                <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-[#495867]">
-                  {lang === "fr" ? "Mise en page" : "Layout"}
-                </p>
-                <PhotoCanvasEditor
-                  imageSrc={previewSrc}
-                  value={layout}
-                  onChange={(next) => {
-                    setLayout(next);
-                    setDirty(true);
-                  }}
-                  disabled={busy}
-                  showStage={false}
-                />
-              </div>
-            )}
+            </div>
           </div>
         </aside>
       </div>

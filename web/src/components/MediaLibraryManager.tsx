@@ -619,7 +619,30 @@ export function MediaLibraryManager() {
             </section>
 
             <aside className="flex w-full shrink-0 flex-col overflow-y-auto border-t border-[#d4dde6] md:w-[min(100%,24rem)] md:border-l md:border-t-0">
-              <div className="space-y-3 p-3 sm:p-4">
+              <div className="flex flex-col gap-3 p-3 sm:p-4">
+                {(previewKind === "IMAGE" || editingMedia?.kind === "IMAGE") &&
+                  (filePreviewUrl ||
+                    (editingMedia &&
+                      (editingMedia.urlOrigin || editingMedia.urlGrande))) && (
+                    <div className="order-first border-b border-[#eef3f7] pb-3 md:order-last md:border-b-0 md:border-t md:pt-3 md:pb-0">
+                      <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-[#495867]">
+                        {t("media.transforms")}
+                      </p>
+                      <PhotoCanvasEditor
+                        imageSrc={
+                          filePreviewUrl ||
+                          editingMedia!.urlOrigin ||
+                          editingMedia!.urlGrande!
+                        }
+                        value={form.layout}
+                        onChange={(layout) => setForm({ ...form, layout })}
+                        disabled={busy}
+                        showStage={false}
+                      />
+                    </div>
+                  )}
+
+                <div className="order-last space-y-3 md:order-first">
                 <div className="space-y-1.5">
                   <p className="text-[11px] font-medium text-[#495867]">
                     {t("media.file")}
@@ -735,27 +758,7 @@ export function MediaLibraryManager() {
                   </label>
                 </div>
 
-                {(previewKind === "IMAGE" || editingMedia?.kind === "IMAGE") &&
-                  (filePreviewUrl ||
-                    (editingMedia &&
-                      (editingMedia.urlOrigin || editingMedia.urlGrande))) && (
-                    <div className="border-t border-[#eef3f7] pt-3">
-                      <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-[#495867]">
-                        {t("media.transforms")}
-                      </p>
-                      <PhotoCanvasEditor
-                        imageSrc={
-                          filePreviewUrl ||
-                          editingMedia!.urlOrigin ||
-                          editingMedia!.urlGrande!
-                        }
-                        value={form.layout}
-                        onChange={(layout) => setForm({ ...form, layout })}
-                        disabled={busy}
-                        showStage={false}
-                      />
-                    </div>
-                  )}
+                </div>
               </div>
             </aside>
           </div>
