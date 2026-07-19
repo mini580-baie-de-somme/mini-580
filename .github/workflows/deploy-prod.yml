@@ -29,6 +29,9 @@ jobs:
       contents: read
       packages: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Verify TEST live version
         run: |
           EXPECTED="${{ github.event.inputs.expected_version }}"
@@ -69,6 +72,8 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           source: "deploy/docker-compose.prod.yml,deploy/scripts/deploy.sh,deploy/nginx/classmini580.blog.conf"
           target: "/tmp/mini580-deploy-sync"
+          timeout: 120s
+          command_timeout: 10m
 
       - name: Deploy to VPS (PROD)
         uses: appleboy/ssh-action@v1.2.0
@@ -90,6 +95,8 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          timeout: 120s
+          command_timeout: 10m
           envs: GHCR_TOKEN,GHCR_USER,CURSOR_API_KEY,CURSOR_MODEL,INGEST_API_KEY,TELEGRAM_BOT_TOKEN,TELEGRAM_WEBHOOK_SECRET,TELEGRAM_ALLOWED_USER_IDS,TELEGRAM_SERVICE_USER_EMAIL,SYNC_PRIVATE_KEY,SYNC_PEER_PUBLIC_KEY,SESSION_SECRET,POSTGRES_PASSWORD
           script: |
             set -euo pipefail
