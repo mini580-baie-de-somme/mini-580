@@ -43,6 +43,8 @@ import {
 
 import type { MediaIntegrity } from "@/lib/media-integrity-types";
 import { MediaIntegrityNotice } from "./MediaIntegrityNotice";
+import { MediaClipboardPasteButton } from "./MediaClipboardPasteButton";
+import { isLocalMediaUrl } from "@/lib/media-integrity-shared";
 type MediaKind = MediaKindClient;
 
 type MediaItem = {
@@ -336,6 +338,12 @@ export function MediaLibraryManager() {
               : data.error || t("media.saveError")
           );
         }
+        if (
+          typeof data.urlOrigin === "string" &&
+          !isLocalMediaUrl(data.urlOrigin)
+        ) {
+          throw new Error(t("media.localStorageRequired"));
+        }
         if (data.kind === "IMAGE" && data.id) {
           const layoutRes = await fetch(`/api/media-library/${data.id}`, {
             method: "PATCH",
@@ -372,6 +380,13 @@ export function MediaLibraryManager() {
                 ? withSizeLimits(t("media.uploadRejected"))
                 : repData.error || t("media.saveError")
             );
+          }
+          const replaced = await readApiJson(rep);
+          if (
+            typeof replaced.urlOrigin === "string" &&
+            !isLocalMediaUrl(replaced.urlOrigin)
+          ) {
+            throw new Error(t("media.localStorageRequired"));
           }
           setOriginEditable(true);
           setLocalError(null);
@@ -715,16 +730,36 @@ export function MediaLibraryManager() {
                   <p className="rounded-md bg-[#eef3f7] px-2.5 py-1.5 text-[11px] leading-snug text-[#495867]">
                     {withSizeLimits(t("media.sizeLimits"))}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={busy}
-                    className="w-full rounded border border-[#d4dde6] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
-                  >
-                    {editingId === "new"
-                      ? t("media.chooseFile")
-                      : t("media.replaceFile")}
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={busy}
+                      className="min-h-[44px] flex-1 rounded border border-[#d4dde6] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
+                    >
+                      {editingId === "new"
+                        ? t("media.chooseFile")
+                        : t("media.replaceFile")}
+                    </button>
+                    <MediaClipboardPasteButton
+                      disabled={busy}
+                      label={t("media.pasteFromClipboard")}
+                      onFile={(next) => acceptFile(next)}
+                      onError={(message) => setLocalError(message)}
+                      errorMessage={(error) => {
+                        switch (error) {
+                          case "unsupported":
+                            return t("media.pasteClipboardUnsupported");
+                          case "empty":
+                            return t("media.pasteClipboardEmpty");
+                          case "permission":
+                            return t("media.pasteClipboardPermission");
+                          case "not_image":
+                            return t("media.pasteClipboardNotImage");
+                        }
+                      }}
+                    />
+                  </div>
                   {file && (
                     <p className="truncate text-[11px] text-[#0D131A]">
                       {file.name} (
@@ -732,6 +767,12 @@ export function MediaLibraryManager() {
                         ? `${(file.size / (1024 * 1024)).toFixed(1)} Mo`
                         : `${Math.round(file.size / 1024)} Ko`}
                       )
+                      {file.type.startsWith("image/") ? (
+                        <span className="text-[#495867]">
+                          {" "}
+                          · {t("media.pastePendingLocal")}
+                        </span>
+                      ) : null}
                     </p>
                   )}
                   {previewKind && (

@@ -326,6 +326,34 @@ const messages = {
     fr: "Ou coller depuis le presse-papiers (Ctrl/⌘+V).",
     en: "Or paste from the clipboard (Ctrl/⌘+V).",
   },
+  "media.pasteFromClipboard": {
+    fr: "Coller",
+    en: "Paste",
+  },
+  "media.pasteClipboardUnsupported": {
+    fr: "Collage depuis le presse-papiers non disponible sur ce navigateur.",
+    en: "Clipboard paste is not available in this browser.",
+  },
+  "media.pasteClipboardEmpty": {
+    fr: "Aucune image dans le presse-papiers.",
+    en: "No image in the clipboard.",
+  },
+  "media.pasteClipboardPermission": {
+    fr: "Accès au presse-papiers refusé — autorise-le dans le navigateur.",
+    en: "Clipboard access denied — allow it in your browser.",
+  },
+  "media.pasteClipboardNotImage": {
+    fr: "Le presse-papiers contient du texte ou une URL, pas une image — copie la photo elle-même.",
+    en: "The clipboard holds text or a URL, not an image — copy the photo itself.",
+  },
+  "media.pastePendingLocal": {
+    fr: "Image collée — sera enregistrée dans le stockage local à l’enregistrement.",
+    en: "Pasted image — will be saved to local storage when you save.",
+  },
+  "media.localStorageRequired": {
+    fr: "Le fichier n’a pas été enregistré dans le stockage local /media.",
+    en: "File was not saved to local /media storage.",
+  },
   "media.preview": { fr: "Aperçu", en: "Preview" },
   "media.detectedKind": { fr: "Type détecté", en: "Detected type" },
   "media.takenAt": {

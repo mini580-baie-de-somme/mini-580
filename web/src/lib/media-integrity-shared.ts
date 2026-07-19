@@ -17,6 +17,13 @@ export function isRemoteMediaUrl(url: string): boolean {
   return trimmed.startsWith("http://") || trimmed.startsWith("https://");
 }
 
+/** Client-safe check: stored under local /media bucket (not http(s)). */
+export function isLocalMediaUrl(url: string): boolean {
+  const trimmed = url.trim();
+  if (isRemoteMediaUrl(trimmed)) return false;
+  return trimmed.startsWith("/media/");
+}
+
 export function collectExternalMediaUrls(input: {
   urlOrigin: string;
   urlPicto?: string | null;

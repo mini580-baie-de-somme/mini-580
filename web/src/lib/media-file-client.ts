@@ -90,6 +90,76 @@ export function resolveThumbKind(
   return "IMAGE";
 }
 
+export type ClipboardPasteError =
+  | "unsupported"
+  | "empty"
+  | "permission"
+  | "not_image";
+
+export type ClipboardPasteResult =
+  | { ok: true; file: File }
+  | { ok: false; error: ClipboardPasteError };
+
+function extensionForImageMime(mime: string): string {
+  const normalized = normalizeMime(mime);
+  if (normalized === "image/jpeg") return "jpg";
+  if (normalized === "image/png") return "png";
+  if (normalized === "image/webp") return "webp";
+  if (normalized === "image/gif") return "gif";
+  return "png";
+}
+
+/**
+ * Read an image blob from the system clipboard (user gesture required).
+ * Ignores text/URL clipboard entries — images only.
+ */
+export async function pasteImageFromClipboard(): Promise<ClipboardPasteResult> {
+  if (typeof navigator === "undefined" || !navigator.clipboard?.read) {
+    return { ok: false, error: "unsupported" };
+  }
+
+  try {
+    const items = await navigator.clipboard.read();
+    let sawNonImage = false;
+
+    for (const item of items) {
+      const imageType = item.types.find((type) => type.startsWith("image/"));
+      if (!imageType) {
+        if (
+          item.types.some(
+            (type) =>
+              type === "text/plain" ||
+              type === "text/uri-list" ||
+              type === "text/html"
+          )
+        ) {
+          sawNonImage = true;
+        }
+        continue;
+      }
+
+      const blob = await item.getType(imageType);
+      const mime = normalizeMime(imageType);
+      const file = new File(
+        [blob],
+        `clipboard-${Date.now()}.${extensionForImageMime(mime)}`,
+        { type: mime }
+      );
+      if (isAllowedMediaFile(file) && kindFromFile(file) === "IMAGE") {
+        return { ok: true, file };
+      }
+    }
+
+    if (sawNonImage) return { ok: false, error: "not_image" };
+    return { ok: false, error: "empty" };
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "NotAllowedError") {
+      return { ok: false, error: "permission" };
+    }
+    return { ok: false, error: "empty" };
+  }
+}
+
 /** Prefer image, then pdf, then video from clipboard / dataTransfer. */
 export function mediaFileFromDataTransfer(data: DataTransfer | null): File | null {
   if (!data) return null;

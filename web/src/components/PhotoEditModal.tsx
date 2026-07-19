@@ -21,8 +21,10 @@ import {
   kindFromFile,
   mediaFileFromDataTransfer,
   resolveFileMime,
+  type ClipboardPasteError,
   type MediaKindClient,
 } from "@/lib/media-file-client";
+import { isLocalMediaUrl } from "@/lib/media-integrity-shared";
 import {
   formatMaxMb,
   maxBytesForMime,
@@ -40,6 +42,7 @@ import {
 } from "@/lib/media-trace-client";
 import type { MediaIntegrity } from "@/lib/media-integrity-types";
 import { MediaIntegrityNotice } from "./MediaIntegrityNotice";
+import { MediaClipboardPasteButton } from "./MediaClipboardPasteButton";
 
 type Props = {
   postId: string;
@@ -99,6 +102,44 @@ function sizeLimitsHint(lang: "fr" | "en"): string {
   return lang === "fr"
     ? `Limites : photos & PDF ${photo} Mo · vidéos ${video} Mo.`
     : `Limits: photos & PDF ${photo} MB · videos ${video} MB.`;
+}
+
+function pasteClipboardErrorMessage(
+  error: ClipboardPasteError,
+  lang: "fr" | "en"
+): string {
+  const messages: Record<ClipboardPasteError, { fr: string; en: string }> = {
+    unsupported: {
+      fr: "Collage depuis le presse-papiers non disponible sur ce navigateur.",
+      en: "Clipboard paste is not available in this browser.",
+    },
+    empty: {
+      fr: "Aucune image dans le presse-papiers.",
+      en: "No image in the clipboard.",
+    },
+    permission: {
+      fr: "Accès au presse-papiers refusé — autorise-le dans le navigateur.",
+      en: "Clipboard access denied — allow it in your browser.",
+    },
+    not_image: {
+      fr: "Le presse-papiers contient du texte ou une URL, pas une image — copie la photo elle-même.",
+      en: "The clipboard holds text or a URL, not an image — copy the photo itself.",
+    },
+  };
+  return messages[error][lang];
+}
+
+function assertLocalOriginResponse(
+  urlOrigin: string | null | undefined,
+  lang: "fr" | "en"
+): void {
+  if (!urlOrigin || !isLocalMediaUrl(urlOrigin)) {
+    throw new Error(
+      lang === "fr"
+        ? "Le fichier n’a pas été enregistré dans le stockage local /media."
+        : "File was not saved to local /media storage."
+    );
+  }
 }
 
 export function PhotoEditModal({
@@ -337,6 +378,7 @@ export function PhotoEditModal({
             );
           }
           current = toEditorImage(await rep.json());
+          assertLocalOriginResponse(current.urlOrigin, lang);
           photoEditorTrace(trace, "save.replace.done", { mediaId: current.id });
         } else {
           photoEditorTrace(trace, "save.upload.start", { postId });
@@ -353,6 +395,7 @@ export function PhotoEditModal({
             throw new Error("upload failed");
           }
           current = toEditorImage(await res.json());
+          assertLocalOriginResponse(current.urlOrigin, lang);
           photoEditorTrace(trace, "save.upload.done", { mediaId: current.id });
         }
 
@@ -697,27 +740,40 @@ export function PhotoEditModal({
                   {sizeLimitsHint(lang)}
                 </p>
               )}
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={busy}
-                className="w-full rounded border border-[#d4dde6] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
-              >
-                {draft?.id
-                  ? lang === "fr"
-                    ? "Remplacer le fichier"
-                    : "Replace file"
-                  : hasPreview
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={busy}
+                  className="min-h-[44px] flex-1 rounded border border-[#d4dde6] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
+                >
+                  {draft?.id
                     ? lang === "fr"
-                      ? "Changer de fichier"
-                      : "Change file"
-                    : lang === "fr"
-                      ? "Choisir un fichier"
-                      : "Choose a file"}
-              </button>
+                      ? "Remplacer le fichier"
+                      : "Replace file"
+                    : hasPreview
+                      ? lang === "fr"
+                        ? "Changer de fichier"
+                        : "Change file"
+                      : lang === "fr"
+                        ? "Choisir un fichier"
+                        : "Choose a file"}
+                </button>
+                <MediaClipboardPasteButton
+                  disabled={busy}
+                  label={lang === "fr" ? "Coller" : "Paste"}
+                  onFile={queueFile}
+                  onError={(message) => setError(message)}
+                  errorMessage={(error) => pasteClipboardErrorMessage(error, lang)}
+                />
+              </div>
               {pendingFile && (
                 <p className="truncate text-[11px] text-[#495867]">
                   {lang === "fr" ? "En attente" : "Pending"}: {pendingFile.name}
+                  {" · "}
+                  {lang === "fr"
+                    ? "sera stockée localement à l’enregistrement"
+                    : "will be stored locally on save"}
                 </p>
               )}
               <p className="text-[11px] text-[#495867]">
