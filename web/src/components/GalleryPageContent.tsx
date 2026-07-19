@@ -6,8 +6,14 @@ import { useCallback, useMemo, useState } from "react";
 import type { GalleryPhoto } from "@/lib/gallery-types";
 import { countListFilters } from "@/lib/editor-list";
 import { resolveThumbKind } from "@/lib/media-file-client";
+import {
+  GALLERY_VIEW_PARAM_KEYS,
+  parseGalleryViewState,
+  serializeGalleryViewState,
+} from "@/lib/virtual-url";
+import { useVirtualUrl } from "@/hooks/useVirtualUrl";
 import { MediaKindThumb } from "./MediaKindThumb";
-import { MediaSlideshow, useMediaSlideshow } from "./MediaSlideshow";
+import { MediaSlideshow } from "./MediaSlideshow";
 import {
   EditorFilterChip,
   EditorFilterGroup,
@@ -41,9 +47,39 @@ export function GalleryPageContent({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { pushVirtual, closeVirtual, markOpenedViaPush } = useVirtualUrl();
   const { locale, t } = useLocale();
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const slideshow = useMediaSlideshow();
+  const [initialAutoPlay, setInitialAutoPlay] = useState(false);
+
+  const viewPhotoId = parseGalleryViewState(searchParams);
+  const slideshowOpen = Boolean(viewPhotoId);
+  const slideshowIndex = useMemo(() => {
+    if (!viewPhotoId) return 0;
+    const idx = photos.findIndex((p) => p.id === viewPhotoId);
+    return idx >= 0 ? idx : 0;
+  }, [viewPhotoId, photos]);
+
+  function openViewer(index: number) {
+    const photo = photos[index];
+    if (!photo) return;
+    setInitialAutoPlay(false);
+    pushVirtual(serializeGalleryViewState(photo.id), GALLERY_VIEW_PARAM_KEYS);
+    markOpenedViaPush();
+  }
+
+  function startSlideshow(fromIndex = 0) {
+    const photo = photos[fromIndex];
+    if (!photo) return;
+    setInitialAutoPlay(true);
+    pushVirtual(serializeGalleryViewState(photo.id), GALLERY_VIEW_PARAM_KEYS);
+    markOpenedViaPush();
+  }
+
+  function closeSlideshow() {
+    setInitialAutoPlay(false);
+    closeVirtual(GALLERY_VIEW_PARAM_KEYS);
+  }
 
   const sort = searchParams.get("sort") === "milestone" ? "milestone" : "date";
   const activeCount = countListFilters(searchParams, FILTER_KEYS);
@@ -291,7 +327,7 @@ export function GalleryPageContent({
         {photos.length > 0 && (
           <button
             type="button"
-            onClick={() => slideshow.startSlideshow(0)}
+            onClick={() => startSlideshow(0)}
             className="rounded-md border border-[#495867] bg-[#495867] px-3 py-1.5 text-sm text-white hover:bg-[#3a4654]"
           >
             {t("gallery.startSlideshow")}
@@ -322,7 +358,7 @@ export function GalleryPageContent({
               <button
                 key={photo.id}
                 type="button"
-                onClick={() => slideshow.openViewer(i)}
+                onClick={() => openViewer(i)}
                 className="group overflow-hidden rounded-lg border border-[#d4dde6] bg-white text-left shadow-sm transition hover:border-[#495867]"
               >
                 <div className="aspect-square overflow-hidden bg-[#eef3f7]">
@@ -373,10 +409,10 @@ export function GalleryPageContent({
 
       <MediaSlideshow
         items={photos}
-        open={slideshow.open}
-        initialIndex={slideshow.initialIndex}
-        initialAutoPlay={slideshow.initialAutoPlay}
-        onClose={slideshow.close}
+        open={slideshowOpen}
+        initialIndex={slideshowIndex}
+        initialAutoPlay={initialAutoPlay}
+        onClose={closeSlideshow}
         footer={(item) => {
           const photo = item as GalleryPhoto;
           if (!photo.post?.slug) return null;

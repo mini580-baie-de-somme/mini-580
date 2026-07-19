@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useVirtualUrl } from "@/hooks/useVirtualUrl";
+import {
+  parsePhotoModalState,
+  PHOTO_MODAL_PARAM_KEYS,
+  serializePhotoModalState,
+} from "@/lib/virtual-url";
 import {
   type GalleryEditorImage,
   coverUrlFromImage,
@@ -26,14 +32,6 @@ type Props = {
   coverImageUrl: string | null;
   onCoverChange: (url: string | null) => void;
 };
-
-type ModalState =
-  | { kind: "closed" }
-  | { kind: "add" }
-  | { kind: "edit"; imageId: string }
-  | { kind: "add-cover" }
-  | { kind: "edit-cover"; imageId: string }
-  | { kind: "pick-library" };
 
 function normalizeImages(list: GalleryEditorImage[]): GalleryEditorImage[] {
   return list.map((img) => ({
@@ -61,7 +59,12 @@ export function PostGalleryEditor({
   const [selectedId, setSelectedId] = useState<string | null>(
     initialImages[0]?.id ?? null
   );
-  const [modal, setModal] = useState<ModalState>({ kind: "closed" });
+  const { searchParams, pushVirtual, closeVirtual, markOpenedViaPush } =
+    useVirtualUrl();
+  const modal = useMemo(
+    () => parsePhotoModalState(searchParams),
+    [searchParams]
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [libraryItems, setLibraryItems] = useState<
@@ -175,12 +178,23 @@ export function PostGalleryEditor({
     }
   }
 
+  function openPhotoModal(
+    state: Exclude<ReturnType<typeof parsePhotoModalState>, { kind: "closed" }>
+  ) {
+    pushVirtual(serializePhotoModalState(state), PHOTO_MODAL_PARAM_KEYS);
+    markOpenedViaPush();
+  }
+
+  function closePhotoModal() {
+    closeVirtual(PHOTO_MODAL_PARAM_KEYS);
+  }
+
   function openCoverEditor() {
     if (coverImage) {
-      setModal({ kind: "edit-cover", imageId: coverImage.id });
+      openPhotoModal({ kind: "edit-cover", imageId: coverImage.id });
       return;
     }
-    setModal({ kind: "add-cover" });
+    openPhotoModal({ kind: "add-cover" });
   }
 
   function clearCoverOnly() {
@@ -202,7 +216,7 @@ export function PostGalleryEditor({
     }
   }
 
-  async function openLibraryPicker() {
+  async function loadLibraryItems() {
     setBusy(true);
     setError(null);
     try {
@@ -212,6 +226,7 @@ export function PostGalleryEditor({
         items: {
           id: string;
           kind: string;
+          mimeType?: string;
           titleFr: string;
           titleEn: string;
           urlOrigin: string;
@@ -222,13 +237,22 @@ export function PostGalleryEditor({
       const already = new Set(images.map((i) => i.id));
       setLibraryItems(data.items.filter((i) => !already.has(i.id)));
       setLibrarySelected(new Set());
-      setModal({ kind: "pick-library" });
     } catch {
       setError("Impossible de charger la médiathèque");
     } finally {
       setBusy(false);
     }
   }
+
+  async function openLibraryPicker() {
+    openPhotoModal({ kind: "pick-library" });
+  }
+
+  useEffect(() => {
+    if (modal.kind !== "pick-library") return;
+    void loadLibraryItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modal.kind]);
 
   async function attachFromLibrary() {
     if (librarySelected.size === 0) return;
@@ -246,7 +270,7 @@ export function PostGalleryEditor({
       for (const raw of linked) {
         upsertImage(toEditorImage(raw));
       }
-      setModal({ kind: "closed" });
+      closePhotoModal();
     } catch {
       setError("Association impossible");
     } finally {
@@ -361,7 +385,7 @@ export function PostGalleryEditor({
             </button>
             <button
               type="button"
-              onClick={() => setModal({ kind: "add" })}
+              onClick={() => openPhotoModal({ kind: "add" })}
               className="rounded-md border border-[#495867] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7]"
             >
               {lang === "fr" ? "Ajouter un média" : "Add media"}
@@ -370,7 +394,7 @@ export function PostGalleryEditor({
               type="button"
               onClick={() => {
                 if (!selected) return;
-                setModal({ kind: "edit", imageId: selected.id });
+                openPhotoModal({ kind: "edit", imageId: selected.id });
               }}
               disabled={!selected}
               className="rounded-md bg-[#495867] px-3 py-1.5 text-sm text-white hover:bg-[#3a4654] disabled:opacity-50"
@@ -396,7 +420,7 @@ export function PostGalleryEditor({
                     type="button"
                     onClick={() => setSelectedId(img.id)}
                     onDoubleClick={() =>
-                      setModal({ kind: "edit", imageId: img.id })
+                      openPhotoModal({ kind: "edit", imageId: img.id })
                     }
                     className={`block h-16 w-16 overflow-hidden rounded border-2 ${
                       selectedId === img.id
@@ -454,13 +478,13 @@ export function PostGalleryEditor({
               ? "Médias de la médiathèque"
               : "Media library items"
           }
-          onClose={() => setModal({ kind: "closed" })}
+          onClose={closePhotoModal}
           busy={busy}
           footerRight={
             <>
               <button
                 type="button"
-                onClick={() => setModal({ kind: "closed" })}
+                onClick={closePhotoModal}
                 className="rounded-md border border-[#d4dde6] px-3 py-2 text-sm"
               >
                 {lang === "fr" ? "Annuler" : "Cancel"}
@@ -553,7 +577,7 @@ export function PostGalleryEditor({
               ? editingImage
               : null
           }
-          onClose={() => setModal({ kind: "closed" })}
+          onClose={closePhotoModal}
           onSaved={handleImageSaved}
           onDeleted={handleImageDeleted}
         />

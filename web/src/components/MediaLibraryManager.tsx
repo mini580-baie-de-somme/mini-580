@@ -2,6 +2,12 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useVirtualUrl } from "@/hooks/useVirtualUrl";
+import {
+  MEDIA_EDIT_PARAM_KEYS,
+  parseMediaEditState,
+  serializeMediaEditState,
+} from "@/lib/virtual-url";
 import { useLocale } from "./LocaleProvider";
 import { EditorListCount } from "./EditorListCount";
 import { EditorListSearch } from "./EditorListSearch";
@@ -172,11 +178,13 @@ async function readApiJson(
 
 export function MediaLibraryManager() {
   const { locale, t } = useLocale();
+  const { searchParams, pushVirtual, closeVirtual, markOpenedViaPush } =
+    useVirtualUrl();
+  const editingId = parseMediaEditState(searchParams);
   const [q, setQ] = useState("");
   const [kind, setKind] = useState<"ALL" | MediaKind>("ALL");
   const [visibility, setVisibility] = useState<VisibilityFilter>("ALL");
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [editingMedia, setEditingMedia] = useState<MediaItem | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [busy, setBusy] = useState(false);
@@ -264,52 +272,80 @@ export function MediaLibraryManager() {
     return () => window.removeEventListener("paste", onPaste);
   }, [editingId, busy, acceptFile]);
 
-  function startCreate() {
-    setEditingId("new");
+  function resetEditForm() {
     setEditingMedia(null);
     setForm(emptyForm);
     setFile(null);
     setLocalError(null);
     setOriginEditable(true);
     setEditingIntegrity(null);
+  }
+
+  function openMediaEdit(id: string) {
+    pushVirtual(serializeMediaEditState(id), MEDIA_EDIT_PARAM_KEYS);
+    markOpenedViaPush();
+  }
+
+  function startCreate() {
+    openMediaEdit("new");
   }
 
   async function startEdit(m: MediaItem) {
-    setEditingId(m.id);
-    setEditingMedia(m);
-    setForm(formFromMedia(m));
-    setFile(null);
-    setLocalError(null);
-    setOriginEditable(m.integrity?.editable ?? true);
-    setEditingIntegrity(m.integrity ?? null);
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/media-library/${m.id}`);
-      if (res.ok) {
-        const full = (await res.json()) as MediaItem;
-        setEditingMedia(full);
-        setForm(formFromMedia(full));
-        setOriginEditable(full.integrity?.editable ?? false);
-        setEditingIntegrity(full.integrity ?? null);
-        if (full.kind === "IMAGE" && full.integrity && !full.integrity.editable) {
-          setLocalError(t("media.integrity.notEditable"));
-        }
-      }
-    } catch {
-      // keep list row data
-    } finally {
-      setBusy(false);
-    }
+    openMediaEdit(m.id);
   }
 
+  useEffect(() => {
+    if (!editingId) {
+      resetEditForm();
+      return;
+    }
+    if (editingId === "new") {
+      resetEditForm();
+      return;
+    }
+    const listRow = items.find((m) => m.id === editingId) ?? null;
+    let cancelled = false;
+    void (async () => {
+      if (listRow) {
+        setEditingMedia(listRow);
+        setForm(formFromMedia(listRow));
+        setFile(null);
+        setLocalError(null);
+        setOriginEditable(listRow.integrity?.editable ?? true);
+        setEditingIntegrity(listRow.integrity ?? null);
+      }
+      setBusy(true);
+      try {
+        const res = await fetch(`/api/media-library/${editingId}`);
+        if (cancelled) return;
+        if (res.ok) {
+          const full = (await res.json()) as MediaItem;
+          setEditingMedia(full);
+          setForm(formFromMedia(full));
+          setOriginEditable(full.integrity?.editable ?? false);
+          setEditingIntegrity(full.integrity ?? null);
+          if (
+            full.kind === "IMAGE" &&
+            full.integrity &&
+            !full.integrity.editable
+          ) {
+            setLocalError(t("media.integrity.notEditable"));
+          }
+        }
+      } catch {
+        // keep list row data
+      } finally {
+        if (!cancelled) setBusy(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingId]);
+
   function cancelEdit() {
-    setEditingId(null);
-    setEditingMedia(null);
-    setForm(emptyForm);
-    setFile(null);
-    setLocalError(null);
-    setOriginEditable(true);
-    setEditingIntegrity(null);
+    closeVirtual(MEDIA_EDIT_PARAM_KEYS);
   }
 
   async function save() {
