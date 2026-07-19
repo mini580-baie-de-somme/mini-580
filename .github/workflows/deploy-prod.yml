@@ -56,13 +56,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Promote TEST image to PROD (no rebuild)
+      - name: Promote immutable TEST image to PROD (no rebuild)
         run: |
-          SOURCE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:test"
+          VERSION="${{ github.event.inputs.expected_version }}"
+          SOURCE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${VERSION}"
           TARGET="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:prod"
-          VERSION_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ github.event.inputs.expected_version }}"
-          echo "Promoting $SOURCE → $TARGET (+ $VERSION_TAG)"
-          docker buildx imagetools create -t "$TARGET" -t "$VERSION_TAG" "$SOURCE"
+          echo "Promoting immutable $SOURCE → $TARGET"
+          docker buildx imagetools inspect "$SOURCE" >/dev/null
+          docker buildx imagetools create -t "$TARGET" "$SOURCE"
 
       - name: Sync PROD deploy configs to VPS
         uses: appleboy/scp-action@v0.1.7

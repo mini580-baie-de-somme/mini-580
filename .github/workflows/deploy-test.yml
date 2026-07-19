@@ -3,7 +3,15 @@ name: Deploy TEST
 on:
   push:
     branches: [main]
+    paths:
+      - "web/**"
+      - "deploy/**"
   workflow_dispatch:
+    inputs:
+      redeploy_version:
+        description: "Redeploy existing GHCR tag (e.g. 1.0.89) without rebuild — leave empty to build from main"
+        required: false
+        default: ""
 
 concurrency:
   group: deploy-test
@@ -24,13 +32,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Compute build version
+      - name: Resolve deploy version
         id: ver
         working-directory: web
         run: |
-          VERSION=$(BUILD_NUMBER=${{ github.run_number }} node scripts/compute-build-version.mjs)
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Build version: v$VERSION (tag v$VERSION + :test)"
+          REDEPLOY="${{ github.event.inputs.redeploy_version }}"
+          if [ -n "$REDEPLOY" ]; then
+            echo "version=$REDEPLOY" >> "$GITHUB_OUTPUT"
+            echo "mode=redeploy" >> "$GITHUB_OUTPUT"
+            echo "Redeploy v$REDEPLOY (no rebuild)"
+          else
+            VERSION=$(BUILD_NUMBER=${{ github.run_number }} node scripts/compute-build-version.mjs)
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "mode=build" >> "$GITHUB_OUTPUT"
+            echo "Build version: v$VERSION (tag v$VERSION + :test)"
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -43,6 +59,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
+        if: steps.ver.outputs.mode == 'build'
         uses: docker/build-push-action@v6
         with:
           context: ./web
@@ -59,6 +76,20 @@ jobs:
             BUILD_NUMBER=${{ github.run_number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Verify redeploy tag exists
+        if: steps.ver.outputs.mode == 'redeploy'
+        run: |
+          TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ steps.ver.outputs.version }}"
+          docker buildx imagetools inspect "$TAG" >/dev/null
+          echo "Found $TAG"
+
+      - name: Retag :test to redeployed version
+        if: steps.ver.outputs.mode == 'redeploy'
+        run: |
+          SOURCE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ steps.ver.outputs.version }}"
+          TARGET="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:test"
+          docker buildx imagetools create -t "$TARGET" "$SOURCE"
 
       - name: Sync TEST deploy configs to VPS
         uses: appleboy/scp-action@v0.1.7
@@ -92,7 +123,7 @@ jobs:
           envs: GHCR_TOKEN,GHCR_USER,CURSOR_API_KEY,CURSOR_MODEL,INGEST_API_KEY,TELEGRAM_BOT_TOKEN,TELEGRAM_WEBHOOK_SECRET,TELEGRAM_ALLOWED_USER_IDS,TELEGRAM_SERVICE_USER_EMAIL,SYNC_PRIVATE_KEY,SYNC_PEER_PUBLIC_KEY,SESSION_SECRET,POSTGRES_PASSWORD
           script: |
             set -euo pipefail
-            IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:test"
+            IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ steps.ver.outputs.version }}"
             SYNC=/tmp/mini580-deploy-sync/deploy
             ENVF=/opt/mini580/test/.env
             mkdir -p /opt/mini580/test/media /opt/mini580/nginx /opt/mini580/bin
@@ -100,7 +131,6 @@ jobs:
             cp "$SYNC/scripts/deploy.sh" /opt/mini580/bin/deploy.sh
             chmod +x /opt/mini580/bin/deploy.sh
             cp "$SYNC/nginx/test.classmini580.blog.conf" /opt/mini580/nginx/test.classmini580.blog.conf
-            # Merge CI secrets into .env (skip empty; never print values)
             upsert_env() {
               local key="$1" val="$2"
               [[ -z "$val" ]] && return 0

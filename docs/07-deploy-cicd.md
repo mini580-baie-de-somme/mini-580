@@ -139,9 +139,13 @@ Actions → **Deploy PROD** → Run workflow :
 Le workflow :
 
 1. Vérifie que TEST live = `expected_version`
-2. **Promouvoit** l’image `:test` → `:prod` (même digest, zéro rebuild)
+2. **Promouvoit** l’image immuable `:v{expected_version}` → `:prod` (même digest, zéro rebuild — **pas** le tag flottant `:test`)
 3. Déploie sur le VPS
 4. Vérifie que PROD live = même version
+
+**Redéployer TEST sans rebuild** (rollback / réalignement) : Actions → **Deploy TEST** → `redeploy_version` = ex. `1.0.89`.
+
+Les pushes sur `main` qui ne touchent que `.github/` ou `docs/` **ne déclenchent plus** de rebuild TEST (évite qu’un fix CI fasse dériver la version recette pendant une promotion PROD).
 
 **Ne jamais** livrer PROD avec une version différente de celle testée en recette.
 
