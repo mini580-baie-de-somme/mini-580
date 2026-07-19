@@ -41,6 +41,7 @@ import {
   toDatetimeLocalValue,
 } from "@/lib/utils";
 
+import type { MediaIntegrity } from "@/lib/media-integrity-types";
 type MediaKind = MediaKindClient;
 
 type MediaItem = {
@@ -81,6 +82,7 @@ type MediaItem = {
       status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
     };
   }[];
+  integrity?: MediaIntegrity;
 };
 
 type VisibilityFilter = "ALL" | "public" | "draft" | "orphan";
@@ -179,6 +181,7 @@ export function MediaLibraryManager() {
   const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [originEditable, setOriginEditable] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const queryString = useMemo(() => {
@@ -263,6 +266,7 @@ export function MediaLibraryManager() {
     setForm(emptyForm);
     setFile(null);
     setLocalError(null);
+    setOriginEditable(true);
   }
 
   async function startEdit(m: MediaItem) {
@@ -271,6 +275,7 @@ export function MediaLibraryManager() {
     setForm(formFromMedia(m));
     setFile(null);
     setLocalError(null);
+    setOriginEditable(m.integrity?.editable ?? true);
     setBusy(true);
     try {
       const res = await fetch(`/api/media-library/${m.id}`);
@@ -278,6 +283,10 @@ export function MediaLibraryManager() {
         const full = (await res.json()) as MediaItem;
         setEditingMedia(full);
         setForm(formFromMedia(full));
+        setOriginEditable(full.integrity?.editable ?? false);
+        if (full.kind === "IMAGE" && full.integrity && !full.integrity.editable) {
+          setLocalError(t("media.integrity.notEditable"));
+        }
       }
     } catch {
       // keep list row data
@@ -292,6 +301,7 @@ export function MediaLibraryManager() {
     setForm(emptyForm);
     setFile(null);
     setLocalError(null);
+    setOriginEditable(true);
   }
 
   async function save() {
@@ -339,7 +349,7 @@ export function MediaLibraryManager() {
         const effectiveKind = file
           ? kindFromFile(file)
           : editingMedia?.kind ?? null;
-        if (effectiveKind === "IMAGE") {
+        if (effectiveKind === "IMAGE" && (file || originEditable)) {
           Object.assign(patchBody, form.layout);
         }
         if (file) {
@@ -357,6 +367,8 @@ export function MediaLibraryManager() {
                 : repData.error || t("media.saveError")
             );
           }
+          setOriginEditable(true);
+          setLocalError(null);
         }
         const res = await fetch(`/api/media-library/${editingId}`, {
           method: "PATCH",
@@ -451,6 +463,28 @@ export function MediaLibraryManager() {
     );
   }
 
+  function integrityBadge(m: MediaItem) {
+    const broken = m.integrity ? !m.integrity.ok : false;
+    if (!broken) {
+      return (
+        <span
+          title={t("media.integrity.ok")}
+          className="inline-block rounded bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800"
+        >
+          {t("media.integrity.ok")}
+        </span>
+      );
+    }
+    return (
+      <span
+        title={m.integrity?.messages.join(" · ") || t("media.integrity.brokenHint")}
+        className="inline-block rounded bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-800"
+      >
+        {t("media.integrity.broken")}
+      </span>
+    );
+  }
+
   function thumb(m: MediaItem) {
     return (
       <MediaKindThumb
@@ -470,6 +504,9 @@ export function MediaLibraryManager() {
     : editingMedia
       ? editingMedia.kind
       : null;
+  const canEditImageLayout =
+    (previewKind === "IMAGE" || editingMedia?.kind === "IMAGE") &&
+    (Boolean(filePreviewUrl) || originEditable);
   const previewSrc = filePreviewUrl
     ? filePreviewUrl
     : editingMedia
@@ -538,7 +575,7 @@ export function MediaLibraryManager() {
           <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
             <section
               className={`flex min-h-0 flex-1 overflow-hidden bg-[#eef3f7] md:min-h-0 md:flex-1 md:shrink ${
-                (previewKind === "IMAGE" || editingMedia?.kind === "IMAGE") &&
+                canEditImageLayout &&
                 (filePreviewUrl ||
                   (editingMedia &&
                     (editingMedia.urlOrigin || editingMedia.urlGrande)))
@@ -548,7 +585,7 @@ export function MediaLibraryManager() {
                     : "min-h-[28vh] items-center justify-center p-3 md:min-h-0"
               }`}
             >
-              {(previewKind === "IMAGE" || editingMedia?.kind === "IMAGE") &&
+              {canEditImageLayout &&
               (filePreviewUrl ||
                 (editingMedia &&
                   (editingMedia.urlOrigin || editingMedia.urlGrande))) ? (
@@ -565,7 +602,14 @@ export function MediaLibraryManager() {
                   showControls={false}
                 />
               ) : previewKind && previewSrc ? (
-                <div className="flex h-full min-h-0 w-full p-2 sm:p-3">
+                <div className="flex h-full min-h-0 w-full flex-col p-2 sm:p-3">
+                  {!originEditable &&
+                    editingMedia?.kind === "IMAGE" &&
+                    !filePreviewUrl && (
+                      <p className="mb-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                        {t("media.integrity.notEditable")}
+                      </p>
+                    )}
                   <MediaPreview
                     kind={previewKind}
                     src={previewSrc}
@@ -630,6 +674,7 @@ export function MediaLibraryManager() {
             >
               <div className="flex flex-col gap-3 p-3 sm:p-4">
                 {(previewKind === "IMAGE" || editingMedia?.kind === "IMAGE") &&
+                  canEditImageLayout &&
                   (filePreviewUrl ||
                     (editingMedia &&
                       (editingMedia.urlOrigin || editingMedia.urlGrande))) && (
@@ -874,6 +919,9 @@ export function MediaLibraryManager() {
                 <th className="hidden px-4 py-3 font-medium md:table-cell">
                   {t("media.colVisibility")}
                 </th>
+                <th className="hidden px-4 py-3 font-medium md:table-cell">
+                  {t("media.colIntegrity")}
+                </th>
                 <th className="hidden px-4 py-3 font-medium lg:table-cell">
                   {t("media.colLinks")}
                 </th>
@@ -897,6 +945,9 @@ export function MediaLibraryManager() {
                   <td className="hidden px-4 py-3 sm:table-cell">{kindLabel(m.kind)}</td>
                   <td className="hidden px-4 py-3 md:table-cell">
                     {visibilityBadge(m)}
+                  </td>
+                  <td className="hidden px-4 py-3 md:table-cell">
+                    {integrityBadge(m)}
                   </td>
                   <td className="hidden px-4 py-3 text-[#495867] lg:table-cell">
                     {m.posts?.length ?? 0}

@@ -19,6 +19,7 @@ import {
   newMediaTraceId,
   rebakeErrorDetail,
 } from "@/lib/media-trace";
+import { enrichMediaWithIntegrity } from "@/lib/media-integrity";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -77,7 +78,8 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   if (!media) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  return NextResponse.json(media);
+  const enriched = await enrichMediaWithIntegrity(media);
+  return NextResponse.json(enriched);
 }
 
 const NEW_LAYOUT_KEYS = [
@@ -186,7 +188,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         mediaTrace(trace, "patchMediaLibrary.rebake.done", {
           urlMoyenne: rebaked.urlMoyenne,
         });
-        return NextResponse.json(rebaked);
+        return NextResponse.json(await enrichMediaWithIntegrity(rebaked));
       } catch (err) {
         const detail = rebakeErrorDetail(err);
         const step = err instanceof MediaRebakeError ? err.step : "rebake";
@@ -200,17 +202,19 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         return NextResponse.json(
           {
             error:
-              "Variant rebake failed — layout saved but display sizes were not regenerated",
+              err instanceof Error && err.name === "MediaIntegrityError"
+                ? detail
+                : "Variant rebake failed — layout saved but display sizes were not regenerated",
             traceId,
             detail,
             step,
           },
-          { status: 500 }
+          { status: err instanceof Error && err.name === "MediaIntegrityError" ? 422 : 500 }
         );
       }
     }
 
-    return NextResponse.json(updated);
+    return NextResponse.json(await enrichMediaWithIntegrity(updated));
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.flatten() }, { status: 400 });

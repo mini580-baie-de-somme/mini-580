@@ -386,6 +386,21 @@ const messages = {
     en: "From media library",
   },
   "media.attach": { fr: "Associer", en: "Attach" },
+  "media.colIntegrity": { fr: "Stockage", en: "Storage" },
+  "media.integrity.ok": { fr: "Local OK", en: "Local OK" },
+  "media.integrity.broken": { fr: "Non conforme", en: "Non-compliant" },
+  "media.integrity.brokenHint": {
+    fr: "Fichier absent du stockage local ou URL externe — remplace le fichier pour corriger.",
+    en: "File missing from local storage or external URL — replace the file to fix.",
+  },
+  "media.integrity.notEditable": {
+    fr: "Original absent du stockage local — remplace le fichier avant d’éditer le cadrage.",
+    en: "Original missing from local storage — replace the file before editing layout.",
+  },
+  "media.integrity.replaceRequired": {
+    fr: "Remplacer le fichier (originale manquante ou URL externe)",
+    en: "Replace file (missing original or external URL)",
+  },
 
   "milestones.title": { fr: "Jalons timeline", en: "Timeline milestones" },
   "milestones.subtitle": {

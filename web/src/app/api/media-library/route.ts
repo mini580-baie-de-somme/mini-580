@@ -15,6 +15,7 @@ import {
   mediaWhere,
   parseMediaListParams,
 } from "@/lib/media-library";
+import { enrichMediaListWithIntegrity } from "@/lib/media-integrity";
 import { optionalNullableDateTime } from "@/lib/date-schema";
 
 export const runtime = "nodejs";
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
     where.posts = { some: { post: { status: "PUBLISHED" } } };
   }
 
-  const [items, total, totalAll] = await Promise.all([
+  const [rows, total, totalAll] = await Promise.all([
     prisma.media.findMany({
       where,
       include: mediaInclude,
@@ -43,6 +44,10 @@ export async function GET(request: NextRequest) {
       editor ? undefined : { where: { posts: { some: { post: { status: "PUBLISHED" } } } } }
     ),
   ]);
+
+  const items = editor
+    ? await enrichMediaListWithIntegrity(rows)
+    : rows;
 
   return NextResponse.json({ items, total, totalAll, limit, offset });
 }

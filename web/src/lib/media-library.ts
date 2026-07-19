@@ -24,6 +24,7 @@ import {
   newMediaTraceId,
   type MediaTraceContext,
 } from "@/lib/media-trace";
+import { assertEditableImageOrigin, isLocalMediaUrl } from "@/lib/media-integrity";
 import { EDITOR_LIST_PAGE_SIZE } from "@/lib/constants";
 
 export const mediaInclude = {
@@ -279,6 +280,19 @@ export async function createMediaFromUrls(data: {
   cropW?: number;
   cropH?: number;
 }) {
+  const trimmedOrigin = data.urlOrigin.trim();
+  if (
+    trimmedOrigin.startsWith("http://") ||
+    trimmedOrigin.startsWith("https://")
+  ) {
+    throw new Error(
+      "urlOrigin must be a local /media/ path — external URLs are not allowed"
+    );
+  }
+  if (!isLocalMediaUrl(trimmedOrigin)) {
+    throw new Error("urlOrigin must be a valid local /media/ path");
+  }
+
   const mimeType = data.mimeType ?? "image/jpeg";
   const kind =
     data.kind ??
@@ -292,7 +306,7 @@ export async function createMediaFromUrls(data: {
     data: {
       kind,
       mimeType,
-      urlOrigin: data.urlOrigin,
+      urlOrigin: trimmedOrigin,
       urlPicto: data.urlPicto ?? null,
       urlPetite: data.urlPetite ?? null,
       urlMoyenne: data.urlMoyenne ?? (kind === MediaKind.IMAGE ? data.urlOrigin : null),
@@ -453,21 +467,13 @@ export async function rebakeMediaVariants(
   const stale =
     previousVariantUrls ??
     [media.urlPicto, media.urlPetite, media.urlMoyenne, media.urlGrande];
-  const fallbackUrls = [
-    media.urlGrande,
-    media.urlMoyenne,
-    media.urlPetite,
-    media.urlPicto,
-  ].filter((url): url is string => Boolean(url && url !== media.urlOrigin));
 
   mediaTrace(ctx, "rebakeMediaVariants.start", {
     urlOrigin: media.urlOrigin,
-    fallbackUrls,
     layout,
   });
-  return bakeVariantsFromOrigin(media.urlOrigin, layout, stale, ctx, {
-    fallbackUrls,
-  });
+  await assertEditableImageOrigin(media);
+  return bakeVariantsFromOrigin(media.urlOrigin, layout, stale, ctx);
 }
 
 /** Collect URLs that may still be referenced as post.coverImageUrl before a rebake. */

@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeAll, afterAll, vi } from "vitest";
+import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import sharp from "sharp";
 import { resolve } from "node:path";
 import { mkdirSync, rmSync, existsSync } from "node:fs";
@@ -184,111 +184,18 @@ describe("media-variants — fixed 3:4 layout bake", () => {
     });
   });
 
-  it("localizes remote http(s) origins before rebake", async () => {
-    const jpeg = await makeLandscapeJpeg();
+  it("rejects remote http(s) origins — local bucket only", async () => {
     const remoteUrl = "https://cdn.example.test/imported-cover.jpg";
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      headers: {
-        get: (name: string) =>
-          name.toLowerCase() === "content-type" ? "image/jpeg" : null,
-      },
-      arrayBuffer: async () =>
-        jpeg.buffer.slice(jpeg.byteOffset, jpeg.byteOffset + jpeg.byteLength),
-    }));
-    vi.stubGlobal("fetch", fetchMock);
-
-    try {
-      const resolved = await resolveOriginForBake(remoteUrl, testTrace);
-      expect(resolved.localizedUrl).toMatch(/\/media\/.*\/origin\.jpg$/);
-      expect(resolved.body.byteLength).toBeGreaterThan(1000);
-
-      const rebaked = await bakeVariantsFromOrigin(
-        remoteUrl,
-        {
-          ...DEFAULT_IMAGE_LAYOUT,
-          offsetX: 0.52,
-          scaleX: 3.3,
-          scaleY: 3.3,
-          rotation: -24,
-        },
-        [],
-        testTrace
-      );
-      expect(rebaked.urlOrigin).toMatch(/\/media\/.*\/origin\.jpg$/);
-      expect(rebaked.urlMoyenne).toMatch(/moyenne\.webp$/);
-      expect(fetchMock).toHaveBeenCalledWith(
-        remoteUrl,
-        expect.objectContaining({ redirect: "follow" })
-      );
-
-      const root = process.env.MEDIA_ROOT!;
-      const { readFile } = await import("node:fs/promises");
-      const moyenneMeta = await sharp(
-        await readFile(resolve(root, mediaKeyFromUrl(rebaked.urlMoyenne)!))
-      ).metadata();
-      expect(moyenneMeta.width).toBe(VARIANT_SIZE.moyenne.w);
-      expect(moyenneMeta.height).toBe(VARIANT_SIZE.moyenne.h);
-    } finally {
-      vi.unstubAllGlobals();
-    }
-  });
-
-  it("rebakes from existing grande variant when origin file is missing", async () => {
-    const jpeg = await makeLandscapeJpeg();
-    const stored = await storeOriginAndVariants(jpeg, "image/jpeg");
-    const root = process.env.MEDIA_ROOT!;
-    const originKey = mediaKeyFromUrl(stored.urlOrigin)!;
-    rmSync(resolve(root, originKey));
-
-    const rebaked = await bakeVariantsFromOrigin(
-      stored.urlOrigin,
-      {
-        ...DEFAULT_IMAGE_LAYOUT,
-        rotation: 12,
-        scaleX: 1.1,
-        scaleY: 1.1,
-      },
-      [stored.urlPicto, stored.urlPetite, stored.urlMoyenne, stored.urlGrande],
-      testTrace,
-      {
-        fallbackUrls: [
-          stored.urlGrande,
-          stored.urlMoyenne,
-          stored.urlPetite,
-          stored.urlPicto,
-        ],
-      }
+    await expect(resolveOriginForBake(remoteUrl, testTrace)).rejects.toThrow(
+      /not stored locally/i
     );
-
-    expect(rebaked.urlMoyenne).toMatch(/moyenne\.webp$/);
-    expect(rebaked.urlMoyenne).not.toBe(stored.urlMoyenne);
-    expect(existsSync(resolve(root, originKey))).toBe(false);
   });
 
-  it("reports actionable error when origin and fallbacks are unavailable", async () => {
+  it("rejects missing local origin files", async () => {
     const missingOrigin = "/media/2026/07/missing-origin.jpg";
-    const missingGrande = "/media/2026/07/missing-grande.webp";
-    process.env.SITE_URL = "https://test.classmini580.blog";
-    const fetchMock = vi.fn(async () => ({
-      ok: false,
-      status: 404,
-      headers: { get: () => null },
-      arrayBuffer: async () => new ArrayBuffer(0),
-    }));
-    vi.stubGlobal("fetch", fetchMock);
-
-    try {
-      await expect(
-        resolveOriginForBake(missingOrigin, testTrace, {
-          fallbackUrls: [missingGrande],
-        })
-      ).rejects.toThrow(/Re-upload the original photo/);
-      expect(fetchMock.mock.calls.length).toBeGreaterThan(0);
-    } finally {
-      vi.unstubAllGlobals();
-    }
+    await expect(
+      resolveOriginForBake(missingOrigin, testTrace)
+    ).rejects.toThrow(/missing from local storage/i);
   });
 
   it("bakeVariantsFromOrigin regenerates variants without mutating origin", async () => {

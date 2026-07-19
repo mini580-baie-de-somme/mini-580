@@ -217,12 +217,14 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         return NextResponse.json(
           {
             error:
-              "Variant rebake failed — layout saved but display sizes were not regenerated",
+              err instanceof Error && err.name === "MediaIntegrityError"
+                ? detail
+                : "Variant rebake failed — layout saved but display sizes were not regenerated",
             traceId,
             detail,
             step,
           },
-          { status: 500 }
+          { status: err instanceof Error && err.name === "MediaIntegrityError" ? 422 : 500 }
         );
       }
     }

@@ -38,6 +38,7 @@ import {
   photoEditorTrace,
   readApiErrorBody,
 } from "@/lib/media-trace-client";
+import type { MediaIntegrity } from "@/lib/media-integrity-types";
 
 type Props = {
   postId: string;
@@ -122,6 +123,7 @@ export function PhotoEditModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [originEditable, setOriginEditable] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -135,6 +137,36 @@ export function PhotoEditModal({
     setLocalPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [pendingFile]);
+
+  useEffect(() => {
+    if (mode !== "edit" || !draft?.id || pendingFile) {
+      setOriginEditable(true);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(`/api/media-library/${draft.id}`);
+        if (!res.ok || cancelled) return;
+        const full = (await res.json()) as { integrity?: MediaIntegrity };
+        if (cancelled) return;
+        const editable = full.integrity?.editable ?? false;
+        setOriginEditable(editable);
+        if (!editable) {
+          setError(
+            lang === "fr"
+              ? "Original absent du stockage local — remplace le fichier avant d’éditer le cadrage."
+              : "Original missing from local storage — replace the file before editing layout."
+          );
+        }
+      } catch {
+        if (!cancelled) setOriginEditable(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, draft?.id, pendingFile, lang]);
 
   function patchDraft(patch: Partial<GalleryEditorImage>) {
     setDraft((prev) => (prev ? { ...prev, ...patch } : prev));
@@ -182,6 +214,7 @@ export function PhotoEditModal({
       setError(null);
       setPendingFile(file);
       setDirty(true);
+      setOriginEditable(true);
       setDraft((prev) => {
         const base = prev ?? emptyDraft(kind);
         return {
@@ -231,6 +264,7 @@ export function PhotoEditModal({
   }, [pendingFile, draft?.kind]);
 
   const isImage = effectiveKind === "IMAGE";
+  const canEditImageLayout = isImage && (Boolean(pendingFile) || originEditable);
 
   async function save() {
     if (!draft && !pendingFile) {
@@ -341,7 +375,7 @@ export function PhotoEditModal({
             : current.takenAt.toISOString()
           : null,
       };
-      if (isImage) {
+      if (isImage && canEditImageLayout) {
         Object.assign(patchBody, layout);
       }
 
@@ -514,14 +548,14 @@ export function PhotoEditModal({
       <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
         <section
           className={`flex min-h-0 flex-1 overflow-hidden bg-[#eef3f7] md:min-h-0 md:flex-1 md:shrink ${
-            hasPreview && isImage
+            hasPreview && canEditImageLayout
               ? "min-h-[24vh] touch-none items-center justify-center md:h-auto md:max-h-none md:min-h-0"
               : hasPreview
                 ? "min-h-[24vh] items-stretch p-0 md:h-auto md:max-h-none md:min-h-0"
                 : "min-h-[28vh] items-center justify-center md:min-h-0"
           }`}
         >
-          {hasPreview && isImage ? (
+          {hasPreview && canEditImageLayout ? (
             <PhotoCanvasEditor
               imageSrc={previewSrc}
               value={layout}
@@ -534,7 +568,14 @@ export function PhotoEditModal({
               showControls={false}
             />
           ) : hasPreview ? (
-            <div className="flex h-full min-h-0 w-full p-2 sm:p-3">
+            <div className="flex h-full min-h-0 w-full flex-col p-2 sm:p-3">
+              {isImage && !canEditImageLayout && (
+                <p className="mb-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  {lang === "fr"
+                    ? "Original absent du stockage local — remplace le fichier avant d’éditer le cadrage."
+                    : "Original missing from local storage — replace the file before editing layout."}
+                </p>
+              )}
               <MediaPreview
                 kind={effectiveKind}
                 src={previewSrc}
@@ -607,7 +648,7 @@ export function PhotoEditModal({
           className="md:w-[min(100%,24rem)] md:flex-none md:shrink-0 md:border-l md:border-t-0"
         >
           <div className="flex flex-col gap-3 p-3 sm:p-4">
-            {hasPreview && isImage && (
+            {hasPreview && canEditImageLayout && (
               <div className="order-first border-b border-[#eef3f7] pb-3 md:order-last md:border-b-0 md:border-t md:pt-3 md:pb-0">
                 <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-[#495867]">
                   {lang === "fr" ? "Mise en page" : "Layout"}
