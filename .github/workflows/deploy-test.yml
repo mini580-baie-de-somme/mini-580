@@ -26,11 +26,13 @@ jobs:
     runs-on: ubuntu-latest
     environment: test
     permissions:
-      contents: read
+      contents: write
       packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Resolve deploy version
         id: ver
@@ -42,10 +44,23 @@ jobs:
             echo "mode=redeploy" >> "$GITHUB_OUTPUT"
             echo "Redeploy v$REDEPLOY (no rebuild)"
           else
-            VERSION=$(BUILD_NUMBER=${{ github.run_number }} node scripts/compute-build-version.mjs)
+            VERSION=$(node scripts/increment-build-counter.mjs)
             echo "version=$VERSION" >> "$GITHUB_OUTPUT"
             echo "mode=build" >> "$GITHUB_OUTPUT"
             echo "Build version: v$VERSION (tag v$VERSION + :test)"
+          fi
+
+      - name: Persist build counter
+        if: steps.ver.outputs.mode == 'build'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add build-counter.json
+          if git diff --staged --quiet; then
+            echo "build-counter.json unchanged"
+          else
+            git commit -m "chore(ci): record build counter for v${{ steps.ver.outputs.version }}"
+            git push
           fi
 
       - name: Set up Docker Buildx
@@ -73,7 +88,7 @@ jobs:
             org.opencontainers.image.version=${{ steps.ver.outputs.version }}
             org.opencontainers.image.revision=${{ github.sha }}
           build-args: |
-            BUILD_NUMBER=${{ github.run_number }}
+            BUILD_VERSION=${{ steps.ver.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

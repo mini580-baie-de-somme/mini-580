@@ -112,12 +112,16 @@ Après un changement de secret : relancer **Deploy TEST** (push `main` ou manuel
 
 ### Versioning (build TEST uniquement)
 
-- Source : `web/versions.json` (major/minor manuels) + `BUILD_NUMBER` = numéro de run du workflow **Deploy TEST**
-- Patch baked au build : ex. run #89 → **v1.0.89** (`GET /api/version`)
+- **Ligne** : `web/versions.json` — major.minor de base (ex. `1.1.0` ; le `.0` est la base patch, pas le compteur)
+- **Compteur** : `build-counter.json` à la racine — patch incrémenté à chaque build TEST **pour la ligne courante** ; **remis à 0** quand major.minor change
+- **Version affichée** : `major.minor.patch` — ex. `1.1.0`, `1.1.1`, `1.1.2`… (`GET /api/version`)
+- Le workflow **Deploy TEST** incrémente le compteur, commit `build-counter.json` (ne re-déclenche pas TEST : hors paths `web/**` / `deploy/**`), puis bake `BUILD_VERSION` dans l’image
 - Tags GHCR par build TEST :
   - `:test` — pointeur flottant (dernier build TEST validé)
-  - `:v1.0.89` — immuable (promotion PROD)
+  - `:v1.1.0` — immuable (promotion PROD)
   - `:sha-<commit>` — immuable (audit)
+
+**Bump minor (ex. 1.0 → 1.1)** : éditer `web/versions.json` (`fe` + `be` → `1.1.0`), push `main` → prochain build TEST = **v1.1.0** (compteur reset), puis v1.1.1, v1.1.2…
 
 **Règle :** seul **Deploy TEST** rebuild l’image. **Deploy PROD ne rebuild jamais.**
 
@@ -134,7 +138,7 @@ Vérifier la version recette : `curl -sS https://test.classmini580.blog/api/vers
 Actions → **Deploy PROD** → Run workflow :
 
 1. `confirm` = `deploy-prod`
-2. `expected_version` = version TEST validée (ex. `1.0.89`) — **doit matcher** `test.classmini580.blog/api/version`
+2. `expected_version` = version TEST validée (ex. `1.1.2`) — **doit matcher** `test.classmini580.blog/api/version`
 
 Le workflow :
 
@@ -143,7 +147,7 @@ Le workflow :
 3. Déploie sur le VPS
 4. Vérifie que PROD live = même version
 
-**Redéployer TEST sans rebuild** (rollback / réalignement) : Actions → **Deploy TEST** → `redeploy_version` = ex. `1.0.89`.
+**Redéployer TEST sans rebuild** (rollback / réalignement) : Actions → **Deploy TEST** → `redeploy_version` = ex. `1.1.2` (ne modifie pas `build-counter.json`).
 
 Les pushes sur `main` qui ne touchent que `.github/` ou `docs/` **ne déclenchent plus** de rebuild TEST (évite qu’un fix CI fasse dériver la version recette pendant une promotion PROD).
 
@@ -224,5 +228,8 @@ sudo -u deploy docker compose -f /opt/mini580/prod/docker-compose.yml --env-file
 | `deploy/nginx/*.conf` | Reverse proxy HTTP |
 | `deploy/scripts/bootstrap-vps.sh` | Provisionnement serveur (+ dossiers media uid 1001) |
 | `deploy/scripts/deploy.sh` | Pull image + compose up (+ assure `./media`) |
+| `build-counter.json` | Compteur patch par ligne major.minor (CI) |
+| `web/scripts/build-version-lib.mjs` | Logique semver + compteur |
+| `web/scripts/increment-build-counter.mjs` | Incrément CI → version + persist |
 | `.github/workflows/deploy-test.yml` | CI TEST |
 | `.github/workflows/deploy-prod.yml` | CD PROD manuel |

@@ -1,53 +1,32 @@
 #!/usr/bin/env node
 /**
- * Auto-increment the patch (build) segment of FE and/or BE versions.
- * Major and minor are edited manually in versions.json.
+ * Bake FE/BE versions into versions.json at Docker build time.
  *
  * Env:
- *   BUILD_NUMBER / GITHUB_RUN_NUMBER — if set, use as patch instead of +1
+ *   BUILD_VERSION — exact semver from CI (Deploy TEST); no counter increment here
  *   BUMP_TARGET — "fe" | "be" | "all" (default: all)
+ *
+ * Local `npm run build` without BUILD_VERSION increments patch by 1 in versions.json.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { formatSemver, parseSemver } from "./build-version-lib.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const versionsPath = join(__dirname, "..", "versions.json");
 
-function parseSemver(version) {
-  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(String(version).trim());
-  if (!match) {
-    throw new Error(`Invalid semver (expected major.minor.patch): ${version}`);
-  }
-  return {
-    major: Number(match[1]),
-    minor: Number(match[2]),
-    patch: Number(match[3]),
-  };
-}
-
-function formatSemver({ major, minor, patch }) {
-  return `${major}.${minor}.${patch}`;
-}
-
-function bumpPatch(version, buildNumber) {
+function bumpPatch(version) {
   const parts = parseSemver(version);
-  if (buildNumber !== null) {
-    parts.patch = buildNumber;
-  } else {
-    parts.patch += 1;
-  }
+  parts.patch += 1;
   return formatSemver(parts);
 }
 
-function resolveBuildNumber() {
-  const raw = process.env.BUILD_NUMBER || process.env.GITHUB_RUN_NUMBER || "";
+function resolveBuildVersion() {
+  const raw = process.env.BUILD_VERSION?.trim();
   if (!raw) return null;
-  const n = Number(raw);
-  if (!Number.isInteger(n) || n < 0) {
-    throw new Error(`Invalid BUILD_NUMBER: ${raw}`);
-  }
-  return n;
+  parseSemver(raw);
+  return raw;
 }
 
 const target = process.env.BUMP_TARGET || "all";
@@ -55,18 +34,19 @@ if (!["fe", "be", "all"].includes(target)) {
   throw new Error(`Invalid BUMP_TARGET: ${target}`);
 }
 
-const buildNumber = resolveBuildNumber();
+const buildVersion = resolveBuildVersion();
 const versions = JSON.parse(readFileSync(versionsPath, "utf8"));
 
 if (typeof versions.fe !== "string" || typeof versions.be !== "string") {
   throw new Error("versions.json must contain string fields fe and be");
 }
 
-if (target === "all" || target === "fe") {
-  versions.fe = bumpPatch(versions.fe, buildNumber);
-}
-if (target === "all" || target === "be") {
-  versions.be = bumpPatch(versions.be, buildNumber);
+if (buildVersion) {
+  if (target === "all" || target === "fe") versions.fe = buildVersion;
+  if (target === "all" || target === "be") versions.be = buildVersion;
+} else {
+  if (target === "all" || target === "fe") versions.fe = bumpPatch(versions.fe);
+  if (target === "all" || target === "be") versions.be = bumpPatch(versions.be);
 }
 
 writeFileSync(versionsPath, `${JSON.stringify(versions, null, 2)}\n`);
