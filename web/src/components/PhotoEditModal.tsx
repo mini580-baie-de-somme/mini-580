@@ -13,6 +13,7 @@ import {
 import {
   DEFAULT_IMAGE_LAYOUT,
   layoutFromLegacy,
+  legacyFieldsFromLayout,
   type ImageLayoutParams,
 } from "@/lib/image-layout";
 import {
@@ -263,12 +264,30 @@ export function PhotoEditModal({
       setDirty(true);
       setOriginEditable(true);
       setMediaIntegrity(null);
+      setLayout({ ...DEFAULT_IMAGE_LAYOUT });
+      const legacy = legacyFieldsFromLayout(DEFAULT_IMAGE_LAYOUT);
       setDraft((prev) => {
         const base = prev ?? emptyDraft(kind);
         return {
           ...base,
           kind,
           mimeType: mime,
+          offsetX: DEFAULT_IMAGE_LAYOUT.offsetX,
+          offsetY: DEFAULT_IMAGE_LAYOUT.offsetY,
+          scaleX: DEFAULT_IMAGE_LAYOUT.scaleX,
+          scaleY: DEFAULT_IMAGE_LAYOUT.scaleY,
+          lockAspect: DEFAULT_IMAGE_LAYOUT.lockAspect,
+          rotation: DEFAULT_IMAGE_LAYOUT.rotation,
+          cropShape: DEFAULT_IMAGE_LAYOUT.cropShape,
+          backgroundColor: DEFAULT_IMAGE_LAYOUT.backgroundColor,
+          cropInset: DEFAULT_IMAGE_LAYOUT.cropInset,
+          focusX: legacy.focusX,
+          focusY: legacy.focusY,
+          zoom: legacy.zoom,
+          cropX: 0,
+          cropY: 0,
+          cropW: 1,
+          cropH: 1,
         };
       });
     },
@@ -340,7 +359,7 @@ export function PhotoEditModal({
       isImage,
       hasPendingFile: Boolean(pendingFile),
       layout: isImage ? layout : undefined,
-    });
+    }, "info");
     try {
       let current = draft ? { ...draft } : emptyDraft(effectiveKind);
 
@@ -360,7 +379,7 @@ export function PhotoEditModal({
         }
 
         if (current.id) {
-          photoEditorTrace(trace, "save.replace.start", { mediaId: current.id });
+          photoEditorTrace(trace, "save.replace.start", { mediaId: current.id }, "debug");
           const rep = await fetch(`/api/media-library/${current.id}/replace`, {
             method: "POST",
             body,
@@ -370,7 +389,7 @@ export function PhotoEditModal({
             photoEditorTrace(trace, "save.replace.failed", {
               status: rep.status,
               ...errBody,
-            });
+            }, "error");
             throw new Error(
               typeof errBody.detail === "string"
                 ? errBody.detail
@@ -379,9 +398,9 @@ export function PhotoEditModal({
           }
           current = toEditorImage(await rep.json());
           assertLocalOriginResponse(current.urlOrigin, lang);
-          photoEditorTrace(trace, "save.replace.done", { mediaId: current.id });
+          photoEditorTrace(trace, "save.replace.done", { mediaId: current.id }, "info");
         } else {
-          photoEditorTrace(trace, "save.upload.start", { postId });
+          photoEditorTrace(trace, "save.upload.start", { postId }, "debug");
           const res = await fetch(`/api/posts/${postId}/media`, {
             method: "POST",
             body,
@@ -391,12 +410,12 @@ export function PhotoEditModal({
             photoEditorTrace(trace, "save.upload.failed", {
               status: res.status,
               ...errBody,
-            });
+            }, "error");
             throw new Error("upload failed");
           }
           current = toEditorImage(await res.json());
           assertLocalOriginResponse(current.urlOrigin, lang);
-          photoEditorTrace(trace, "save.upload.done", { mediaId: current.id });
+          photoEditorTrace(trace, "save.upload.done", { mediaId: current.id }, "info");
         }
 
         if (draft) {
@@ -432,7 +451,7 @@ export function PhotoEditModal({
       photoEditorTrace(trace, "save.patch.start", {
         mediaId: current.id,
         patchBody,
-      });
+      }, "debug");
       const res = await fetch(`/api/posts/${postId}/images/${current.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -443,7 +462,7 @@ export function PhotoEditModal({
         photoEditorTrace(trace, "save.patch.failed", {
           status: res.status,
           ...errBody,
-        });
+        }, "error");
         const detail =
           typeof errBody.detail === "string" ? errBody.detail : undefined;
         const serverTrace =
@@ -460,7 +479,7 @@ export function PhotoEditModal({
         scaleX: updated.scaleX,
         scaleY: updated.scaleY,
         rotation: updated.rotation,
-      });
+      }, "info");
       const saved: GalleryEditorImage = isImage
         ? {
             ...updated,
@@ -484,10 +503,10 @@ export function PhotoEditModal({
       setDirty(false);
       onSaved(saved);
       onClose();
-      photoEditorTrace(trace, "save.done", { mediaId: saved.id });
+      photoEditorTrace(trace, "save.done", { mediaId: saved.id }, "info");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Save failed";
-      photoEditorTrace(trace, "save.error", { message });
+      photoEditorTrace(trace, "save.error", { message }, "error");
       setError(
         lang === "fr"
           ? message.startsWith("Échec")

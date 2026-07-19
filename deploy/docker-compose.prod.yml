@@ -51,6 +51,7 @@ services:
       SYNC_PEER_URL: ${SYNC_PEER_URL:-https://test.classmini580.blog}
       SYNC_PRIVATE_KEY: ${SYNC_PRIVATE_KEY:-}
       SYNC_PEER_PUBLIC_KEY: ${SYNC_PEER_PUBLIC_KEY:-}
+      LOG_LEVEL: ${LOG_LEVEL:-warn}
     ports:
       - "127.0.0.1:3000:3000"
     volumes:

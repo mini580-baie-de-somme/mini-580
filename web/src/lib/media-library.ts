@@ -472,7 +472,7 @@ export async function rebakeMediaVariants(
   mediaTrace(ctx, "rebakeMediaVariants.start", {
     urlOrigin: media.urlOrigin,
     layout,
-  });
+  }, "info");
   await assertEditableImageOrigin({ ...media, kind: media.kind ?? "IMAGE" });
   return bakeVariantsFromOrigin(media.urlOrigin, layout, stale, ctx);
 }

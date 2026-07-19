@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_IMAGE_LAYOUT,
-  EDITOR_REFERENCE_SIZE,
   IMAGE_ASPECT,
   VARIANT_SIZE,
   computeEditorCropWindow,
@@ -67,27 +66,33 @@ describe("computeEditorPhotoLayout", () => {
 });
 
 describe("computeEditorCropWindow", () => {
-  it("keeps crop pixel size and 3:4 ratio when the stage resizes", () => {
+  it("scales crop with stage size while preserving 3:4 ratio", () => {
     const inset = DEFAULT_IMAGE_LAYOUT.cropInset;
-    const small = computeEditorCropWindow(inset, 320, 520);
-    const large = computeEditorCropWindow(inset, 400, 680);
+    const small = computeEditorCropWindow(inset, 320, 320 / IMAGE_ASPECT);
+    const large = computeEditorCropWindow(inset, 400, 400 / IMAGE_ASPECT);
 
-    expect(small.cropW).toBeCloseTo(large.cropW, 5);
-    expect(small.cropH).toBeCloseTo(large.cropH, 5);
+    const ratio = 1 - 2 * inset;
     expect(small.cropW / small.cropH).toBeCloseTo(IMAGE_ASPECT, 5);
-
-    const expectedW = EDITOR_REFERENCE_SIZE.w * (1 - 2 * inset);
-    const expectedH = EDITOR_REFERENCE_SIZE.h * (1 - 2 * inset);
-    expect(small.cropW).toBeCloseTo(expectedW, 5);
-    expect(small.cropH).toBeCloseTo(expectedH, 5);
+    expect(large.cropW / large.cropH).toBeCloseTo(IMAGE_ASPECT, 5);
+    expect(large.cropW / small.cropW).toBeCloseTo(400 / 320, 5);
+    expect(large.cropH / small.cropH).toBeCloseTo(400 / 320, 5);
+    expect(small.cropW).toBeCloseTo(320 * ratio, 5);
+    expect(small.cropH).toBeCloseTo((320 / IMAGE_ASPECT) * ratio, 5);
   });
 
-  it("centers the fixed reference canvas within the live stage", () => {
-    const win = computeEditorCropWindow(DEFAULT_IMAGE_LAYOUT.cropInset, 360, 600);
-    expect(win.refLeft).toBeCloseTo((360 - EDITOR_REFERENCE_SIZE.w) / 2, 5);
-    expect(win.refTop).toBeCloseTo((600 - EDITOR_REFERENCE_SIZE.h) / 2, 5);
-    expect(win.cropLeft).toBeGreaterThanOrEqual(win.refLeft);
-    expect(win.cropTop).toBeGreaterThanOrEqual(win.refTop);
+  it("uses equal fractional inset on all stage edges", () => {
+    const inset = DEFAULT_IMAGE_LAYOUT.cropInset;
+    const stageW = 360;
+    const stageH = stageW / IMAGE_ASPECT;
+    const win = computeEditorCropWindow(inset, stageW, stageH);
+    expect(win.refLeft).toBe(0);
+    expect(win.refTop).toBe(0);
+    expect(win.refW).toBeCloseTo(stageW, 5);
+    expect(win.refH).toBeCloseTo(stageH, 5);
+    expect(win.cropLeft).toBeCloseTo(stageW * inset, 5);
+    expect(win.cropTop).toBeCloseTo(stageH * inset, 5);
+    expect(win.cropW).toBeCloseTo(stageW * (1 - 2 * inset), 5);
+    expect(win.cropH).toBeCloseTo(stageH * (1 - 2 * inset), 5);
   });
 });
 

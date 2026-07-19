@@ -242,7 +242,7 @@ export async function resolveOriginForBake(
   mediaTrace(trace, "resolveOrigin.start", {
     originUrl,
     mediaRoot: getMediaRoot(),
-  });
+  }, "trace");
 
   if (!isLocalMediaUrl(originUrl)) {
     throw new MediaRebakeError(
@@ -260,7 +260,7 @@ export async function resolveOriginForBake(
     localKey,
     hit: Boolean(originObj),
     bytes: originObj?.contentLength ?? 0,
-  });
+  }, "trace");
 
   if (!originObj) {
     throw new MediaRebakeError(
@@ -294,7 +294,7 @@ export async function bakeVariantsFromOrigin(
       rotation: transform.rotation,
       cropInset: transform.cropInset,
     },
-  });
+  }, "info");
 
   let resolved: ResolvedOrigin;
   try {
@@ -314,7 +314,7 @@ export async function bakeVariantsFromOrigin(
     master = await applyImageTransform(resolved.body, transform);
     mediaTrace(trace, "bakeVariants.transformed", {
       masterBytes: master.byteLength,
-    });
+    }, "debug");
   } catch (err) {
     throw new MediaRebakeError(
       `Image transform failed: ${rebakeErrorMessage(err)}`,
@@ -351,7 +351,7 @@ export async function bakeVariantsFromOrigin(
       urlMoyenne: moyenne.url,
       urlGrande: grande.url,
     };
-    mediaTrace(trace, "bakeVariants.done", result);
+    mediaTrace(trace, "bakeVariants.done", result, "info");
     return result;
   } catch (err) {
     throw new MediaRebakeError(

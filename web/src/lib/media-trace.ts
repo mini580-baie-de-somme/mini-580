@@ -1,6 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
+import { appLog, type LogLevel } from "./app-log";
 
 export type MediaTraceContext = {
   traceId: string;
@@ -15,16 +16,15 @@ export function newMediaTraceId(prefix = "mt"): string {
 export function mediaTrace(
   ctx: MediaTraceContext,
   step: string,
-  data?: Record<string, unknown>
+  data?: Record<string, unknown>,
+  level: LogLevel = "debug"
 ) {
-  const payload = {
+  appLog("media-trace", level, step, {
     traceId: ctx.traceId,
-    step,
     ...(ctx.mediaId ? { mediaId: ctx.mediaId } : {}),
     ...(ctx.postId ? { postId: ctx.postId } : {}),
     ...(data ?? {}),
-  };
-  console.info("[media-trace]", JSON.stringify(payload));
+  });
 }
 
 export class MediaRebakeError extends Error {

@@ -255,6 +255,10 @@ export function MediaLibraryManager() {
         return;
       }
       setFile(next);
+      setForm((prev) => ({
+        ...prev,
+        layout: { ...DEFAULT_IMAGE_LAYOUT },
+      }));
     },
     [t]
   );

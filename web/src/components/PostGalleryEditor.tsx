@@ -115,7 +115,7 @@ export function PostGalleryEditor({
       const trace = { traceId: newPhotoEditorTraceId(), postId };
       setBusy(true);
       setError(null);
-      photoEditorTrace(trace, "orphanCover.import.start", { coverImageUrl });
+      photoEditorTrace(trace, "orphanCover.import.start", { coverImageUrl }, "info");
       try {
         const res = await fetch(`/api/posts/${postId}/images`, {
           method: "POST",
@@ -127,14 +127,14 @@ export function PostGalleryEditor({
           photoEditorTrace(trace, "orphanCover.import.failed", {
             status: res.status,
             ...errBody,
-          });
+          }, "error");
           throw new Error("import failed");
         }
         const created = toEditorImage(await res.json());
         photoEditorTrace(trace, "orphanCover.import.done", {
           mediaId: created.id,
           urlOrigin: created.urlOrigin,
-        });
+        }, "info");
         if (cancelled) return;
         upsertImage(created);
         onCoverChange(coverUrlFromImage(created));
@@ -411,7 +411,7 @@ export function PostGalleryEditor({
               : "No media yet — upload a file or pick from the library."}
           </p>
         ) : (
-          <div className="flex gap-2 overflow-x-auto pb-1">
+          <div className="flex flex-wrap gap-2 pb-1">
             {images.map((img, index) => {
               const isCover = coverImage?.id === img.id;
               return (
@@ -444,24 +444,24 @@ export function PostGalleryEditor({
                       {lang === "fr" ? "Couv." : "Cover"}
                     </span>
                   )}
-                  <div className="mt-1 flex justify-center gap-0.5">
+                  <div className="mt-1 flex justify-center gap-1">
                     <button
                       type="button"
-                      className="text-[10px] text-[#495867] disabled:opacity-30"
+                      className="flex min-h-9 min-w-9 items-center justify-center text-sm text-[#495867] disabled:opacity-30"
                       disabled={index === 0 || busy}
                       onClick={() => void reorder(index, index - 1)}
-                      aria-label="Monter"
+                      aria-label={lang === "fr" ? "Déplacer à gauche" : "Move left"}
                     >
-                      ↑
+                      ←
                     </button>
                     <button
                       type="button"
-                      className="text-[10px] text-[#495867] disabled:opacity-30"
+                      className="flex min-h-9 min-w-9 items-center justify-center text-sm text-[#495867] disabled:opacity-30"
                       disabled={index === images.length - 1 || busy}
                       onClick={() => void reorder(index, index + 1)}
-                      aria-label="Descendre"
+                      aria-label={lang === "fr" ? "Déplacer à droite" : "Move right"}
                     >
-                      ↓
+                      →
                     </button>
                   </div>
                 </div>

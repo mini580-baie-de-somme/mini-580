@@ -94,7 +94,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const { id: postId, imageId } = await context.params;
   const traceId = newMediaTraceId();
   const trace = { traceId, mediaId: imageId, postId };
-  mediaTrace(trace, "patchImage.start", { postId, imageId });
+  mediaTrace(trace, "patchImage.start", { postId, imageId }, "info");
 
   const link = await prisma.postMedia.findUnique({
     where: { postId_mediaId: { postId, mediaId: imageId } },
@@ -182,7 +182,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         scaleX: media.scaleX,
         scaleY: media.scaleY,
         rotation: media.rotation,
-      });
+      }, "debug");
       try {
         const bakedUrls = await rebakeMediaVariants(
           media,
@@ -202,7 +202,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         mediaTrace(trace, "patchImage.rebake.done", {
           urlOrigin: finalMedia.urlOrigin,
           urlMoyenne: finalMedia.urlMoyenne,
-        });
+        }, "info");
       } catch (err) {
         const detail = rebakeErrorDetail(err);
         const step = err instanceof MediaRebakeError ? err.step : "rebake";

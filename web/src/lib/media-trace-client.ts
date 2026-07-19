@@ -1,5 +1,7 @@
 /** Browser-side trace logs for photo editor save/rebake debugging. */
 
+import { appLog, type LogLevel } from "./app-log";
+
 export type PhotoEditorTraceContext = {
   traceId: string;
   postId?: string;
@@ -17,16 +19,15 @@ export function newPhotoEditorTraceId(): string {
 export function photoEditorTrace(
   ctx: PhotoEditorTraceContext,
   step: string,
-  data?: Record<string, unknown>
+  data?: Record<string, unknown>,
+  level: LogLevel = "debug"
 ) {
-  const payload = {
+  appLog("photo-editor-trace", level, step, {
     traceId: ctx.traceId,
-    step,
     ...(ctx.postId ? { postId: ctx.postId } : {}),
     ...(ctx.mediaId ? { mediaId: ctx.mediaId } : {}),
     ...(data ?? {}),
-  };
-  console.info("[photo-editor-trace]", payload);
+  });
 }
 
 export async function readApiErrorBody(

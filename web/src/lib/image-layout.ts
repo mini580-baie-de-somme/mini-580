@@ -64,28 +64,26 @@ export type EditorCropWindow = {
   refH: number;
 };
 
-/** Crop window in stage pixels — fixed reference size, centered in the live stage. */
+/** Crop window in stage pixels — proportional to stage size (editor preview only). */
 export function computeEditorCropWindow(
   cropInset: number,
   stageWidth: number,
-  stageHeight: number,
-  refW: number = EDITOR_REFERENCE_SIZE.w,
-  refH: number = EDITOR_REFERENCE_SIZE.h
+  stageHeight: number
 ): EditorCropWindow {
   const inset = clampCropInset(cropInset);
-  const refLeft = (stageWidth - refW) / 2;
-  const refTop = (stageHeight - refH) / 2;
-  const innerW = refW * (1 - 2 * inset);
-  const innerH = refH * (1 - 2 * inset);
+  const refW = Math.max(1, stageWidth);
+  const refH = Math.max(1, stageHeight);
+  const cropW = refW * (1 - 2 * inset);
+  const cropH = refH * (1 - 2 * inset);
   return {
-    refLeft,
-    refTop,
+    refLeft: 0,
+    refTop: 0,
     refW,
     refH,
-    cropLeft: refLeft + refW * inset,
-    cropTop: refTop + refH * inset,
-    cropW: innerW,
-    cropH: innerH,
+    cropLeft: refW * inset,
+    cropTop: refH * inset,
+    cropW,
+    cropH,
   };
 }
 

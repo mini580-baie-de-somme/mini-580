@@ -352,7 +352,9 @@ export function PhotoCanvasEditor({
         maxWidth: "none",
         maxHeight: "none",
         transform: `translate(-50%, -50%) rotate(${photoLayout.rotation}deg)`,
-        transformOrigin: "center center",
+        transformOrigin: cropWindow
+          ? `${photoLayout.width / 2 - value.offsetX * cropWindow.cropW}px ${photoLayout.height / 2 - value.offsetY * cropWindow.cropH}px`
+          : "center center",
         objectFit: "fill",
         pointerEvents: "none",
         userSelect: "none",
