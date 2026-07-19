@@ -258,23 +258,62 @@ function originFetchCandidates(
   const remote = remoteOriginFetchUrl(originUrl);
   if (remote) candidates.push(remote);
 
-  if (!localHit && localKey && originUrl.startsWith("/")) {
+  if (!localHit && localKey) {
     const site = siteUrlForMediaFetch();
-    if (site) candidates.push(`${site}${originUrl}`);
+    if (site) {
+      if (originUrl.startsWith("/")) {
+        candidates.push(`${site}${originUrl}`);
+      } else if (remote) {
+        try {
+          const parsed = new URL(originUrl);
+          const siteOrigin = new URL(site);
+          if (parsed.hostname === siteOrigin.hostname) {
+            candidates.push(`${site}${parsed.pathname}${parsed.search}`);
+          }
+        } catch {
+          // ignore malformed URL
+        }
+      }
+    }
   }
 
   return [...new Set(candidates)];
 }
 
-/** Read origin bytes from the local bucket, or fetch + localize remote http(s) URLs. */
-export async function resolveOriginForBake(
-  originUrl: string,
-  trace: MediaTraceContext
-): Promise<ResolvedOrigin> {
+function uniqueSourceUrls(
+  primary: string,
+  fallbacks: (string | null | undefined)[] = []
+): string[] {
+  const seen = new Set<string>();
+  const urls: string[] = [];
+  for (const raw of [primary, ...fallbacks]) {
+    const url = raw?.trim();
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    urls.push(url);
+  }
+  return urls;
+}
+
+export type ResolveOriginOptions = {
+  /** Existing baked variants to try when the primary origin is missing or unreachable. */
+  fallbackUrls?: (string | null | undefined)[];
+};
+
+type ResolveOriginAttempt = {
+  sourceUrl: string;
+  fetchError?: string;
+};
+
+async function resolveSingleSourceUrl(
+  sourceUrl: string,
+  trace: MediaTraceContext,
+  opts: { localizeRemoteFetch: boolean }
+): Promise<ResolvedOrigin | null> {
   const bucket = getMediaBucket();
-  const localKey = mediaKeyFromUrl(originUrl);
-  mediaTrace(trace, "resolveOrigin.start", {
-    originUrl,
+  const localKey = mediaKeyFromUrl(sourceUrl);
+  mediaTrace(trace, "resolveOrigin.source.start", {
+    sourceUrl,
     localKey,
     mediaRoot: getMediaRoot(),
   });
@@ -282,6 +321,7 @@ export async function resolveOriginForBake(
   if (localKey) {
     const originObj = await bucket.getObject(localKey);
     mediaTrace(trace, "resolveOrigin.localLookup", {
+      sourceUrl,
       localKey,
       hit: Boolean(originObj),
       bytes: originObj?.contentLength ?? 0,
@@ -291,24 +331,18 @@ export async function resolveOriginForBake(
     }
   }
 
-  const fetchCandidates = originFetchCandidates(
-    originUrl,
-    localKey,
-    false
-  );
-  mediaTrace(trace, "resolveOrigin.fetchCandidates", { fetchCandidates });
-
+  const fetchCandidates = originFetchCandidates(sourceUrl, localKey, false);
+  mediaTrace(trace, "resolveOrigin.fetchCandidates", {
+    sourceUrl,
+    fetchCandidates,
+  });
   if (fetchCandidates.length === 0) {
-    throw new MediaRebakeError(
-      "Origin media not found",
-      "resolveOrigin",
-      trace.traceId
-    );
+    return null;
   }
 
-  let lastFetchError = "Origin fetch failed";
+  let lastFetchError: string | undefined;
   for (const fetchUrl of fetchCandidates) {
-    mediaTrace(trace, "resolveOrigin.fetch.start", { fetchUrl });
+    mediaTrace(trace, "resolveOrigin.fetch.start", { sourceUrl, fetchUrl });
     try {
       const res = await fetch(fetchUrl, {
         redirect: "follow",
@@ -319,6 +353,7 @@ export async function resolveOriginForBake(
         },
       });
       mediaTrace(trace, "resolveOrigin.fetch.response", {
+        sourceUrl,
         fetchUrl,
         status: res.status,
         contentType: res.headers.get("content-type"),
@@ -347,30 +382,113 @@ export async function resolveOriginForBake(
         );
       }
 
-      const ext = extensionForContentType(contentType) ?? "jpg";
-      const { yyyy, mm } = yyyyMm();
-      const id = randomUUID();
-      const originKey = `${yyyy}/${mm}/${id}/origin.${ext}`;
-      const stored = await bucket.putObject(originKey, body, contentType);
-      mediaTrace(trace, "resolveOrigin.localized", {
+      if (opts.localizeRemoteFetch && remoteOriginFetchUrl(sourceUrl)) {
+        const ext = extensionForContentType(contentType) ?? "jpg";
+        const { yyyy, mm } = yyyyMm();
+        const id = randomUUID();
+        const originKey = `${yyyy}/${mm}/${id}/origin.${ext}`;
+        const stored = await bucket.putObject(originKey, body, contentType);
+        mediaTrace(trace, "resolveOrigin.localized", {
+          sourceUrl,
+          fetchUrl,
+          localizedUrl: stored.url,
+          bytes: body.byteLength,
+          contentType,
+        });
+        return { body, contentType, localizedUrl: stored.url };
+      }
+
+      mediaTrace(trace, "resolveOrigin.fetched", {
+        sourceUrl,
         fetchUrl,
-        localizedUrl: stored.url,
         bytes: body.byteLength,
         contentType,
       });
-      return { body, contentType, localizedUrl: stored.url };
+      return { body, contentType };
     } catch (err) {
       if (err instanceof MediaRebakeError) throw err;
       lastFetchError =
         err instanceof Error ? err.message : "Origin fetch failed";
       mediaTrace(trace, "resolveOrigin.fetch.error", {
+        sourceUrl,
         fetchUrl,
         error: lastFetchError,
       });
     }
   }
 
-  throw new MediaRebakeError(lastFetchError, "resolveOrigin", trace.traceId);
+  if (lastFetchError) {
+    throw new MediaRebakeError(lastFetchError, "resolveOrigin", trace.traceId);
+  }
+  return null;
+}
+
+function originResolveFailureMessage(
+  primaryUrl: string,
+  attempts: ResolveOriginAttempt[]
+): string {
+  const tried = attempts.map((a) => a.sourceUrl);
+  const lastHttp = [...attempts]
+    .reverse()
+    .find((a) => a.fetchError)?.fetchError;
+  const preview = tried.slice(0, 4).join(", ");
+  const suffix =
+    tried.length > 4 ? ` (+${tried.length - 4} more)` : "";
+  const base = lastHttp
+    ? lastHttp
+    : "Origin media not found locally and no fetchable URL";
+  return `${base}. Tried: ${preview}${suffix}. Re-upload the original photo or replace the media file.`;
+}
+
+/** Read origin bytes from the local bucket, or fetch + localize remote http(s) URLs. */
+export async function resolveOriginForBake(
+  originUrl: string,
+  trace: MediaTraceContext,
+  options: ResolveOriginOptions = {}
+): Promise<ResolvedOrigin> {
+  const sourceUrls = uniqueSourceUrls(originUrl, options.fallbackUrls);
+  mediaTrace(trace, "resolveOrigin.start", {
+    originUrl,
+    sourceUrls,
+    fallbackCount: Math.max(0, sourceUrls.length - 1),
+  });
+
+  const attempts: ResolveOriginAttempt[] = [];
+  let lastFetchError: string | undefined;
+
+  for (const sourceUrl of sourceUrls) {
+    try {
+      const resolved = await resolveSingleSourceUrl(sourceUrl, trace, {
+        localizeRemoteFetch: sourceUrl === originUrl,
+      });
+      if (resolved) {
+        if (sourceUrl !== originUrl) {
+          mediaTrace(trace, "resolveOrigin.fallbackUsed", {
+            originUrl,
+            sourceUrl,
+            localizedUrl: resolved.localizedUrl,
+          });
+        }
+        return resolved;
+      }
+      attempts.push({ sourceUrl });
+    } catch (err) {
+      if (err instanceof MediaRebakeError) {
+        attempts.push({ sourceUrl, fetchError: err.message });
+        lastFetchError = err.message;
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw new MediaRebakeError(
+    originResolveFailureMessage(originUrl, attempts) ||
+      lastFetchError ||
+      "Origin media not found",
+    "resolveOrigin",
+    trace.traceId
+  );
 }
 
 /**
@@ -381,7 +499,8 @@ export async function bakeVariantsFromOrigin(
   originUrl: string,
   transform: ImageTransformParams,
   previousVariantUrls: (string | null | undefined)[] = [],
-  trace: MediaTraceContext
+  trace: MediaTraceContext,
+  options: ResolveOriginOptions = {}
 ): Promise<RebakedVariantUrls> {
   const bucket = getMediaBucket();
   mediaTrace(trace, "bakeVariants.start", {
@@ -398,7 +517,7 @@ export async function bakeVariantsFromOrigin(
 
   let resolved: ResolvedOrigin;
   try {
-    resolved = await resolveOriginForBake(originUrl, trace);
+    resolved = await resolveOriginForBake(originUrl, trace, options);
   } catch (err) {
     if (err instanceof MediaRebakeError) throw err;
     throw new MediaRebakeError(

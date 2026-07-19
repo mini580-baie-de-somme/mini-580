@@ -453,11 +453,21 @@ export async function rebakeMediaVariants(
   const stale =
     previousVariantUrls ??
     [media.urlPicto, media.urlPetite, media.urlMoyenne, media.urlGrande];
+  const fallbackUrls = [
+    media.urlGrande,
+    media.urlMoyenne,
+    media.urlPetite,
+    media.urlPicto,
+  ].filter((url): url is string => Boolean(url && url !== media.urlOrigin));
+
   mediaTrace(ctx, "rebakeMediaVariants.start", {
     urlOrigin: media.urlOrigin,
+    fallbackUrls,
     layout,
   });
-  return bakeVariantsFromOrigin(media.urlOrigin, layout, stale, ctx);
+  return bakeVariantsFromOrigin(media.urlOrigin, layout, stale, ctx, {
+    fallbackUrls,
+  });
 }
 
 /** Collect URLs that may still be referenced as post.coverImageUrl before a rebake. */
