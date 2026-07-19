@@ -6,11 +6,18 @@ import {
   contentTypeFromFilename,
   extensionForContentType,
   getMediaBucket,
+  getMediaRoot,
   isAllowedContentType,
   maxBytesForContentType,
   mediaKeyFromUrl,
   normalizeContentType,
 } from "@/lib/media-bucket";
+import {
+  MediaRebakeError,
+  mediaTrace,
+  siteUrlForMediaFetch,
+  type MediaTraceContext,
+} from "@/lib/media-trace";
 import {
   DEFAULT_IMAGE_LAYOUT,
   VARIANT_SIZE,
@@ -242,49 +249,128 @@ function remoteOriginFetchUrl(originUrl: string): string | null {
   return null;
 }
 
+function originFetchCandidates(
+  originUrl: string,
+  localKey: string | null,
+  localHit: boolean
+): string[] {
+  const candidates: string[] = [];
+  const remote = remoteOriginFetchUrl(originUrl);
+  if (remote) candidates.push(remote);
+
+  if (!localHit && localKey && originUrl.startsWith("/")) {
+    const site = siteUrlForMediaFetch();
+    if (site) candidates.push(`${site}${originUrl}`);
+  }
+
+  return [...new Set(candidates)];
+}
+
 /** Read origin bytes from the local bucket, or fetch + localize remote http(s) URLs. */
 export async function resolveOriginForBake(
-  originUrl: string
+  originUrl: string,
+  trace: MediaTraceContext
 ): Promise<ResolvedOrigin> {
   const bucket = getMediaBucket();
   const localKey = mediaKeyFromUrl(originUrl);
+  mediaTrace(trace, "resolveOrigin.start", {
+    originUrl,
+    localKey,
+    mediaRoot: getMediaRoot(),
+  });
+
   if (localKey) {
     const originObj = await bucket.getObject(localKey);
+    mediaTrace(trace, "resolveOrigin.localLookup", {
+      localKey,
+      hit: Boolean(originObj),
+      bytes: originObj?.contentLength ?? 0,
+    });
     if (originObj) {
       return { body: originObj.body, contentType: originObj.contentType };
     }
   }
 
-  const fetchUrl = remoteOriginFetchUrl(originUrl);
-  if (!fetchUrl) {
-    throw new Error("Origin media not found");
+  const fetchCandidates = originFetchCandidates(
+    originUrl,
+    localKey,
+    false
+  );
+  mediaTrace(trace, "resolveOrigin.fetchCandidates", { fetchCandidates });
+
+  if (fetchCandidates.length === 0) {
+    throw new MediaRebakeError(
+      "Origin media not found",
+      "resolveOrigin",
+      trace.traceId
+    );
   }
 
-  const res = await fetch(fetchUrl, { redirect: "follow" });
-  if (!res.ok) {
-    throw new Error(`Origin fetch failed (${res.status})`);
+  let lastFetchError = "Origin fetch failed";
+  for (const fetchUrl of fetchCandidates) {
+    mediaTrace(trace, "resolveOrigin.fetch.start", { fetchUrl });
+    try {
+      const res = await fetch(fetchUrl, {
+        redirect: "follow",
+        headers: {
+          "User-Agent":
+            "Mini580MediaRebake/1.0 (+https://classmini580.blog)",
+          Accept: "image/*,*/*;q=0.8",
+        },
+      });
+      mediaTrace(trace, "resolveOrigin.fetch.response", {
+        fetchUrl,
+        status: res.status,
+        contentType: res.headers.get("content-type"),
+      });
+      if (!res.ok) {
+        lastFetchError = `Origin fetch failed (${res.status}) for ${fetchUrl}`;
+        continue;
+      }
+
+      const body = Buffer.from(await res.arrayBuffer());
+      const rawCt =
+        res.headers.get("content-type") ||
+        contentTypeFromFilename(new URL(fetchUrl).pathname) ||
+        "image/jpeg";
+      const contentType = normalizeContentType(rawCt);
+      if (!isAllowedContentType(contentType)) {
+        lastFetchError = `Unsupported origin Content-Type (${contentType})`;
+        continue;
+      }
+      const max = maxBytesForContentType(contentType);
+      if (body.byteLength > max) {
+        throw new MediaRebakeError(
+          `Origin exceeds ${max} bytes`,
+          "resolveOrigin",
+          trace.traceId
+        );
+      }
+
+      const ext = extensionForContentType(contentType) ?? "jpg";
+      const { yyyy, mm } = yyyyMm();
+      const id = randomUUID();
+      const originKey = `${yyyy}/${mm}/${id}/origin.${ext}`;
+      const stored = await bucket.putObject(originKey, body, contentType);
+      mediaTrace(trace, "resolveOrigin.localized", {
+        fetchUrl,
+        localizedUrl: stored.url,
+        bytes: body.byteLength,
+        contentType,
+      });
+      return { body, contentType, localizedUrl: stored.url };
+    } catch (err) {
+      if (err instanceof MediaRebakeError) throw err;
+      lastFetchError =
+        err instanceof Error ? err.message : "Origin fetch failed";
+      mediaTrace(trace, "resolveOrigin.fetch.error", {
+        fetchUrl,
+        error: lastFetchError,
+      });
+    }
   }
 
-  const body = Buffer.from(await res.arrayBuffer());
-  const rawCt =
-    res.headers.get("content-type") ||
-    contentTypeFromFilename(new URL(fetchUrl).pathname) ||
-    "image/jpeg";
-  const contentType = normalizeContentType(rawCt);
-  if (!isAllowedContentType(contentType)) {
-    throw new Error("Unsupported origin Content-Type");
-  }
-  const max = maxBytesForContentType(contentType);
-  if (body.byteLength > max) {
-    throw new Error(`Origin exceeds ${max} bytes`);
-  }
-
-  const ext = extensionForContentType(contentType) ?? "jpg";
-  const { yyyy, mm } = yyyyMm();
-  const id = randomUUID();
-  const originKey = `${yyyy}/${mm}/${id}/origin.${ext}`;
-  const stored = await bucket.putObject(originKey, body, contentType);
-  return { body, contentType, localizedUrl: stored.url };
+  throw new MediaRebakeError(lastFetchError, "resolveOrigin", trace.traceId);
 }
 
 /**
@@ -294,40 +380,93 @@ export async function resolveOriginForBake(
 export async function bakeVariantsFromOrigin(
   originUrl: string,
   transform: ImageTransformParams,
-  previousVariantUrls: (string | null | undefined)[] = []
+  previousVariantUrls: (string | null | undefined)[] = [],
+  trace: MediaTraceContext
 ): Promise<RebakedVariantUrls> {
   const bucket = getMediaBucket();
-  const resolved = await resolveOriginForBake(originUrl);
+  mediaTrace(trace, "bakeVariants.start", {
+    originUrl,
+    layout: {
+      offsetX: transform.offsetX,
+      offsetY: transform.offsetY,
+      scaleX: transform.scaleX,
+      scaleY: transform.scaleY,
+      rotation: transform.rotation,
+      cropInset: transform.cropInset,
+    },
+  });
 
-  const master = await applyImageTransform(resolved.body, transform);
+  let resolved: ResolvedOrigin;
+  try {
+    resolved = await resolveOriginForBake(originUrl, trace);
+  } catch (err) {
+    if (err instanceof MediaRebakeError) throw err;
+    throw new MediaRebakeError(
+      rebakeErrorMessage(err),
+      "resolveOrigin",
+      trace.traceId,
+      err
+    );
+  }
+
+  let master: Buffer;
+  try {
+    master = await applyImageTransform(resolved.body, transform);
+    mediaTrace(trace, "bakeVariants.transformed", {
+      masterBytes: master.byteLength,
+    });
+  } catch (err) {
+    throw new MediaRebakeError(
+      `Image transform failed: ${rebakeErrorMessage(err)}`,
+      "applyImageTransform",
+      trace.traceId,
+      err
+    );
+  }
+
   const { yyyy, mm } = yyyyMm();
   const id = randomUUID();
   const base = `${yyyy}/${mm}/${id}`;
 
-  const [pictoBuf, petiteBuf, moyenneBuf, grandeBuf] = await Promise.all([
-    resizeExact(master, VARIANT_SIZE.picto.w, VARIANT_SIZE.picto.h),
-    resizeExact(master, VARIANT_SIZE.petite.w, VARIANT_SIZE.petite.h),
-    resizeExact(master, VARIANT_SIZE.moyenne.w, VARIANT_SIZE.moyenne.h),
-    // master is already grande size webp — re-encode for consistency
-    resizeExact(master, VARIANT_SIZE.grande.w, VARIANT_SIZE.grande.h),
-  ]);
+  try {
+    const [pictoBuf, petiteBuf, moyenneBuf, grandeBuf] = await Promise.all([
+      resizeExact(master, VARIANT_SIZE.picto.w, VARIANT_SIZE.picto.h),
+      resizeExact(master, VARIANT_SIZE.petite.w, VARIANT_SIZE.petite.h),
+      resizeExact(master, VARIANT_SIZE.moyenne.w, VARIANT_SIZE.moyenne.h),
+      resizeExact(master, VARIANT_SIZE.grande.w, VARIANT_SIZE.grande.h),
+    ]);
 
-  const [picto, petite, moyenne, grande] = await Promise.all([
-    bucket.putObject(`${base}/picto.webp`, pictoBuf, "image/webp"),
-    bucket.putObject(`${base}/petite.webp`, petiteBuf, "image/webp"),
-    bucket.putObject(`${base}/moyenne.webp`, moyenneBuf, "image/webp"),
-    bucket.putObject(`${base}/grande.webp`, grandeBuf, "image/webp"),
-  ]);
+    const [picto, petite, moyenne, grande] = await Promise.all([
+      bucket.putObject(`${base}/picto.webp`, pictoBuf, "image/webp"),
+      bucket.putObject(`${base}/petite.webp`, petiteBuf, "image/webp"),
+      bucket.putObject(`${base}/moyenne.webp`, moyenneBuf, "image/webp"),
+      bucket.putObject(`${base}/grande.webp`, grandeBuf, "image/webp"),
+    ]);
 
-  await deleteMediaUrls(previousVariantUrls);
+    await deleteMediaUrls(previousVariantUrls);
 
-  return {
-    ...(resolved.localizedUrl ? { urlOrigin: resolved.localizedUrl } : {}),
-    urlPicto: picto.url,
-    urlPetite: petite.url,
-    urlMoyenne: moyenne.url,
-    urlGrande: grande.url,
-  };
+    const result = {
+      ...(resolved.localizedUrl ? { urlOrigin: resolved.localizedUrl } : {}),
+      urlPicto: picto.url,
+      urlPetite: petite.url,
+      urlMoyenne: moyenne.url,
+      urlGrande: grande.url,
+    };
+    mediaTrace(trace, "bakeVariants.done", result);
+    return result;
+  } catch (err) {
+    throw new MediaRebakeError(
+      `Variant encode/store failed: ${rebakeErrorMessage(err)}`,
+      "encodeVariants",
+      trace.traceId,
+      err
+    );
+  }
+}
+
+function rebakeErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err);
 }
 
 /**

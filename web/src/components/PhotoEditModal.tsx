@@ -33,6 +33,11 @@ import {
   fromDatetimeLocalValue,
   toDatetimeLocalValue,
 } from "@/lib/utils";
+import {
+  newPhotoEditorTraceId,
+  photoEditorTrace,
+  readApiErrorBody,
+} from "@/lib/media-trace-client";
 
 type Props = {
   postId: string;
@@ -247,6 +252,13 @@ export function PhotoEditModal({
 
     setBusy(true);
     setError(null);
+    const trace = { traceId: newPhotoEditorTraceId(), postId, mediaId: draft?.id };
+    photoEditorTrace(trace, "save.start", {
+      mode,
+      isImage,
+      hasPendingFile: Boolean(pendingFile),
+      layout: isImage ? layout : undefined,
+    });
     try {
       let current = draft ? { ...draft } : emptyDraft(effectiveKind);
 
@@ -266,21 +278,41 @@ export function PhotoEditModal({
         }
 
         if (current.id) {
-          // Library replace handles image bake and PDF/video put
+          photoEditorTrace(trace, "save.replace.start", { mediaId: current.id });
           const rep = await fetch(`/api/media-library/${current.id}/replace`, {
             method: "POST",
             body,
           });
-          if (!rep.ok) throw new Error("replace failed");
+          if (!rep.ok) {
+            const errBody = await readApiErrorBody(rep);
+            photoEditorTrace(trace, "save.replace.failed", {
+              status: rep.status,
+              ...errBody,
+            });
+            throw new Error(
+              typeof errBody.detail === "string"
+                ? errBody.detail
+                : "replace failed"
+            );
+          }
           current = toEditorImage(await rep.json());
+          photoEditorTrace(trace, "save.replace.done", { mediaId: current.id });
         } else {
-          // Post media create accepts all kinds
+          photoEditorTrace(trace, "save.upload.start", { postId });
           const res = await fetch(`/api/posts/${postId}/media`, {
             method: "POST",
             body,
           });
-          if (!res.ok) throw new Error("upload failed");
+          if (!res.ok) {
+            const errBody = await readApiErrorBody(res);
+            photoEditorTrace(trace, "save.upload.failed", {
+              status: res.status,
+              ...errBody,
+            });
+            throw new Error("upload failed");
+          }
           current = toEditorImage(await res.json());
+          photoEditorTrace(trace, "save.upload.done", { mediaId: current.id });
         }
 
         if (draft) {
@@ -296,6 +328,7 @@ export function PhotoEditModal({
       }
 
       if (!current.id) throw new Error("missing id");
+      trace.mediaId = current.id;
 
       const patchBody: Record<string, unknown> = {
         titleFr: current.titleFr,
@@ -312,13 +345,38 @@ export function PhotoEditModal({
         Object.assign(patchBody, layout);
       }
 
+      photoEditorTrace(trace, "save.patch.start", {
+        mediaId: current.id,
+        patchBody,
+      });
       const res = await fetch(`/api/posts/${postId}/images/${current.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patchBody),
       });
-      if (!res.ok) throw new Error("patch failed");
+      if (!res.ok) {
+        const errBody = await readApiErrorBody(res);
+        photoEditorTrace(trace, "save.patch.failed", {
+          status: res.status,
+          ...errBody,
+        });
+        const detail =
+          typeof errBody.detail === "string" ? errBody.detail : undefined;
+        const serverTrace =
+          typeof errBody.traceId === "string" ? errBody.traceId : trace.traceId;
+        throw new Error(
+          detail
+            ? `${detail} (${serverTrace})`
+            : `patch failed (${serverTrace})`
+        );
+      }
       const updated = toEditorImage(await res.json());
+      photoEditorTrace(trace, "save.patch.done", {
+        mediaId: current.id,
+        scaleX: updated.scaleX,
+        scaleY: updated.scaleY,
+        rotation: updated.rotation,
+      });
       const saved: GalleryEditorImage = isImage
         ? {
             ...updated,
@@ -342,11 +400,18 @@ export function PhotoEditModal({
       setDirty(false);
       onSaved(saved);
       onClose();
-    } catch {
+      photoEditorTrace(trace, "save.done", { mediaId: saved.id });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Save failed";
+      photoEditorTrace(trace, "save.error", { message });
       setError(
         lang === "fr"
-          ? "Échec de l’enregistrement"
-          : "Save failed"
+          ? message.startsWith("Échec")
+            ? message
+            : `Échec de l'enregistrement — ${message}`
+          : message.startsWith("Save failed")
+            ? message
+            : `Save failed — ${message}`
       );
     } finally {
       setBusy(false);

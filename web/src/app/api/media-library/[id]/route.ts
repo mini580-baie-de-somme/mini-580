@@ -13,6 +13,12 @@ import {
 } from "@/lib/media-library";
 import { MediaKind } from "@/generated/prisma/client";
 import { optionalNullableDateTime } from "@/lib/date-schema";
+import {
+  MediaRebakeError,
+  mediaTrace,
+  newMediaTraceId,
+  rebakeErrorDetail,
+} from "@/lib/media-trace";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -93,6 +99,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   }
 
   const { id } = await context.params;
+  const traceId = newMediaTraceId();
+  const trace = { traceId, mediaId: id };
+  mediaTrace(trace, "patchMediaLibrary.start", { mediaId: id });
+
   const existing = await prisma.media.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -164,7 +174,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         const variants = await rebakeMediaVariants(
           updated,
           {},
-          previousVariantUrls
+          previousVariantUrls,
+          trace
         );
         const rebaked = await prisma.media.update({
           where: { id },
@@ -172,13 +183,27 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           include: mediaInclude,
         });
         await syncCoverImageUrlsAfterRebake(id, variants, previousDisplayUrls);
+        mediaTrace(trace, "patchMediaLibrary.rebake.done", {
+          urlMoyenne: rebaked.urlMoyenne,
+        });
         return NextResponse.json(rebaked);
       } catch (err) {
-        console.error("layout rebake failed (meta already saved)", err);
+        const detail = rebakeErrorDetail(err);
+        const step = err instanceof MediaRebakeError ? err.step : "rebake";
+        console.error("layout rebake failed (meta already saved)", {
+          traceId,
+          mediaId: id,
+          step,
+          detail,
+          err,
+        });
         return NextResponse.json(
           {
             error:
               "Variant rebake failed — layout saved but display sizes were not regenerated",
+            traceId,
+            detail,
+            step,
           },
           { status: 500 }
         );

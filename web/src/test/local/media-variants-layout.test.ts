@@ -13,7 +13,10 @@ import {
   VARIANT_SIZE,
 } from "@/lib/image-layout";
 import { mediaKeyFromUrl } from "@/lib/media-bucket";
+import { newMediaTraceId } from "@/lib/media-trace";
 import { access } from "node:fs/promises";
+
+const testTrace = { traceId: newMediaTraceId("test") };
 
 async function makeLandscapeJpeg() {
   return sharp({
@@ -197,7 +200,7 @@ describe("media-variants — fixed 3:4 layout bake", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     try {
-      const resolved = await resolveOriginForBake(remoteUrl);
+      const resolved = await resolveOriginForBake(remoteUrl, testTrace);
       expect(resolved.localizedUrl).toMatch(/\/media\/.*\/origin\.jpg$/);
       expect(resolved.body.byteLength).toBeGreaterThan(1000);
 
@@ -210,11 +213,15 @@ describe("media-variants — fixed 3:4 layout bake", () => {
           scaleY: 3.3,
           rotation: -24,
         },
-        []
+        [],
+        testTrace
       );
       expect(rebaked.urlOrigin).toMatch(/\/media\/.*\/origin\.jpg$/);
       expect(rebaked.urlMoyenne).toMatch(/moyenne\.webp$/);
-      expect(fetchMock).toHaveBeenCalledWith(remoteUrl, { redirect: "follow" });
+      expect(fetchMock).toHaveBeenCalledWith(
+        remoteUrl,
+        expect.objectContaining({ redirect: "follow" })
+      );
 
       const root = process.env.MEDIA_ROOT!;
       const { readFile } = await import("node:fs/promises");
@@ -246,7 +253,8 @@ describe("media-variants — fixed 3:4 layout bake", () => {
         scaleY: 1.2,
         backgroundColor: "#000000",
       },
-      [stored.urlPicto, stored.urlPetite, stored.urlMoyenne, stored.urlGrande]
+      [stored.urlPicto, stored.urlPetite, stored.urlMoyenne, stored.urlGrande],
+      testTrace
     );
 
     expect(rebaked.urlMoyenne).not.toBe(stored.urlMoyenne);

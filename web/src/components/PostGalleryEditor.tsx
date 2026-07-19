@@ -10,6 +10,11 @@ import {
 import { PhotoEditModal } from "./PhotoEditModal";
 import { FullscreenEditorModal } from "./FullscreenEditorModal";
 import { MediaKindThumb } from "./MediaKindThumb";
+import {
+  newPhotoEditorTraceId,
+  photoEditorTrace,
+  readApiErrorBody,
+} from "@/lib/media-trace-client";
 
 export type { GalleryEditorImage };
 export { toEditorImage };
@@ -104,16 +109,29 @@ export function PostGalleryEditor({
     let cancelled = false;
 
     async function importOrphanCover() {
+      const trace = { traceId: newPhotoEditorTraceId(), postId };
       setBusy(true);
       setError(null);
+      photoEditorTrace(trace, "orphanCover.import.start", { coverImageUrl });
       try {
         const res = await fetch(`/api/posts/${postId}/images`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ urlOrigin: coverImageUrl }),
         });
-        if (!res.ok) throw new Error("import failed");
+        if (!res.ok) {
+          const errBody = await readApiErrorBody(res);
+          photoEditorTrace(trace, "orphanCover.import.failed", {
+            status: res.status,
+            ...errBody,
+          });
+          throw new Error("import failed");
+        }
         const created = toEditorImage(await res.json());
+        photoEditorTrace(trace, "orphanCover.import.done", {
+          mediaId: created.id,
+          urlOrigin: created.urlOrigin,
+        });
         if (cancelled) return;
         upsertImage(created);
         onCoverChange(coverUrlFromImage(created));

@@ -19,6 +19,11 @@ import {
   type ImageLayoutParams,
   type LegacyMediaTransform,
 } from "@/lib/image-layout";
+import {
+  mediaTrace,
+  newMediaTraceId,
+  type MediaTraceContext,
+} from "@/lib/media-trace";
 import { EDITOR_LIST_PAGE_SIZE } from "@/lib/constants";
 
 export const mediaInclude = {
@@ -436,13 +441,23 @@ type RebakeableMedia = LegacyMediaTransform & {
 export async function rebakeMediaVariants(
   media: RebakeableMedia,
   layoutPatch: Partial<ImageLayoutParams> = {},
-  previousVariantUrls?: (string | null | undefined)[]
+  previousVariantUrls?: (string | null | undefined)[],
+  trace?: MediaTraceContext
 ): Promise<RebakedVariantUrls> {
+  const ctx: MediaTraceContext = {
+    traceId: trace?.traceId ?? newMediaTraceId(),
+    mediaId: trace?.mediaId ?? media.id,
+    postId: trace?.postId,
+  };
   const layout = layoutForRebake(media, layoutPatch);
   const stale =
     previousVariantUrls ??
     [media.urlPicto, media.urlPetite, media.urlMoyenne, media.urlGrande];
-  return bakeVariantsFromOrigin(media.urlOrigin, layout, stale);
+  mediaTrace(ctx, "rebakeMediaVariants.start", {
+    urlOrigin: media.urlOrigin,
+    layout,
+  });
+  return bakeVariantsFromOrigin(media.urlOrigin, layout, stale, ctx);
 }
 
 /** Collect URLs that may still be referenced as post.coverImageUrl before a rebake. */

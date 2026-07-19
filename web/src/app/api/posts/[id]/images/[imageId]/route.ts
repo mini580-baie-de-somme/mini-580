@@ -12,6 +12,12 @@ import {
   syncCoverImageUrlsAfterRebake,
 } from "@/lib/media-library";
 import { optionalNullableDateTime } from "@/lib/date-schema";
+import {
+  MediaRebakeError,
+  mediaTrace,
+  newMediaTraceId,
+  rebakeErrorDetail,
+} from "@/lib/media-trace";
 
 type RouteContext = { params: Promise<{ id: string; imageId: string }> };
 
@@ -86,6 +92,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   }
 
   const { id: postId, imageId } = await context.params;
+  const traceId = newMediaTraceId();
+  const trace = { traceId, mediaId: imageId, postId };
+  mediaTrace(trace, "patchImage.start", { postId, imageId });
+
   const link = await prisma.postMedia.findUnique({
     where: { postId_mediaId: { postId, mediaId: imageId } },
     include: { media: true },
@@ -167,12 +177,18 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         link.media.urlMoyenne,
         link.media.urlGrande,
       ];
+      mediaTrace(trace, "patchImage.rebake.start", {
+        urlOrigin: media.urlOrigin,
+        scaleX: media.scaleX,
+        scaleY: media.scaleY,
+        rotation: media.rotation,
+      });
       try {
-        // Rebake from the layout just persisted — not a stale pre-PATCH merge.
         const bakedUrls = await rebakeMediaVariants(
           media,
           {},
-          previousVariantUrls
+          previousVariantUrls,
+          trace
         );
         finalMedia = await prisma.media.update({
           where: { id: imageId },
@@ -183,12 +199,28 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           bakedUrls,
           previousDisplayUrls
         );
+        mediaTrace(trace, "patchImage.rebake.done", {
+          urlOrigin: finalMedia.urlOrigin,
+          urlMoyenne: finalMedia.urlMoyenne,
+        });
       } catch (err) {
-        console.error("image layout rebake failed (meta already saved)", err);
+        const detail = rebakeErrorDetail(err);
+        const step = err instanceof MediaRebakeError ? err.step : "rebake";
+        console.error("image layout rebake failed (meta already saved)", {
+          traceId,
+          postId,
+          imageId,
+          step,
+          detail,
+          err,
+        });
         return NextResponse.json(
           {
             error:
               "Variant rebake failed — layout saved but display sizes were not regenerated",
+            traceId,
+            detail,
+            step,
           },
           { status: 500 }
         );
