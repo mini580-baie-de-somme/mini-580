@@ -21,6 +21,14 @@ function img(
     descriptionEn: "",
     takenAt: null,
     sortOrder: 0,
+    offsetX: 0,
+    offsetY: 0,
+    scaleX: 1,
+    scaleY: 1,
+    lockAspect: true,
+    cropShape: "RECT",
+    backgroundColor: "#000000",
+    cropInset: 0.06,
     focusX: 0.5,
     focusY: 0.5,
     zoom: 1,
@@ -64,6 +72,28 @@ describe("gallery-editor cover helpers", () => {
     expect(findCoverImage(images, "/media/2/origin.jpg")?.id).toBe("2");
     expect(findCoverImage(images, "/missing")).toBeNull();
     expect(findCoverImage(images, null)).toBeNull();
+  });
+
+  it("preserves layout fields from API payload for round-trip editor reopen", () => {
+    const mapped = toEditorImage({
+      id: "img-1",
+      urlOrigin: "/media/x/origin.jpg",
+      offsetX: 0.22,
+      offsetY: -0.15,
+      scaleX: 1.85,
+      scaleY: 1.85,
+      lockAspect: true,
+      rotation: 45,
+      cropShape: "RECT",
+      backgroundColor: "#374151",
+      cropInset: 0.1,
+      focusX: 0.5,
+      zoom: 1,
+    });
+    expect(mapped.scaleX).toBeCloseTo(1.85, 5);
+    expect(mapped.offsetX).toBeCloseTo(0.22, 5);
+    expect(mapped.rotation).toBe(45);
+    expect(mapped.cropInset).toBeCloseTo(0.1, 5);
   });
 
   it("maps raw API payload including kind/mime for non-images", () => {

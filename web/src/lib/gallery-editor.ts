@@ -13,6 +13,14 @@ export type GalleryEditorImage = {
   descriptionEn: string;
   takenAt: string | Date | null;
   sortOrder: number;
+  offsetX: number;
+  offsetY: number;
+  scaleX: number;
+  scaleY: number;
+  lockAspect: boolean;
+  cropShape: "RECT" | "CIRCLE" | string;
+  backgroundColor: string;
+  cropInset: number;
   focusX: number;
   focusY: number;
   zoom: number;
@@ -41,6 +49,14 @@ export function toEditorImage(raw: Record<string, unknown>): GalleryEditorImage 
       ? new Date(String(raw.takenAt)).toISOString()
       : null,
     sortOrder: Number(raw.sortOrder ?? 0),
+    offsetX: Number(raw.offsetX ?? 0),
+    offsetY: Number(raw.offsetY ?? 0),
+    scaleX: Number(raw.scaleX ?? raw.zoom ?? 1),
+    scaleY: Number(raw.scaleY ?? raw.zoom ?? 1),
+    lockAspect: raw.lockAspect == null ? true : Boolean(raw.lockAspect),
+    cropShape: raw.cropShape === "CIRCLE" ? "CIRCLE" : "RECT",
+    backgroundColor: String(raw.backgroundColor ?? "#000000"),
+    cropInset: Number(raw.cropInset ?? 0.06),
     focusX: Number(raw.focusX ?? 0.5),
     focusY: Number(raw.focusY ?? 0.5),
     zoom: Number(raw.zoom ?? 1),
