@@ -78,7 +78,9 @@ export function FullscreenEditorModal({
           </p>
         )}
 
-        <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {children}
+        </div>
 
         <footer className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-[#d4dde6] bg-[#fafbfc] px-3 py-2.5 sm:px-4">
           <div className="flex flex-wrap gap-2">{footerLeft}</div>

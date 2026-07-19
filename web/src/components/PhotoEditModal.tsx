@@ -419,9 +419,9 @@ export function PhotoEditModal({
         </>
       }
     >
-      <div className="flex h-full min-h-0 flex-col md:flex-row">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
         <section
-          className={`flex min-h-0 flex-1 bg-[#eef3f7] md:min-h-0 md:flex-1 md:shrink ${
+          className={`flex min-h-0 flex-1 overflow-visible bg-[#eef3f7] md:min-h-0 md:flex-1 md:shrink ${
             hasPreview && isImage
               ? "min-h-[24vh] touch-none items-center justify-center md:h-auto md:max-h-none md:min-h-0"
               : hasPreview

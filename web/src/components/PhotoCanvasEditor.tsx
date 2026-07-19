@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useId, useRef } from "react";
 import {
   BACKGROUND_PRESETS,
   DEFAULT_IMAGE_LAYOUT,
@@ -114,6 +114,7 @@ export function PhotoCanvasEditor({
   showMobileToolbar,
 }: Props) {
   const { locale } = useLocale();
+  const dimMaskId = useId();
   const stageRef = useRef<HTMLDivElement>(null);
   const dragMode = useRef<DragMode>(null);
   const lastPoint = useRef<Point | null>(null);
@@ -323,15 +324,11 @@ export function PhotoCanvasEditor({
       ref={stageRef}
       className={
         fillStage
-          ? "relative h-full max-h-full w-auto max-w-full cursor-grab touch-none overflow-hidden rounded-lg border border-[#d4dde6] shadow-sm active:cursor-grabbing"
-          : "relative mx-auto w-full max-w-[min(100%,360px)] cursor-grab touch-none overflow-hidden rounded-lg border border-[#d4dde6] shadow-sm active:cursor-grabbing"
+          ? "relative h-full max-h-full w-auto max-w-full cursor-grab touch-none overflow-visible rounded-lg border border-[#d4dde6] shadow-sm active:cursor-grabbing"
+          : "relative mx-auto w-full max-w-[min(100%,360px)] cursor-grab touch-none overflow-visible rounded-lg border border-[#d4dde6] shadow-sm active:cursor-grabbing"
       }
       style={{
         aspectRatio: String(IMAGE_ASPECT),
-        background:
-          value.backgroundColor === "transparent"
-            ? "repeating-conic-gradient(#ddd 0% 25%, #fff 0% 50%) 50% / 16px 16px"
-            : value.backgroundColor,
       }}
       onWheel={onWheel}
       onPointerDown={(e) => onInteractionPointerDown(e, "pan")}
@@ -339,18 +336,61 @@ export function PhotoCanvasEditor({
       onPointerUp={onInteractionPointerUp}
       onPointerCancel={onInteractionPointerUp}
     >
+      <div
+        className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
+        style={{
+          background:
+            value.backgroundColor === "transparent"
+              ? "repeating-conic-gradient(#ddd 0% 25%, #fff 0% 50%) 50% / 16px 16px"
+              : value.backgroundColor,
+        }}
+        aria-hidden
+      />
+
+      {/* Dim outside the output crop — below the photo so zoom extends visibly */}
+      <svg
+        className="pointer-events-none absolute inset-0 z-[5] h-full w-full"
+        aria-hidden
+      >
+        <defs>
+          <mask id={dimMaskId}>
+            <rect width="100%" height="100%" fill="white" />
+            <rect
+              x={`${cropLeft}%`}
+              y={`${cropTop}%`}
+              width={`${cropW}%`}
+              height={`${cropH}%`}
+              rx={value.cropShape === "CIRCLE" ? "50%" : "2"}
+              ry={value.cropShape === "CIRCLE" ? "50%" : "2"}
+              fill="black"
+            />
+          </mask>
+        </defs>
+        <rect
+          width="100%"
+          height="100%"
+          fill="rgba(13,19,26,0.45)"
+          mask={`url(#${dimMaskId})`}
+        />
+      </svg>
+
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={imageSrc} alt="" draggable={false} style={photoStyle} />
+      <img
+        src={imageSrc}
+        alt=""
+        draggable={false}
+        className="relative z-10"
+        style={photoStyle}
+      />
 
       <div
-        className="pointer-events-none absolute border-2 border-white/90"
+        className="pointer-events-none absolute z-20 border-2 border-white/90"
         style={{
           left: `${cropLeft}%`,
           top: `${cropTop}%`,
           width: `${cropW}%`,
           height: `${cropH}%`,
           borderRadius: value.cropShape === "CIRCLE" ? "50%" : "2px",
-          boxShadow: "0 0 0 9999px rgba(13,19,26,0.45)",
         }}
       />
 
@@ -546,7 +586,7 @@ export function PhotoCanvasEditor({
 
   if (showStage && !showControls) {
     return fillStage ? (
-      <div className="flex h-full min-h-0 w-full touch-none items-center justify-center p-2 sm:p-4">
+      <div className="flex h-full min-h-0 w-full touch-none items-center justify-center overflow-visible p-2 sm:p-4">
         {stage}
       </div>
     ) : (
