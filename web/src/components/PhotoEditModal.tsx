@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DatetimeLocalInput } from "./DatetimeLocalInput";
 import { EditorSheetPanel } from "./EditorSheetPanel";
 import { PhotoCanvasEditor } from "./PhotoCanvasEditor";
 import { FullscreenEditorModal } from "./FullscreenEditorModal";
@@ -616,15 +617,13 @@ export function PhotoEditModal({
                     ? "Date (galerie / chronologie)"
                     : "Date (gallery / chronology)"}
                 </span>
-                <input
-                  type="datetime-local"
+                <DatetimeLocalInput
                   value={toDatetimeLocalValue(draft?.takenAt)}
-                  onChange={(e) =>
+                  onChange={(value) =>
                     patchDraft({
-                      takenAt: fromDatetimeLocalValue(e.target.value),
+                      takenAt: fromDatetimeLocalValue(value),
                     })
                   }
-                  className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
                 />
                 <span className="mt-1 block text-[10px] text-[#495867]">
                   {lang === "fr"

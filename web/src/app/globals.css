@@ -26,3 +26,12 @@ body {
 .hero-gradient {
   background: linear-gradient(135deg, #eef3f7 0%, #e2ebf2 50%, #f4f7fa 100%);
 }
+
+.datetime-local-input::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  position: absolute;
+  right: 0;
+  width: 2.5rem;
+  height: 100%;
+  cursor: pointer;
+}

@@ -13,6 +13,7 @@ import {
 import { useEditorInfiniteList } from "./useEditorInfiniteList";
 import { MediaPreview } from "./MediaPreview";
 import { MediaKindThumb } from "./MediaKindThumb";
+import { DatetimeLocalInput } from "./DatetimeLocalInput";
 import { EditorSheetPanel } from "./EditorSheetPanel";
 import { PhotoCanvasEditor } from "./PhotoCanvasEditor";
 import { FullscreenEditorModal } from "./FullscreenEditorModal";
@@ -754,12 +755,10 @@ export function MediaLibraryManager() {
                     <span className="text-[11px] text-[#495867]">
                       {t("media.takenAt")}
                     </span>
-                    <input
-                      type="datetime-local"
-                      className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm"
+                    <DatetimeLocalInput
                       value={form.takenAt}
-                      onChange={(e) =>
-                        setForm({ ...form, takenAt: e.target.value })
+                      onChange={(value) =>
+                        setForm({ ...form, takenAt: value })
                       }
                     />
                     <span className="mt-1 block text-[10px] text-[#495867]">

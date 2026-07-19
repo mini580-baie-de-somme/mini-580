@@ -8,9 +8,9 @@ import {
   type ReactNode,
 } from "react";
 
-const HANDLE_HEIGHT = 44;
-const EXPANDED_RATIO = 1 / 3;
-const COLLAPSE_THRESHOLD = 52;
+const HANDLE_HEIGHT = 28;
+const EXPANDED_RATIO = 2 / 5;
+const COLLAPSE_THRESHOLD = 36;
 
 type Props = {
   children: ReactNode;
@@ -138,15 +138,15 @@ export function EditorSheetPanel({
         type="button"
         aria-expanded={!collapsed}
         aria-label={handleLabel}
-        className="flex shrink-0 touch-none flex-col items-center justify-center gap-1 border-b border-[#eef3f7] bg-[#fafbfc] py-2 active:bg-[#eef3f7] md:hidden"
+        className="flex shrink-0 touch-none flex-col items-center justify-center gap-0.5 border-b border-[#eef3f7] bg-[#fafbfc] py-0.5 active:bg-[#eef3f7] md:hidden"
         style={{ height: HANDLE_HEIGHT }}
         onPointerDown={onHandlePointerDown}
         onPointerMove={onHandlePointerMove}
         onPointerUp={onHandlePointerUp}
         onPointerCancel={onHandlePointerUp}
       >
-        <span className="h-1 w-10 rounded-full bg-[#c5d0da]" />
-        <span className="text-[10px] text-[#495867]">
+        <span className="h-0.5 w-8 rounded-full bg-[#c5d0da]" />
+        <span className="text-[8px] leading-none text-[#495867]">
           {collapsed ? "▲" : "▼"}
         </span>
       </button>
