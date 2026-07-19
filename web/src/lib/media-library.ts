@@ -448,7 +448,12 @@ export async function rebakeMediaVariants(
 /** Keep post.coverImageUrl aligned when variant URLs rotate after a rebake. */
 export async function syncCoverImageUrlsAfterRebake(
   mediaId: string,
-  baked: Pick<MediaVariantUrls, "urlPicto" | "urlPetite" | "urlMoyenne" | "urlGrande">,
+  baked: {
+    urlPicto?: string | null;
+    urlPetite?: string | null;
+    urlMoyenne?: string | null;
+    urlGrande?: string | null;
+  },
   previousVariantUrls: (string | null | undefined)[] = []
 ) {
   const newCover =
