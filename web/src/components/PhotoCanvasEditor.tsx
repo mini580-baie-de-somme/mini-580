@@ -318,8 +318,12 @@ export function PhotoCanvasEditor({
           onClick={() => patch({ rotation: value.rotation + 90 })}
         />
         <MobileToolbarButton
-          label="°"
-          title={locale === "fr" ? "Glisser pour pivoter" : "Drag to rotate"}
+          label="↔°"
+          title={
+            locale === "fr"
+              ? "Maintenir et glisser horizontalement pour pivoter librement"
+              : "Hold and drag horizontally for free rotation"
+          }
           disabled={disabled}
           onPointerDown={(e) => onInteractionPointerDown(e, "rotate")}
         />
@@ -462,9 +466,14 @@ export function PhotoCanvasEditor({
             type="button"
             disabled={disabled}
             onPointerDown={(e) => onInteractionPointerDown(e, "rotate")}
+            title={
+              locale === "fr"
+                ? "Maintenir et glisser horizontalement pour pivoter librement"
+                : "Hold and drag horizontally for free rotation"
+            }
             className="min-h-[44px] rounded border border-[#d4dde6] px-2 py-0.5 text-[10px]"
           >
-            {locale === "fr" ? "Glisser °" : "Drag °"}
+            {locale === "fr" ? "Pivot libre" : "Free rotate"}
           </button>
         </div>
       </div>

@@ -419,12 +419,12 @@ export function PhotoEditModal({
     >
       <div className="flex h-full min-h-0 flex-col md:flex-row">
         <section
-          className={`flex min-h-[42vh] flex-1 bg-[#eef3f7] md:min-h-0 ${
+          className={`flex shrink-0 bg-[#eef3f7] md:min-h-0 md:flex-1 md:shrink ${
             hasPreview && isImage
-              ? "items-center justify-center"
+              ? "max-h-[min(42vh,420px)] min-h-[28vh] items-center justify-center md:max-h-none md:min-h-0"
               : hasPreview
-                ? "min-h-0 items-stretch p-0"
-                : "items-center justify-center"
+                ? "min-h-[28vh] max-h-[min(42vh,420px)] items-stretch p-0 md:max-h-none md:min-h-0"
+                : "min-h-[28vh] items-center justify-center md:min-h-0"
           }`}
         >
           {hasPreview && isImage ? (
@@ -504,7 +504,7 @@ export function PhotoEditModal({
           )}
         </section>
 
-        <aside className="flex w-full shrink-0 flex-col overflow-y-auto border-t border-[#d4dde6] md:w-[min(100%,24rem)] md:border-l md:border-t-0">
+        <aside className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain border-t border-[#d4dde6] md:w-[min(100%,24rem)] md:flex-none md:shrink-0 md:border-l md:border-t-0">
           <div className="flex flex-col gap-3 p-3 sm:p-4">
             {hasPreview && isImage && (
               <div className="order-first border-b border-[#eef3f7] pb-3 md:order-last md:border-b-0 md:border-t md:pt-3 md:pb-0">

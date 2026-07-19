@@ -535,15 +535,15 @@ export function MediaLibraryManager() {
         >
           <div className="flex h-full min-h-0 flex-col md:flex-row">
             <section
-              className={`flex min-h-[38vh] flex-1 bg-[#eef3f7] md:min-h-0 ${
+              className={`flex shrink-0 bg-[#eef3f7] md:min-h-0 md:flex-1 md:shrink ${
                 (previewKind === "IMAGE" || editingMedia?.kind === "IMAGE") &&
                 (filePreviewUrl ||
                   (editingMedia &&
                     (editingMedia.urlOrigin || editingMedia.urlGrande)))
-                  ? "items-center justify-center p-3"
+                  ? "max-h-[min(42vh,420px)] min-h-[28vh] items-center justify-center p-3 md:max-h-none md:min-h-0"
                   : previewKind && previewSrc
-                    ? "min-h-0 items-stretch justify-stretch p-0"
-                    : "items-center justify-center p-3"
+                    ? "min-h-[28vh] max-h-[min(42vh,420px)] items-stretch justify-stretch p-0 md:max-h-none md:min-h-0"
+                    : "min-h-[28vh] items-center justify-center p-3 md:min-h-0"
               }`}
             >
               {(previewKind === "IMAGE" || editingMedia?.kind === "IMAGE") &&
@@ -618,7 +618,7 @@ export function MediaLibraryManager() {
               )}
             </section>
 
-            <aside className="flex w-full shrink-0 flex-col overflow-y-auto border-t border-[#d4dde6] md:w-[min(100%,24rem)] md:border-l md:border-t-0">
+            <aside className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain border-t border-[#d4dde6] md:w-[min(100%,24rem)] md:flex-none md:shrink-0 md:border-l md:border-t-0">
               <div className="flex flex-col gap-3 p-3 sm:p-4">
                 {(previewKind === "IMAGE" || editingMedia?.kind === "IMAGE") &&
                   (filePreviewUrl ||
