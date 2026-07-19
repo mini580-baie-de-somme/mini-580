@@ -10,7 +10,7 @@ import {
   normalizeContentType,
 } from "@/lib/media-bucket";
 import { deleteMediaUrls } from "@/lib/media-variants";
-import { mediaAsPostImage, rebakeMediaVariants, syncCoverImageUrlsAfterRebake } from "@/lib/media-library";
+import { mediaAsPostImage, rebakeMediaVariants, syncCoverImageUrlsAfterRebake, collectPreviousDisplayUrls } from "@/lib/media-library";
 
 type RouteContext = { params: Promise<{ id: string; imageId: string }> };
 
@@ -46,13 +46,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: "Unsupported Content-Type" }, { status: 415 });
     }
 
-    const previousUrls = [
-      existing.urlOrigin,
-      existing.urlPicto,
-      existing.urlPetite,
-      existing.urlMoyenne,
-      existing.urlGrande,
-    ];
+    const previousDisplayUrls = collectPreviousDisplayUrls(existing);
+    const previousVariantUrls = previousDisplayUrls.filter(
+      (url) => url !== existing.urlOrigin
+    );
 
     const bucket = getMediaBucket();
     const ext = extensionForContentType(ct) ?? "jpg";
@@ -63,12 +60,19 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const base = `${yyyy}/${mm}/${uploadId}`;
     const originKey = `${base}/origin.${ext}`;
     const origin = await bucket.putObject(originKey, buffer, ct);
-    const variants = await rebakeMediaVariants({
-      ...existing,
-      urlOrigin: origin.url,
-    });
+    const variants = await rebakeMediaVariants(
+      {
+        ...existing,
+        urlOrigin: origin.url,
+      },
+      {},
+      previousVariantUrls
+    );
 
-    await deleteMediaUrls(previousUrls);
+    await deleteMediaUrls([
+      existing.urlOrigin,
+      ...previousVariantUrls,
+    ]);
 
     const media = await prisma.media.update({
       where: { id: imageId },
@@ -83,7 +87,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       },
     });
 
-    await syncCoverImageUrlsAfterRebake(imageId, variants, previousUrls.slice(1));
+    await syncCoverImageUrlsAfterRebake(imageId, variants, previousDisplayUrls);
 
     return NextResponse.json(mediaAsPostImage(media, { ...link, postId }));
   } catch (err) {

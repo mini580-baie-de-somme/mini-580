@@ -12,7 +12,7 @@ import {
 } from "@/lib/media-bucket";
 import { MediaKind } from "@/generated/prisma/client";
 import { deleteMediaUrls } from "@/lib/media-variants";
-import { mediaInclude, rebakeMediaVariants, syncCoverImageUrlsAfterRebake } from "@/lib/media-library";
+import { mediaInclude, rebakeMediaVariants, syncCoverImageUrlsAfterRebake, collectPreviousDisplayUrls } from "@/lib/media-library";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -45,13 +45,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: "Unsupported type" }, { status: 415 });
     }
 
-    const previousUrls = [
-      existing.urlOrigin,
-      existing.urlPicto,
-      existing.urlPetite,
-      existing.urlMoyenne,
-      existing.urlGrande,
-    ];
+    const previousDisplayUrls = collectPreviousDisplayUrls(existing);
+    const previousVariantUrls = previousDisplayUrls.filter(
+      (url) => url !== existing.urlOrigin
+    );
 
     const kindHint = kindFromContentType(contentType);
     if (!kindHint) {
@@ -77,10 +74,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
       const base = `${yyyy}/${mm}/${uploadId}`;
       const originKey = `${base}/origin.${ext}`;
       const origin = await bucket.putObject(originKey, buffer, ct);
-      const variants = await rebakeMediaVariants({
-        ...existing,
-        urlOrigin: origin.url,
-      });
+      const variants = await rebakeMediaVariants(
+        { ...existing, urlOrigin: origin.url },
+        {},
+        previousVariantUrls
+      );
       urls = {
         urlOrigin: origin.url,
         ...variants,
@@ -117,9 +115,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
 
     if (kindHint === "IMAGE") {
-      await syncCoverImageUrlsAfterRebake(id, urls, previousUrls.slice(1));
+      await syncCoverImageUrlsAfterRebake(id, urls, previousDisplayUrls);
     }
-    await deleteMediaUrls(previousUrls);
+    await deleteMediaUrls(previousDisplayUrls);
     return NextResponse.json(updated);
   } catch (err) {
     console.error("media replace failed", err);

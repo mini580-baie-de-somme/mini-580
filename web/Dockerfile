@@ -34,6 +34,9 @@ RUN groupadd --system --gid 1001 nodejs \
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+# sharp native bindings — required for image variant rebake in standalone output
+COPY --from=builder /app/node_modules/sharp ./node_modules/sharp
+COPY --from=builder /app/node_modules/@img ./node_modules/@img
 
 # Prisma schema + CLI (isolated from Next standalone node_modules)
 COPY --from=builder /app/prisma ./prisma

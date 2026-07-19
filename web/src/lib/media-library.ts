@@ -434,15 +434,25 @@ type RebakeableMedia = LegacyMediaTransform & {
 /** Rebake display variants from origin using stored layout + optional patch. */
 export async function rebakeMediaVariants(
   media: RebakeableMedia,
-  layoutPatch: Partial<ImageLayoutParams> = {}
+  layoutPatch: Partial<ImageLayoutParams> = {},
+  previousVariantUrls?: (string | null | undefined)[]
 ): Promise<Omit<MediaVariantUrls, "urlOrigin">> {
   const layout = layoutForRebake(media, layoutPatch);
-  return bakeVariantsFromOrigin(media.urlOrigin, layout, [
+  const stale =
+    previousVariantUrls ??
+    [media.urlPicto, media.urlPetite, media.urlMoyenne, media.urlGrande];
+  return bakeVariantsFromOrigin(media.urlOrigin, layout, stale);
+}
+
+/** Collect URLs that may still be referenced as post.coverImageUrl before a rebake. */
+export function collectPreviousDisplayUrls(media: RebakeableMedia): string[] {
+  return [
+    media.urlOrigin,
     media.urlPicto,
     media.urlPetite,
     media.urlMoyenne,
     media.urlGrande,
-  ]);
+  ].filter((url): url is string => Boolean(url));
 }
 
 /** Keep post.coverImageUrl aligned when variant URLs rotate after a rebake. */
@@ -454,14 +464,14 @@ export async function syncCoverImageUrlsAfterRebake(
     urlMoyenne?: string | null;
     urlGrande?: string | null;
   },
-  previousVariantUrls: (string | null | undefined)[] = []
+  previousDisplayUrls: (string | null | undefined)[] = []
 ) {
   const newCover =
     baked.urlMoyenne || baked.urlGrande || baked.urlPetite || baked.urlPicto;
   if (!newCover) return;
 
   const stale = new Set(
-    previousVariantUrls.filter((url): url is string => Boolean(url))
+    previousDisplayUrls.filter((url): url is string => Boolean(url))
   );
   const postIds = new Set<string>();
 

@@ -216,4 +216,25 @@ describe("layoutFromLegacy", () => {
     expect(rebaked.scaleX).toBeCloseTo(2.1, 5);
     expect(rebaked.rotation).toBe(30);
   });
+
+  it("layoutForRebake with empty patch uses persisted scaleX over stale zoom", () => {
+    const persisted = {
+      offsetX: 0.12,
+      offsetY: -0.05,
+      scaleX: 1.85,
+      scaleY: 1.85,
+      zoom: 1,
+      focusX: 0.5,
+      focusY: 0.5,
+      rotation: 40,
+      lockAspect: true,
+      cropShape: "RECT",
+      backgroundColor: "#000000",
+      cropInset: 0.06,
+    };
+    const rebaked = layoutForRebake(persisted, {});
+    expect(rebaked.scaleX).toBeCloseTo(1.85, 5);
+    expect(rebaked.rotation).toBe(40);
+    expect(rebaked.offsetX).toBeCloseTo(0.12, 5);
+  });
 });

@@ -7,6 +7,7 @@ import { layoutFromLegacy, legacyFieldsFromLayout, mergeLayoutPatch } from "@/li
 import {
   deleteMediaById,
   mediaInclude,
+  collectPreviousDisplayUrls,
   rebakeMediaVariants,
   syncCoverImageUrlsAfterRebake,
 } from "@/lib/media-library";
@@ -152,6 +153,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     });
 
     if (transformChanged && updated.kind === MediaKind.IMAGE) {
+      const previousDisplayUrls = collectPreviousDisplayUrls(existing);
       const previousVariantUrls = [
         existing.urlPicto,
         existing.urlPetite,
@@ -160,8 +162,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       ];
       try {
         const variants = await rebakeMediaVariants(
-          existing,
-          layoutPatch as Parameters<typeof mergeLayoutPatch>[1]
+          updated,
+          {},
+          previousVariantUrls
         );
         const rebaked = await prisma.media.update({
           where: { id },
@@ -173,16 +176,17 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           },
           include: mediaInclude,
         });
-        await syncCoverImageUrlsAfterRebake(id, variants, previousVariantUrls);
+        await syncCoverImageUrlsAfterRebake(id, variants, previousDisplayUrls);
         return NextResponse.json(rebaked);
       } catch (err) {
         console.error("layout rebake failed (meta already saved)", err);
-        if (Object.keys(layoutPatch).length > 0) {
-          return NextResponse.json(
-            { error: "Variant rebake failed — layout saved but display sizes were not regenerated" },
-            { status: 500 }
-          );
-        }
+        return NextResponse.json(
+          {
+            error:
+              "Variant rebake failed — layout saved but display sizes were not regenerated",
+          },
+          { status: 500 }
+        );
       }
     }
 
