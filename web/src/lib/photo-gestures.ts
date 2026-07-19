@@ -19,6 +19,8 @@ export type PinchSnapshot = {
   scaleX: number;
   scaleY: number;
   rotation: number;
+  offsetX: number;
+  offsetY: number;
 };
 
 export function pinchSnapshot(
@@ -26,7 +28,9 @@ export function pinchSnapshot(
   p2: Point,
   scaleX: number,
   scaleY: number,
-  rotation: number
+  rotation: number,
+  offsetX: number,
+  offsetY: number
 ): PinchSnapshot {
   return {
     distance: distance(p1, p2),
@@ -34,6 +38,8 @@ export function pinchSnapshot(
     scaleX,
     scaleY,
     rotation,
+    offsetX,
+    offsetY,
   };
 }
 
@@ -56,4 +62,29 @@ export function rotationFromPinch(
   currentAngleDeg: number
 ): number {
   return start.rotation + (currentAngleDeg - start.angleDeg);
+}
+
+/** Pinch zoom/rotate — scale relative to gesture start, offset pivots on crop center. */
+export function layoutFromPinch(
+  start: PinchSnapshot,
+  currentDistance: number,
+  currentAngleDeg: number,
+  lockAspect: boolean
+): {
+  scaleX: number;
+  scaleY: number;
+  rotation: number;
+  offsetX: number;
+  offsetY: number;
+} {
+  const scaled = scaleFromPinch(start, currentDistance, lockAspect);
+  const factorX = start.scaleX !== 0 ? scaled.scaleX / start.scaleX : 1;
+  const factorY = start.scaleY !== 0 ? scaled.scaleY / start.scaleY : 1;
+  return {
+    scaleX: scaled.scaleX,
+    scaleY: scaled.scaleY,
+    rotation: rotationFromPinch(start, currentAngleDeg),
+    offsetX: start.offsetX * factorX,
+    offsetY: start.offsetY * factorY,
+  };
 }

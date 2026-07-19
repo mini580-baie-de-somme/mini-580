@@ -64,6 +64,39 @@ export type EditorCropWindow = {
   refH: number;
 };
 
+/** True circle inscribed in the crop window — matches rebake circle mask. */
+export function cropCircleMetrics(crop: Pick<EditorCropWindow, "cropLeft" | "cropTop" | "cropW" | "cropH">) {
+  const size = Math.min(crop.cropW, crop.cropH);
+  return {
+    cx: crop.cropLeft + crop.cropW / 2,
+    cy: crop.cropTop + crop.cropH / 2,
+    r: size / 2,
+    left: crop.cropLeft + (crop.cropW - size) / 2,
+    top: crop.cropTop + (crop.cropH - size) / 2,
+    size,
+  };
+}
+
+/**
+ * Keep the crop-window center pinned on the same image point when scale changes.
+ * Editor zoom resizes width/height (not CSS scale), so offset must track scale.
+ */
+export function offsetForScalePivot(
+  offsetX: number,
+  offsetY: number,
+  prevScaleX: number,
+  prevScaleY: number,
+  nextScaleX: number,
+  nextScaleY: number
+): { offsetX: number; offsetY: number } {
+  const factorX = prevScaleX !== 0 ? nextScaleX / prevScaleX : 1;
+  const factorY = prevScaleY !== 0 ? nextScaleY / prevScaleY : 1;
+  return {
+    offsetX: offsetX * factorX,
+    offsetY: offsetY * factorY,
+  };
+}
+
 /** Crop window in stage pixels — proportional to stage size (editor preview only). */
 export function computeEditorCropWindow(
   cropInset: number,

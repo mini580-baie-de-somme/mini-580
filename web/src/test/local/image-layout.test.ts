@@ -5,11 +5,13 @@ import {
   VARIANT_SIZE,
   computeEditorCropWindow,
   computeEditorPhotoLayout,
+  cropCircleMetrics,
   cropWindowFractions,
   layoutFromLegacy,
   legacyFieldsFromLayout,
   mergeLayoutPatch,
   layoutForRebake,
+  offsetForScalePivot,
 } from "@/lib/image-layout";
 
 describe("image-layout constants", () => {
@@ -93,6 +95,33 @@ describe("computeEditorCropWindow", () => {
     expect(win.cropTop).toBeCloseTo(stageH * inset, 5);
     expect(win.cropW).toBeCloseTo(stageW * (1 - 2 * inset), 5);
     expect(win.cropH).toBeCloseTo(stageH * (1 - 2 * inset), 5);
+  });
+});
+
+describe("cropCircleMetrics", () => {
+  it("inscribes a true circle in the 3:4 crop window", () => {
+    const win = computeEditorCropWindow(DEFAULT_IMAGE_LAYOUT.cropInset, 360, 480);
+    const circle = cropCircleMetrics(win);
+    expect(circle.size).toBeCloseTo(Math.min(win.cropW, win.cropH), 5);
+    expect(circle.r).toBeCloseTo(circle.size / 2, 5);
+    expect(circle.cx).toBeCloseTo(win.cropLeft + win.cropW / 2, 5);
+    expect(circle.cy).toBeCloseTo(win.cropTop + win.cropH / 2, 5);
+    expect(circle.left + circle.size / 2).toBeCloseTo(circle.cx, 5);
+    expect(circle.top + circle.size / 2).toBeCloseTo(circle.cy, 5);
+  });
+});
+
+describe("offsetForScalePivot", () => {
+  it("scales offset with uniform zoom to keep crop center pinned", () => {
+    const next = offsetForScalePivot(0.4, -0.2, 1, 1, 2, 2);
+    expect(next.offsetX).toBeCloseTo(0.8, 5);
+    expect(next.offsetY).toBeCloseTo(-0.4, 5);
+  });
+
+  it("scales each offset axis independently when aspect is unlocked", () => {
+    const next = offsetForScalePivot(0.3, 0.6, 1, 2, 1.5, 3);
+    expect(next.offsetX).toBeCloseTo(0.45, 5);
+    expect(next.offsetY).toBeCloseTo(0.9, 5);
   });
 });
 

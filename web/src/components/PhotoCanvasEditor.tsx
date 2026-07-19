@@ -7,15 +7,16 @@ import {
   IMAGE_ASPECT,
   computeEditorCropWindow,
   computeEditorPhotoLayout,
+  cropCircleMetrics,
   cropWindowFractions,
+  offsetForScalePivot,
   type CropShape,
   type ImageLayoutParams,
 } from "@/lib/image-layout";
 import {
   angleDeg,
+  layoutFromPinch,
   pinchSnapshot,
-  rotationFromPinch,
-  scaleFromPinch,
   type PinchSnapshot,
   type Point,
 } from "@/lib/photo-gestures";
@@ -203,7 +204,9 @@ export function PhotoCanvasEditor({
       pts[1],
       cur.scaleX,
       cur.scaleY,
-      cur.rotation
+      cur.rotation,
+      cur.offsetX,
+      cur.offsetY
     );
     dragMode.current = null;
     lastPoint.current = null;
@@ -237,11 +240,13 @@ export function PhotoCanvasEditor({
       const start = pinchStart.current;
       const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
       const ang = angleDeg(pts[0], pts[1]);
-      const scaled = scaleFromPinch(start, dist, cur.lockAspect);
+      const next = layoutFromPinch(start, dist, ang, cur.lockAspect);
       patch({
-        scaleX: clamp(scaled.scaleX, 0.1, 8),
-        scaleY: clamp(scaled.scaleY, 0.1, 8),
-        rotation: rotationFromPinch(start, ang),
+        scaleX: clamp(next.scaleX, 0.1, 8),
+        scaleY: clamp(next.scaleY, 0.1, 8),
+        rotation: next.rotation,
+        offsetX: clamp(next.offsetX, -2, 2),
+        offsetY: clamp(next.offsetY, -2, 2),
       });
       return;
     }
@@ -279,6 +284,24 @@ export function PhotoCanvasEditor({
     }
   }
 
+  function applyScalePatch(nextScaleX: number, nextScaleY: number) {
+    const cur = valueRef.current;
+    const offset = offsetForScalePivot(
+      cur.offsetX,
+      cur.offsetY,
+      cur.scaleX,
+      cur.scaleY,
+      nextScaleX,
+      nextScaleY
+    );
+    patch({
+      scaleX: nextScaleX,
+      scaleY: nextScaleY,
+      offsetX: clamp(offset.offsetX, -2, 2),
+      offsetY: clamp(offset.offsetY, -2, 2),
+    });
+  }
+
   function onWheel(e: React.WheelEvent) {
     if (disabled) return;
     e.preventDefault();
@@ -286,16 +309,22 @@ export function PhotoCanvasEditor({
     const factor = e.deltaY > 0 ? 0.96 : 1.04;
     if (cur.lockAspect) {
       const s = clamp(cur.scaleX * factor, 0.1, 8);
-      patch({ scaleX: s, scaleY: s });
+      applyScalePatch(s, s);
     } else if (e.shiftKey) {
-      patch({ scaleY: clamp(cur.scaleY * factor, 0.1, 8) });
+      applyScalePatch(
+        cur.scaleX,
+        clamp(cur.scaleY * factor, 0.1, 8)
+      );
     } else if (e.altKey) {
-      patch({ scaleX: clamp(cur.scaleX * factor, 0.1, 8) });
+      applyScalePatch(
+        clamp(cur.scaleX * factor, 0.1, 8),
+        cur.scaleY
+      );
     } else {
-      patch({
-        scaleX: clamp(cur.scaleX * factor, 0.1, 8),
-        scaleY: clamp(cur.scaleY * factor, 0.1, 8),
-      });
+      applyScalePatch(
+        clamp(cur.scaleX * factor, 0.1, 8),
+        clamp(cur.scaleY * factor, 0.1, 8)
+      );
     }
   }
 
@@ -303,12 +332,12 @@ export function PhotoCanvasEditor({
     const cur = valueRef.current;
     if (cur.lockAspect) {
       const s = clamp(cur.scaleX + delta, 0.1, 8);
-      patch({ scaleX: s, scaleY: s });
+      applyScalePatch(s, s);
     } else {
-      patch({
-        scaleX: clamp(cur.scaleX + delta, 0.1, 8),
-        scaleY: clamp(cur.scaleY + delta, 0.1, 8),
-      });
+      applyScalePatch(
+        clamp(cur.scaleX + delta, 0.1, 8),
+        clamp(cur.scaleY + delta, 0.1, 8)
+      );
     }
   }
 
@@ -321,6 +350,8 @@ export function PhotoCanvasEditor({
     stageSize.width > 0 && stageSize.height > 0
       ? computeEditorCropWindow(inset, stageSize.width, stageSize.height)
       : null;
+
+  const cropCircle = cropWindow ? cropCircleMetrics(cropWindow) : null;
 
   if (cropWindow) {
     cropWindowRef.current = { cropW: cropWindow.cropW, cropH: cropWindow.cropH };
@@ -443,15 +474,24 @@ export function PhotoCanvasEditor({
         <defs>
           <mask id={dimMaskId}>
             <rect width="100%" height="100%" fill="white" />
-            <rect
-              x={cropWindow?.cropLeft ?? 0}
-              y={cropWindow?.cropTop ?? 0}
-              width={cropWindow?.cropW ?? 0}
-              height={cropWindow?.cropH ?? 0}
-              rx={value.cropShape === "CIRCLE" ? "50%" : "2"}
-              ry={value.cropShape === "CIRCLE" ? "50%" : "2"}
-              fill="black"
-            />
+            {value.cropShape === "CIRCLE" && cropCircle ? (
+              <circle
+                cx={cropCircle.cx}
+                cy={cropCircle.cy}
+                r={cropCircle.r}
+                fill="black"
+              />
+            ) : (
+              <rect
+                x={cropWindow?.cropLeft ?? 0}
+                y={cropWindow?.cropTop ?? 0}
+                width={cropWindow?.cropW ?? 0}
+                height={cropWindow?.cropH ?? 0}
+                rx="2"
+                ry="2"
+                fill="black"
+              />
+            )}
           </mask>
         </defs>
         <rect
@@ -477,13 +517,21 @@ export function PhotoCanvasEditor({
         className="pointer-events-none absolute z-20 border-2 border-white/90"
         style={
           cropWindow
-            ? {
-                left: `${cropWindow.cropLeft}px`,
-                top: `${cropWindow.cropTop}px`,
-                width: `${cropWindow.cropW}px`,
-                height: `${cropWindow.cropH}px`,
-                borderRadius: value.cropShape === "CIRCLE" ? "50%" : "2px",
-              }
+            ? value.cropShape === "CIRCLE" && cropCircle
+              ? {
+                  left: `${cropCircle.left}px`,
+                  top: `${cropCircle.top}px`,
+                  width: `${cropCircle.size}px`,
+                  height: `${cropCircle.size}px`,
+                  borderRadius: "50%",
+                }
+              : {
+                  left: `${cropWindow.cropLeft}px`,
+                  top: `${cropWindow.cropTop}px`,
+                  width: `${cropWindow.cropW}px`,
+                  height: `${cropWindow.cropH}px`,
+                  borderRadius: "2px",
+                }
             : undefined
         }
       />
@@ -536,9 +584,35 @@ export function PhotoCanvasEditor({
           onAdjust={(d) => {
             if (value.lockAspect) {
               const s = clamp(value.scaleX + d, 0.1, 8);
-              patch({ scaleX: s, scaleY: s });
+              const offset = offsetForScalePivot(
+                value.offsetX,
+                value.offsetY,
+                value.scaleX,
+                value.scaleY,
+                s,
+                s
+              );
+              patch({
+                scaleX: s,
+                scaleY: s,
+                offsetX: clamp(offset.offsetX, -2, 2),
+                offsetY: clamp(offset.offsetY, -2, 2),
+              });
             } else {
-              patch({ scaleX: clamp(value.scaleX + d, 0.1, 8) });
+              const sx = clamp(value.scaleX + d, 0.1, 8);
+              const offset = offsetForScalePivot(
+                value.offsetX,
+                value.offsetY,
+                value.scaleX,
+                value.scaleY,
+                sx,
+                value.scaleY
+              );
+              patch({
+                scaleX: sx,
+                offsetX: clamp(offset.offsetX, -2, 2),
+                offsetY: clamp(offset.offsetY, -2, 2),
+              });
             }
           }}
         />
@@ -548,9 +622,22 @@ export function PhotoCanvasEditor({
             value={value.scaleY.toFixed(2)}
             step={0.05}
             disabled={disabled}
-            onAdjust={(d) =>
-              patch({ scaleY: clamp(value.scaleY + d, 0.1, 8) })
-            }
+            onAdjust={(d) => {
+              const sy = clamp(value.scaleY + d, 0.1, 8);
+              const offset = offsetForScalePivot(
+                value.offsetX,
+                value.offsetY,
+                value.scaleX,
+                value.scaleY,
+                value.scaleX,
+                sy
+              );
+              patch({
+                scaleY: sy,
+                offsetX: clamp(offset.offsetX, -2, 2),
+                offsetY: clamp(offset.offsetY, -2, 2),
+              });
+            }}
           />
         )}
         <Stepper
