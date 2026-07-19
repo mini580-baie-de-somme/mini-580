@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useId, useRef } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import {
   BACKGROUND_PRESETS,
   DEFAULT_IMAGE_LAYOUT,
   IMAGE_ASPECT,
+  computeEditorPhotoLayout,
+  cropWindowFractions,
   type CropShape,
   type ImageLayoutParams,
 } from "@/lib/image-layout";
@@ -116,6 +118,8 @@ export function PhotoCanvasEditor({
   const { locale } = useLocale();
   const dimMaskId = useId();
   const stageRef = useRef<HTMLDivElement>(null);
+  const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
+  const [imageNatural, setImageNatural] = useState({ width: 0, height: 0 });
   const dragMode = useRef<DragMode>(null);
   const lastPoint = useRef<Point | null>(null);
   const pointers = useRef<Map<number, Point>>(new Map());
@@ -125,6 +129,31 @@ export function PhotoCanvasEditor({
 
   const mobileToolbar =
     showMobileToolbar ?? (showStage && !showControls);
+
+  useEffect(() => {
+    setImageNatural({ width: 0, height: 0 });
+  }, [imageSrc]);
+
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el || !showStage) return;
+
+    const sync = () => {
+      const rect = el.getBoundingClientRect();
+      const width = Math.round(rect.width);
+      const height = Math.round(rect.height);
+      if (width > 0 && height > 0) {
+        setStageSize((prev) =>
+          prev.width === width && prev.height === height ? prev : { width, height }
+        );
+      }
+    };
+
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [showStage, fillStage]);
 
   const patch = useCallback(
     (partial: Partial<ImageLayoutParams>) => {
@@ -268,23 +297,53 @@ export function PhotoCanvasEditor({
   }
 
   const inset = clamp(value.cropInset, 0, 0.4);
-  const cropLeft = inset * 100;
-  const cropTop = inset * 100;
-  const cropW = (1 - 2 * inset) * 100;
-  const cropH = (1 - 2 * inset) * 100;
+  const { cropLeft, cropTop, cropW, cropH } = cropWindowFractions(inset);
+  const cropLeftPct = cropLeft * 100;
+  const cropTopPct = cropTop * 100;
+  const cropWPct = cropW * 100;
+  const cropHPct = cropH * 100;
 
-  const photoStyle: React.CSSProperties = {
-    position: "absolute",
-    left: `${50 + value.offsetX * cropW}%`,
-    top: `${50 + value.offsetY * cropH}%`,
-    width: `${cropW * value.scaleX}%`,
-    height: `${cropH * value.scaleY}%`,
-    transform: `translate(-50%, -50%) rotate(${value.rotation}deg)`,
-    transformOrigin: "center center",
-    objectFit: value.lockAspect ? "cover" : "fill",
-    pointerEvents: "none",
-    userSelect: "none",
-  };
+  const hasLayoutMetrics =
+    stageSize.width > 0 &&
+    stageSize.height > 0 &&
+    imageNatural.width > 0 &&
+    imageNatural.height > 0;
+
+  const photoLayout = hasLayoutMetrics
+    ? computeEditorPhotoLayout({
+        layout: value,
+        stageWidth: stageSize.width,
+        stageHeight: stageSize.height,
+        imageWidth: imageNatural.width,
+        imageHeight: imageNatural.height,
+      })
+    : null;
+
+  const photoStyle: React.CSSProperties = photoLayout
+    ? {
+        position: "absolute",
+        left: `${photoLayout.centerX}px`,
+        top: `${photoLayout.centerY}px`,
+        width: `${photoLayout.width}px`,
+        height: `${photoLayout.height}px`,
+        transform: `translate(-50%, -50%) rotate(${photoLayout.rotation}deg)`,
+        transformOrigin: "center center",
+        objectFit: "fill",
+        pointerEvents: "none",
+        userSelect: "none",
+      }
+    : {
+        position: "absolute",
+        left: `${50 + value.offsetX * cropWPct}%`,
+        top: `${50 + value.offsetY * cropHPct}%`,
+        width: `${cropWPct * value.scaleX}%`,
+        height: `${cropHPct * value.scaleY}%`,
+        transform: `translate(-50%, -50%) rotate(${value.rotation}deg)`,
+        transformOrigin: "center center",
+        objectFit: value.lockAspect ? "cover" : "fill",
+        pointerEvents: "none",
+        userSelect: "none",
+      };
 
   const mobileToolbarNode =
     mobileToolbar && showStage ? (
@@ -324,8 +383,8 @@ export function PhotoCanvasEditor({
       ref={stageRef}
       className={
         fillStage
-          ? "relative h-full max-h-full w-auto max-w-full cursor-grab touch-none overflow-visible rounded-lg border border-[#d4dde6] shadow-sm active:cursor-grabbing"
-          : "relative mx-auto w-full max-w-[min(100%,360px)] cursor-grab touch-none overflow-visible rounded-lg border border-[#d4dde6] shadow-sm active:cursor-grabbing"
+          ? "relative h-full max-h-full w-auto max-w-full shrink-0 cursor-grab touch-none overflow-hidden rounded-lg border border-[#d4dde6] shadow-sm active:cursor-grabbing"
+          : "relative mx-auto w-full max-w-[min(100%,360px)] shrink-0 cursor-grab touch-none overflow-hidden rounded-lg border border-[#d4dde6] shadow-sm active:cursor-grabbing"
       }
       style={{
         aspectRatio: String(IMAGE_ASPECT),
@@ -356,10 +415,10 @@ export function PhotoCanvasEditor({
           <mask id={dimMaskId}>
             <rect width="100%" height="100%" fill="white" />
             <rect
-              x={`${cropLeft}%`}
-              y={`${cropTop}%`}
-              width={`${cropW}%`}
-              height={`${cropH}%`}
+              x={`${cropLeftPct}%`}
+              y={`${cropTopPct}%`}
+              width={`${cropWPct}%`}
+              height={`${cropHPct}%`}
               rx={value.cropShape === "CIRCLE" ? "50%" : "2"}
               ry={value.cropShape === "CIRCLE" ? "50%" : "2"}
               fill="black"
@@ -381,15 +440,24 @@ export function PhotoCanvasEditor({
         draggable={false}
         className="relative z-10"
         style={photoStyle}
+        onLoad={(e) => {
+          const img = e.currentTarget;
+          if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+            setImageNatural({
+              width: img.naturalWidth,
+              height: img.naturalHeight,
+            });
+          }
+        }}
       />
 
       <div
         className="pointer-events-none absolute z-20 border-2 border-white/90"
         style={{
-          left: `${cropLeft}%`,
-          top: `${cropTop}%`,
-          width: `${cropW}%`,
-          height: `${cropH}%`,
+          left: `${cropLeftPct}%`,
+          top: `${cropTopPct}%`,
+          width: `${cropWPct}%`,
+          height: `${cropHPct}%`,
           borderRadius: value.cropShape === "CIRCLE" ? "50%" : "2px",
         }}
       />
@@ -586,7 +654,7 @@ export function PhotoCanvasEditor({
 
   if (showStage && !showControls) {
     return fillStage ? (
-      <div className="flex h-full min-h-0 w-full touch-none items-center justify-center overflow-visible p-2 sm:p-4">
+      <div className="flex h-full min-h-0 w-full touch-none items-center justify-center overflow-hidden p-2 sm:p-4">
         {stage}
       </div>
     ) : (

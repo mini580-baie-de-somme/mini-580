@@ -3,6 +3,8 @@ import {
   DEFAULT_IMAGE_LAYOUT,
   IMAGE_ASPECT,
   VARIANT_SIZE,
+  computeEditorPhotoLayout,
+  cropWindowFractions,
   layoutFromLegacy,
 } from "@/lib/image-layout";
 
@@ -20,6 +22,42 @@ describe("image-layout constants", () => {
     expect(VARIANT_SIZE.petite).toEqual({ w: 288, h: 384 });
     expect(VARIANT_SIZE.moyenne).toEqual({ w: 576, h: 768 });
     expect(VARIANT_SIZE.grande).toEqual({ w: 1080, h: 1440 });
+  });
+});
+
+describe("computeEditorPhotoLayout", () => {
+  it("preserves source aspect ratio when lockAspect zooms uniformly", () => {
+    const stageW = 360;
+    const stageH = 480;
+    const iw = 800;
+    const ih = 600;
+
+    const at1 = computeEditorPhotoLayout({
+      layout: DEFAULT_IMAGE_LAYOUT,
+      stageWidth: stageW,
+      stageHeight: stageH,
+      imageWidth: iw,
+      imageHeight: ih,
+    });
+    const at2 = computeEditorPhotoLayout({
+      layout: { ...DEFAULT_IMAGE_LAYOUT, scaleX: 2, scaleY: 2 },
+      stageWidth: stageW,
+      stageHeight: stageH,
+      imageWidth: iw,
+      imageHeight: ih,
+    });
+
+    expect(at1.width / at1.height).toBeCloseTo(iw / ih, 5);
+    expect(at2.width / at2.height).toBeCloseTo(iw / ih, 5);
+    expect(at2.width / at1.width).toBeCloseTo(2, 5);
+    expect(at2.height / at1.height).toBeCloseTo(2, 5);
+  });
+
+  it("keeps crop window fractions stable regardless of scale", () => {
+    const { cropW, cropH } = cropWindowFractions(DEFAULT_IMAGE_LAYOUT.cropInset);
+    expect(cropW).toBeCloseTo(0.88, 5);
+    expect(cropH).toBeCloseTo(0.88, 5);
+    expect(cropW / cropH).toBeCloseTo(IMAGE_ASPECT / IMAGE_ASPECT, 5);
   });
 });
 

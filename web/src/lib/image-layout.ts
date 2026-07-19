@@ -35,6 +35,62 @@ export type ImageLayoutParams = {
   cropInset: number;
 };
 
+export function clampCropInset(cropInset: number): number {
+  return Math.min(0.4, Math.max(0, cropInset));
+}
+
+/** Crop window as fractions of the stage (0–1). */
+export function cropWindowFractions(cropInset: number) {
+  const inset = clampCropInset(cropInset);
+  const cropW = 1 - 2 * inset;
+  const cropH = 1 - 2 * inset;
+  return { inset, cropLeft: inset, cropTop: inset, cropW, cropH };
+}
+
+export type EditorPhotoLayoutInput = {
+  layout: ImageLayoutParams;
+  stageWidth: number;
+  stageHeight: number;
+  imageWidth: number;
+  imageHeight: number;
+};
+
+/** Pixel placement for the editor preview — mirrors `applyImageTransform` in media-variants. */
+export function computeEditorPhotoLayout(input: EditorPhotoLayoutInput): {
+  centerX: number;
+  centerY: number;
+  width: number;
+  height: number;
+  rotation: number;
+} {
+  const { layout, stageWidth, stageHeight, imageWidth, imageHeight } = input;
+  const iw = Math.max(1, imageWidth);
+  const ih = Math.max(1, imageHeight);
+  const W = Math.max(1, stageWidth);
+  const H = Math.max(1, stageHeight);
+
+  const { inset } = cropWindowFractions(layout.cropInset);
+  const cropW = W * (1 - 2 * inset);
+  const cropH = H * (1 - 2 * inset);
+  const cropLeft = W * inset;
+  const cropTop = H * inset;
+
+  const coverScale = Math.max(cropW / iw, cropH / ih);
+  const width = Math.max(1, iw * coverScale * layout.scaleX);
+  const height = Math.max(1, ih * coverScale * layout.scaleY);
+
+  const centerX = cropLeft + cropW / 2 + layout.offsetX * cropW;
+  const centerY = cropTop + cropH / 2 + layout.offsetY * cropH;
+
+  return {
+    centerX,
+    centerY,
+    width,
+    height,
+    rotation: layout.rotation,
+  };
+}
+
 export const DEFAULT_IMAGE_LAYOUT: ImageLayoutParams = {
   offsetX: 0,
   offsetY: 0,
