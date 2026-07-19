@@ -12,6 +12,7 @@ import {
   mergeLayoutPatch,
   layoutForRebake,
   offsetForScalePivot,
+  rotatedImageBounds,
 } from "@/lib/image-layout";
 
 describe("image-layout constants", () => {
@@ -32,6 +33,33 @@ describe("image-layout constants", () => {
 });
 
 describe("computeEditorPhotoLayout", () => {
+  it("uses post-rotation bounds for cover scale (matches rebake pipeline)", () => {
+    const stageW = 360;
+    const stageH = 480;
+    const iw = 800;
+    const ih = 600;
+
+    const flat = computeEditorPhotoLayout({
+      layout: { ...DEFAULT_IMAGE_LAYOUT, rotation: 0 },
+      stageWidth: stageW,
+      stageHeight: stageH,
+      imageWidth: iw,
+      imageHeight: ih,
+    });
+    const tilted = computeEditorPhotoLayout({
+      layout: { ...DEFAULT_IMAGE_LAYOUT, rotation: 45 },
+      stageWidth: stageW,
+      stageHeight: stageH,
+      imageWidth: iw,
+      imageHeight: ih,
+    });
+
+    expect(tilted.width).toBeGreaterThan(flat.width);
+    expect(tilted.height).toBeGreaterThan(flat.height);
+    expect(rotatedImageBounds(iw, ih, 90).width).toBeCloseTo(ih, 5);
+    expect(rotatedImageBounds(iw, ih, 90).height).toBeCloseTo(iw, 5);
+  });
+
   it("preserves source aspect ratio when lockAspect zooms uniformly", () => {
     const stageW = 360;
     const stageH = 480;

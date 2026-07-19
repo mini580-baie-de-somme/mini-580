@@ -128,6 +128,23 @@ export type EditorPhotoLayoutInput = {
   imageHeight: number;
 };
 
+/** Axis-aligned bounds of a rotated rectangle — matches sharp.rotate output size. */
+export function rotatedImageBounds(
+  imageWidth: number,
+  imageHeight: number,
+  rotationDeg: number
+): { width: number; height: number } {
+  const iw = Math.max(1, imageWidth);
+  const ih = Math.max(1, imageHeight);
+  const rad = (rotationDeg * Math.PI) / 180;
+  const c = Math.abs(Math.cos(rad));
+  const s = Math.abs(Math.sin(rad));
+  return {
+    width: iw * c + ih * s,
+    height: iw * s + ih * c,
+  };
+}
+
 /** Pixel placement for the editor preview — mirrors `applyImageTransform` in media-variants. */
 export function computeEditorPhotoLayout(input: EditorPhotoLayoutInput): {
   centerX: number;
@@ -148,7 +165,9 @@ export function computeEditorPhotoLayout(input: EditorPhotoLayoutInput): {
     H
   );
 
-  const coverScale = Math.max(cropW / iw, cropH / ih);
+  // Server rotates first, then cover-scales using post-rotation bounds.
+  const rotated = rotatedImageBounds(iw, ih, layout.rotation);
+  const coverScale = Math.max(cropW / rotated.width, cropH / rotated.height);
   const width = Math.max(1, iw * coverScale * layout.scaleX);
   const height = Math.max(1, ih * coverScale * layout.scaleY);
 
