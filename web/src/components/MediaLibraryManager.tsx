@@ -540,9 +540,9 @@ export function MediaLibraryManager() {
                 (filePreviewUrl ||
                   (editingMedia &&
                     (editingMedia.urlOrigin || editingMedia.urlGrande)))
-                  ? "max-h-[min(42vh,420px)] min-h-[28vh] items-center justify-center p-3 md:max-h-none md:min-h-0"
+                  ? "h-[min(52vh,520px)] touch-none items-center justify-center p-3 md:h-auto md:max-h-none md:min-h-0"
                   : previewKind && previewSrc
-                    ? "min-h-[28vh] max-h-[min(42vh,420px)] items-stretch justify-stretch p-0 md:max-h-none md:min-h-0"
+                    ? "h-[min(40vh,420px)] items-stretch justify-stretch p-0 md:h-auto md:max-h-none md:min-h-0"
                     : "min-h-[28vh] items-center justify-center p-3 md:min-h-0"
               }`}
             >

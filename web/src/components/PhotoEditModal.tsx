@@ -421,9 +421,9 @@ export function PhotoEditModal({
         <section
           className={`flex shrink-0 bg-[#eef3f7] md:min-h-0 md:flex-1 md:shrink ${
             hasPreview && isImage
-              ? "max-h-[min(42vh,420px)] min-h-[28vh] items-center justify-center md:max-h-none md:min-h-0"
+              ? "h-[min(52vh,520px)] touch-none items-center justify-center md:h-auto md:max-h-none md:min-h-0"
               : hasPreview
-                ? "min-h-[28vh] max-h-[min(42vh,420px)] items-stretch p-0 md:max-h-none md:min-h-0"
+                ? "h-[min(40vh,420px)] items-stretch p-0 md:h-auto md:max-h-none md:min-h-0"
                 : "min-h-[28vh] items-center justify-center md:min-h-0"
           }`}
         >

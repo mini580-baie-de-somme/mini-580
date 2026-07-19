@@ -31,7 +31,7 @@ type Props = {
   showMobileToolbar?: boolean;
 };
 
-type DragMode = "pan" | "rotate" | null;
+type DragMode = "pan" | null;
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
@@ -211,8 +211,6 @@ export function PhotoCanvasEditor({
         offsetX: clamp(cur.offsetX + dx, -2, 2),
         offsetY: clamp(cur.offsetY + dy, -2, 2),
       });
-    } else if (dragMode.current === "rotate") {
-      patch({ rotation: cur.rotation + dx * 180 });
     }
   }
 
@@ -317,16 +315,6 @@ export function PhotoCanvasEditor({
           disabled={disabled}
           onClick={() => patch({ rotation: value.rotation + 90 })}
         />
-        <MobileToolbarButton
-          label="↔°"
-          title={
-            locale === "fr"
-              ? "Maintenir et glisser horizontalement pour pivoter librement"
-              : "Hold and drag horizontally for free rotation"
-          }
-          disabled={disabled}
-          onPointerDown={(e) => onInteractionPointerDown(e, "rotate")}
-        />
       </div>
     ) : null;
 
@@ -335,18 +323,21 @@ export function PhotoCanvasEditor({
       ref={stageRef}
       className={
         fillStage
-          ? "relative h-full max-h-full max-w-full touch-none overflow-hidden rounded-lg border border-[#d4dde6] shadow-sm"
-          : "relative mx-auto w-full max-w-[min(100%,360px)] touch-none overflow-hidden rounded-lg border border-[#d4dde6] shadow-sm"
+          ? "relative h-full max-h-full w-auto max-w-full cursor-grab touch-none overflow-hidden rounded-lg border border-[#d4dde6] shadow-sm active:cursor-grabbing"
+          : "relative mx-auto w-full max-w-[min(100%,360px)] cursor-grab touch-none overflow-hidden rounded-lg border border-[#d4dde6] shadow-sm active:cursor-grabbing"
       }
       style={{
         aspectRatio: String(IMAGE_ASPECT),
-        ...(fillStage ? { width: "auto" } : {}),
         background:
           value.backgroundColor === "transparent"
             ? "repeating-conic-gradient(#ddd 0% 25%, #fff 0% 50%) 50% / 16px 16px"
             : value.backgroundColor,
       }}
       onWheel={onWheel}
+      onPointerDown={(e) => onInteractionPointerDown(e, "pan")}
+      onPointerMove={onInteractionPointerMove}
+      onPointerUp={onInteractionPointerUp}
+      onPointerCancel={onInteractionPointerUp}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={imageSrc} alt="" draggable={false} style={photoStyle} />
@@ -361,14 +352,6 @@ export function PhotoCanvasEditor({
           borderRadius: value.cropShape === "CIRCLE" ? "50%" : "2px",
           boxShadow: "0 0 0 9999px rgba(13,19,26,0.45)",
         }}
-      />
-
-      <div
-        className="absolute inset-0 z-10 cursor-grab touch-none active:cursor-grabbing"
-        onPointerDown={(e) => onInteractionPointerDown(e, "pan")}
-        onPointerMove={onInteractionPointerMove}
-        onPointerUp={onInteractionPointerUp}
-        onPointerCancel={onInteractionPointerUp}
       />
 
       {mobileToolbarNode}
@@ -461,19 +444,6 @@ export function PhotoCanvasEditor({
             title="+90°"
           >
             ↻
-          </button>
-          <button
-            type="button"
-            disabled={disabled}
-            onPointerDown={(e) => onInteractionPointerDown(e, "rotate")}
-            title={
-              locale === "fr"
-                ? "Maintenir et glisser horizontalement pour pivoter librement"
-                : "Hold and drag horizontally for free rotation"
-            }
-            className="min-h-[44px] rounded border border-[#d4dde6] px-2 py-0.5 text-[10px]"
-          >
-            {locale === "fr" ? "Pivot libre" : "Free rotate"}
           </button>
         </div>
       </div>
@@ -576,7 +546,7 @@ export function PhotoCanvasEditor({
 
   if (showStage && !showControls) {
     return fillStage ? (
-      <div className="flex h-full w-full items-center justify-center p-2 sm:p-4">
+      <div className="flex h-full min-h-0 w-full touch-none items-center justify-center p-2 sm:p-4">
         {stage}
       </div>
     ) : (
