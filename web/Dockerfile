@@ -37,6 +37,8 @@ COPY --from=builder /app/.next/static ./.next/static
 # sharp native bindings — required for image variant rebake in standalone output
 COPY --from=builder /app/node_modules/sharp ./node_modules/sharp
 COPY --from=builder /app/node_modules/@img ./node_modules/@img
+COPY --from=builder /app/node_modules/detect-libc ./node_modules/detect-libc
+COPY --from=builder /app/node_modules/semver ./node_modules/semver
 
 # Prisma schema + CLI (isolated from Next standalone node_modules)
 COPY --from=builder /app/prisma ./prisma

@@ -168,12 +168,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         );
         const rebaked = await prisma.media.update({
           where: { id },
-          data: {
-            urlPicto: variants.urlPicto,
-            urlPetite: variants.urlPetite,
-            urlMoyenne: variants.urlMoyenne,
-            urlGrande: variants.urlGrande,
-          },
+          data: variants,
           include: mediaInclude,
         });
         await syncCoverImageUrlsAfterRebake(id, variants, previousDisplayUrls);

@@ -3,8 +3,11 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 import {
+  contentTypeFromFilename,
   extensionForContentType,
   getMediaBucket,
+  isAllowedContentType,
+  maxBytesForContentType,
   mediaKeyFromUrl,
   normalizeContentType,
 } from "@/lib/media-bucket";
@@ -29,6 +32,18 @@ export type MediaVariantUrls = {
   urlPetite: string;
   urlMoyenne: string;
   urlGrande: string;
+};
+
+/** Rebake output — urlOrigin present only when an external origin was localized. */
+export type RebakedVariantUrls = Omit<MediaVariantUrls, "urlOrigin"> & {
+  urlOrigin?: string;
+};
+
+type ResolvedOrigin = {
+  body: Buffer;
+  contentType: string;
+  /** Set when origin bytes were fetched remotely and stored in the local bucket. */
+  localizedUrl?: string;
 };
 
 export type ImageTransformParams = ImageLayoutParams & {
@@ -219,26 +234,72 @@ async function resizeExact(
     .toBuffer();
 }
 
+function remoteOriginFetchUrl(originUrl: string): string | null {
+  const trimmed = originUrl.trim();
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+  return null;
+}
+
+/** Read origin bytes from the local bucket, or fetch + localize remote http(s) URLs. */
+export async function resolveOriginForBake(
+  originUrl: string
+): Promise<ResolvedOrigin> {
+  const bucket = getMediaBucket();
+  const localKey = mediaKeyFromUrl(originUrl);
+  if (localKey) {
+    const originObj = await bucket.getObject(localKey);
+    if (originObj) {
+      return { body: originObj.body, contentType: originObj.contentType };
+    }
+  }
+
+  const fetchUrl = remoteOriginFetchUrl(originUrl);
+  if (!fetchUrl) {
+    throw new Error("Origin media not found");
+  }
+
+  const res = await fetch(fetchUrl, { redirect: "follow" });
+  if (!res.ok) {
+    throw new Error(`Origin fetch failed (${res.status})`);
+  }
+
+  const body = Buffer.from(await res.arrayBuffer());
+  const rawCt =
+    res.headers.get("content-type") ||
+    contentTypeFromFilename(new URL(fetchUrl).pathname) ||
+    "image/jpeg";
+  const contentType = normalizeContentType(rawCt);
+  if (!isAllowedContentType(contentType)) {
+    throw new Error("Unsupported origin Content-Type");
+  }
+  const max = maxBytesForContentType(contentType);
+  if (body.byteLength > max) {
+    throw new Error(`Origin exceeds ${max} bytes`);
+  }
+
+  const ext = extensionForContentType(contentType) ?? "jpg";
+  const { yyyy, mm } = yyyyMm();
+  const id = randomUUID();
+  const originKey = `${yyyy}/${mm}/${id}/origin.${ext}`;
+  const stored = await bucket.putObject(originKey, body, contentType);
+  return { body, contentType, localizedUrl: stored.url };
+}
+
 /**
  * Re-read origin, bake layout into master, regenerate 4 fixed-size WebP variants.
- * Origin file is kept unchanged.
+ * Local origin files are kept unchanged; remote origins are copied into the bucket once.
  */
 export async function bakeVariantsFromOrigin(
   originUrl: string,
   transform: ImageTransformParams,
   previousVariantUrls: (string | null | undefined)[] = []
-): Promise<Omit<MediaVariantUrls, "urlOrigin">> {
+): Promise<RebakedVariantUrls> {
   const bucket = getMediaBucket();
-  const originKey = mediaKeyFromUrl(originUrl);
-  if (!originKey) {
-    throw new Error("Invalid origin URL");
-  }
-  const originObj = await bucket.getObject(originKey);
-  if (!originObj) {
-    throw new Error("Origin media not found");
-  }
+  const resolved = await resolveOriginForBake(originUrl);
 
-  const master = await applyImageTransform(originObj.body, transform);
+  const master = await applyImageTransform(resolved.body, transform);
   const { yyyy, mm } = yyyyMm();
   const id = randomUUID();
   const base = `${yyyy}/${mm}/${id}`;
@@ -261,6 +322,7 @@ export async function bakeVariantsFromOrigin(
   await deleteMediaUrls(previousVariantUrls);
 
   return {
+    ...(resolved.localizedUrl ? { urlOrigin: resolved.localizedUrl } : {}),
     urlPicto: picto.url,
     urlPetite: petite.url,
     urlMoyenne: moyenne.url,

@@ -1,11 +1,12 @@
-import { describe, expect, it, beforeAll, afterAll } from "vitest";
+import { describe, expect, it, beforeAll, afterAll, vi } from "vitest";
 import sharp from "sharp";
 import { resolve } from "node:path";
 import { mkdirSync, rmSync, existsSync } from "node:fs";
 import {
   applyImageTransform,
-  storeOriginAndVariants,
   bakeVariantsFromOrigin,
+  resolveOriginForBake,
+  storeOriginAndVariants,
 } from "@/lib/media-variants";
 import {
   DEFAULT_IMAGE_LAYOUT,
@@ -159,6 +160,72 @@ describe("media-variants — fixed 3:4 layout bake", () => {
     const pictoMeta = await sharp(pictoBuf).metadata();
     expect(pictoMeta.width).toBe(VARIANT_SIZE.picto.w);
     expect(pictoMeta.height).toBe(VARIANT_SIZE.picto.h);
+  });
+
+  it("applyImageTransform handles cover-editor scale/rotation values", async () => {
+    const jpeg = await makeLandscapeJpeg();
+    const master = await applyImageTransform(jpeg, {
+      offsetX: 0.52,
+      offsetY: -0.01,
+      scaleX: 3.3,
+      scaleY: 3.3,
+      rotation: -24,
+      lockAspect: true,
+      cropShape: "RECT",
+      backgroundColor: "#000000",
+      cropInset: 0.06,
+    });
+    expect(await webpSize(master)).toEqual({
+      w: VARIANT_SIZE.grande.w,
+      h: VARIANT_SIZE.grande.h,
+    });
+  });
+
+  it("localizes remote http(s) origins before rebake", async () => {
+    const jpeg = await makeLandscapeJpeg();
+    const remoteUrl = "https://cdn.example.test/imported-cover.jpg";
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      headers: {
+        get: (name: string) =>
+          name.toLowerCase() === "content-type" ? "image/jpeg" : null,
+      },
+      arrayBuffer: async () =>
+        jpeg.buffer.slice(jpeg.byteOffset, jpeg.byteOffset + jpeg.byteLength),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const resolved = await resolveOriginForBake(remoteUrl);
+      expect(resolved.localizedUrl).toMatch(/\/media\/.*\/origin\.jpg$/);
+      expect(resolved.body.byteLength).toBeGreaterThan(1000);
+
+      const rebaked = await bakeVariantsFromOrigin(
+        remoteUrl,
+        {
+          ...DEFAULT_IMAGE_LAYOUT,
+          offsetX: 0.52,
+          scaleX: 3.3,
+          scaleY: 3.3,
+          rotation: -24,
+        },
+        []
+      );
+      expect(rebaked.urlOrigin).toMatch(/\/media\/.*\/origin\.jpg$/);
+      expect(rebaked.urlMoyenne).toMatch(/moyenne\.webp$/);
+      expect(fetchMock).toHaveBeenCalledWith(remoteUrl, { redirect: "follow" });
+
+      const root = process.env.MEDIA_ROOT!;
+      const { readFile } = await import("node:fs/promises");
+      const moyenneMeta = await sharp(
+        await readFile(resolve(root, mediaKeyFromUrl(rebaked.urlMoyenne)!))
+      ).metadata();
+      expect(moyenneMeta.width).toBe(VARIANT_SIZE.moyenne.w);
+      expect(moyenneMeta.height).toBe(VARIANT_SIZE.moyenne.h);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("bakeVariantsFromOrigin regenerates variants without mutating origin", async () => {

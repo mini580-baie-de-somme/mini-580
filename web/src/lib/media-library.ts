@@ -12,6 +12,7 @@ import {
   deleteMediaUrls,
   storeOriginAndVariants,
   type MediaVariantUrls,
+  type RebakedVariantUrls,
 } from "@/lib/media-variants";
 import {
   layoutForRebake,
@@ -436,7 +437,7 @@ export async function rebakeMediaVariants(
   media: RebakeableMedia,
   layoutPatch: Partial<ImageLayoutParams> = {},
   previousVariantUrls?: (string | null | undefined)[]
-): Promise<Omit<MediaVariantUrls, "urlOrigin">> {
+): Promise<RebakedVariantUrls> {
   const layout = layoutForRebake(media, layoutPatch);
   const stale =
     previousVariantUrls ??
