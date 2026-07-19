@@ -40,6 +40,12 @@ describe("media-integrity", () => {
     expect(status.ok).toBe(false);
     expect(status.editable).toBe(false);
     expect(status.issues).toContain("REMOTE_ORIGIN");
+    expect(status.externalUrls).toEqual([
+      {
+        role: "origin",
+        url: "https://blogger.googleusercontent.com/photo.jpg",
+      },
+    ]);
   });
 
   it("flags missing local origin file", async () => {

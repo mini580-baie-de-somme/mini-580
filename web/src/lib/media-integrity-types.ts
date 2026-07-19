@@ -1,3 +1,5 @@
+import type { MediaExternalUrl } from "@/lib/media-integrity-shared";
+
 /** Shared media storage integrity codes (client + server). */
 export type MediaIntegrityIssue =
   | "REMOTE_ORIGIN"
@@ -14,6 +16,8 @@ export type MediaIntegrity = {
   issues: MediaIntegrityIssue[];
   /** Human-readable detail per issue (locale chosen by caller). */
   messages: string[];
+  /** Remote http(s) URLs still referenced in DB (audit / re-upload). */
+  externalUrls: MediaExternalUrl[];
 };
 
 export type MediaIntegrityInput = {

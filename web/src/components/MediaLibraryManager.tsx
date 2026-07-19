@@ -42,6 +42,7 @@ import {
 } from "@/lib/utils";
 
 import type { MediaIntegrity } from "@/lib/media-integrity-types";
+import { MediaIntegrityNotice } from "./MediaIntegrityNotice";
 type MediaKind = MediaKindClient;
 
 type MediaItem = {
@@ -182,6 +183,7 @@ export function MediaLibraryManager() {
   const [dragOver, setDragOver] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [originEditable, setOriginEditable] = useState(true);
+  const [editingIntegrity, setEditingIntegrity] = useState<MediaIntegrity | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const queryString = useMemo(() => {
@@ -267,6 +269,7 @@ export function MediaLibraryManager() {
     setFile(null);
     setLocalError(null);
     setOriginEditable(true);
+    setEditingIntegrity(null);
   }
 
   async function startEdit(m: MediaItem) {
@@ -276,6 +279,7 @@ export function MediaLibraryManager() {
     setFile(null);
     setLocalError(null);
     setOriginEditable(m.integrity?.editable ?? true);
+    setEditingIntegrity(m.integrity ?? null);
     setBusy(true);
     try {
       const res = await fetch(`/api/media-library/${m.id}`);
@@ -284,6 +288,7 @@ export function MediaLibraryManager() {
         setEditingMedia(full);
         setForm(formFromMedia(full));
         setOriginEditable(full.integrity?.editable ?? false);
+        setEditingIntegrity(full.integrity ?? null);
         if (full.kind === "IMAGE" && full.integrity && !full.integrity.editable) {
           setLocalError(t("media.integrity.notEditable"));
         }
@@ -302,6 +307,7 @@ export function MediaLibraryManager() {
     setFile(null);
     setLocalError(null);
     setOriginEditable(true);
+    setEditingIntegrity(null);
   }
 
   async function save() {
@@ -606,9 +612,14 @@ export function MediaLibraryManager() {
                   {!originEditable &&
                     editingMedia?.kind === "IMAGE" &&
                     !filePreviewUrl && (
-                      <p className="mb-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                        {t("media.integrity.notEditable")}
-                      </p>
+                      <MediaIntegrityNotice
+                        panel
+                        locale={locale}
+                        integrity={editingIntegrity}
+                        media={editingMedia}
+                        message={t("media.integrity.notEditable")}
+                        className="mb-2"
+                      />
                     )}
                   <MediaPreview
                     kind={previewKind}
@@ -947,7 +958,18 @@ export function MediaLibraryManager() {
                     {visibilityBadge(m)}
                   </td>
                   <td className="hidden px-4 py-3 md:table-cell">
-                    {integrityBadge(m)}
+                    <div className="space-y-1">
+                      {integrityBadge(m)}
+                      {m.integrity && !m.integrity.ok && (
+                        <MediaIntegrityNotice
+                          compact
+                          locale={locale}
+                          integrity={m.integrity}
+                          media={m}
+                          onLinkClick={(e) => e.stopPropagation()}
+                        />
+                      )}
+                    </div>
                   </td>
                   <td className="hidden px-4 py-3 text-[#495867] lg:table-cell">
                     {m.posts?.length ?? 0}

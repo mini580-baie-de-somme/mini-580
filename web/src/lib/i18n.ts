@@ -401,6 +401,10 @@ const messages = {
     fr: "Remplacer le fichier (originale manquante ou URL externe)",
     en: "Replace file (missing original or external URL)",
   },
+  "media.integrity.externalUrl": {
+    fr: "URL externe",
+    en: "External URL",
+  },
 
   "milestones.title": { fr: "Jalons timeline", en: "Timeline milestones" },
   "milestones.subtitle": {

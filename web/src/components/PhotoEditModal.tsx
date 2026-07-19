@@ -39,6 +39,7 @@ import {
   readApiErrorBody,
 } from "@/lib/media-trace-client";
 import type { MediaIntegrity } from "@/lib/media-integrity-types";
+import { MediaIntegrityNotice } from "./MediaIntegrityNotice";
 
 type Props = {
   postId: string;
@@ -124,6 +125,7 @@ export function PhotoEditModal({
   const [error, setError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [originEditable, setOriginEditable] = useState(true);
+  const [mediaIntegrity, setMediaIntegrity] = useState<MediaIntegrity | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -141,6 +143,7 @@ export function PhotoEditModal({
   useEffect(() => {
     if (mode !== "edit" || !draft?.id || pendingFile) {
       setOriginEditable(true);
+      setMediaIntegrity(null);
       return;
     }
     let cancelled = false;
@@ -148,10 +151,13 @@ export function PhotoEditModal({
       try {
         const res = await fetch(`/api/media-library/${draft.id}`);
         if (!res.ok || cancelled) return;
-        const full = (await res.json()) as { integrity?: MediaIntegrity };
+        const full = (await res.json()) as GalleryEditorImage & {
+          integrity?: MediaIntegrity;
+        };
         if (cancelled) return;
         const editable = full.integrity?.editable ?? false;
         setOriginEditable(editable);
+        setMediaIntegrity(full.integrity ?? null);
         if (!editable) {
           setError(
             lang === "fr"
@@ -215,6 +221,7 @@ export function PhotoEditModal({
       setPendingFile(file);
       setDirty(true);
       setOriginEditable(true);
+      setMediaIntegrity(null);
       setDraft((prev) => {
         const base = prev ?? emptyDraft(kind);
         return {
@@ -570,11 +577,28 @@ export function PhotoEditModal({
           ) : hasPreview ? (
             <div className="flex h-full min-h-0 w-full flex-col p-2 sm:p-3">
               {isImage && !canEditImageLayout && (
-                <p className="mb-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                  {lang === "fr"
-                    ? "Original absent du stockage local — remplace le fichier avant d’éditer le cadrage."
-                    : "Original missing from local storage — replace the file before editing layout."}
-                </p>
+                <MediaIntegrityNotice
+                  panel
+                  locale={lang}
+                  integrity={mediaIntegrity}
+                  media={
+                    draft
+                      ? {
+                          urlOrigin: draft.urlOrigin,
+                          urlPicto: draft.urlPicto,
+                          urlPetite: draft.urlPetite,
+                          urlMoyenne: draft.urlMoyenne,
+                          urlGrande: draft.urlGrande,
+                        }
+                      : null
+                  }
+                  message={
+                    lang === "fr"
+                      ? "Original absent du stockage local — remplace le fichier avant d’éditer le cadrage."
+                      : "Original missing from local storage — replace the file before editing layout."
+                  }
+                  className="mb-2"
+                />
               )}
               <MediaPreview
                 kind={effectiveKind}

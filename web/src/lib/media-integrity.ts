@@ -2,6 +2,7 @@ import "server-only";
 
 import { MediaKind } from "@/generated/prisma/client";
 import { getMediaBucket, mediaKeyFromUrl } from "@/lib/media-bucket";
+import { collectExternalMediaUrls } from "@/lib/media-integrity-shared";
 import type {
   MediaIntegrity,
   MediaIntegrityInput,
@@ -118,6 +119,7 @@ export async function assessMediaIntegrity(
       }
       return issueMessage(issue);
     }),
+    externalUrls: collectExternalMediaUrls(media),
   };
 }
 
