@@ -32,14 +32,18 @@ export function PostCard({ post }: { post: PostCardData }) {
   return (
     <article className="group flex flex-col overflow-hidden rounded-lg border border-[#d4dde6] bg-white shadow-sm transition hover:shadow-md">
       {post.coverImageUrl && (
-        <div className="aspect-[16/9] overflow-hidden bg-[#eef3f7]">
+        <Link
+          href={`/blog/${post.slug}`}
+          className="block aspect-[16/9] overflow-hidden bg-[#eef3f7]"
+          aria-label={title}
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={post.coverImageUrl}
             alt=""
             className="h-full w-full object-cover transition group-hover:scale-[1.02]"
           />
-        </div>
+        </Link>
       )}
       <div className="flex flex-1 flex-col p-5">
         <div className="mb-3 flex flex-wrap items-center gap-2">
