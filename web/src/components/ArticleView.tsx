@@ -122,10 +122,10 @@ export function ArticleView({
     : null;
 
   return (
-    <>
-      <article className="mx-auto max-w-3xl">
-        <div className="mb-6">
-          <div className="mb-3 flex flex-wrap gap-2">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 sm:gap-12">
+      <article className="mx-auto w-full max-w-3xl">
+        <header className="mb-8 space-y-4 sm:mb-10 sm:space-y-5">
+          <div className="flex flex-wrap gap-2">
             <HullBadgeList hulls={post.hulls} />
             {post.tags.map(({ tag }) => (
               <span
@@ -142,33 +142,50 @@ export function ArticleView({
               href="/blog"
               aria-label={t("article.back")}
               title={t("article.back")}
-              className="mt-1.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#d4dde6] bg-white text-[#495867] shadow-sm transition hover:border-[#495867] hover:bg-[#eef3f7] hover:text-[#0D131A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#495867] focus-visible:ring-offset-2 sm:mt-2 sm:h-11 sm:w-11"
+              className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#d4dde6] bg-white text-[#495867] shadow-sm transition hover:border-[#495867] hover:bg-[#eef3f7] hover:text-[#0D131A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#495867] focus-visible:ring-offset-2 sm:mt-1 sm:h-11 sm:w-11"
             >
               <BackArrowIcon className="h-5 w-5 sm:h-6 sm:w-6" />
             </Link>
-            <div className="min-w-0 flex-1">
-              <h1 className="text-3xl font-bold text-[#0D131A] sm:text-4xl">{title}</h1>
-              {excerpt && <p className="mt-3 text-lg text-[#495867]">{excerpt}</p>}
-              <div className="mt-3 flex flex-wrap gap-3 text-sm text-[#495867]">
-                {date && <time>{date}</time>}
-                {post.author.name && <span>{post.author.name}</span>}
-              </div>
-            </div>
+            <h1 className="min-w-0 flex-1 text-2xl font-bold leading-tight text-[#0D131A] sm:text-4xl sm:leading-tight">
+              {title}
+            </h1>
           </div>
-        </div>
+
+          {excerpt ? (
+            <p className="text-base leading-relaxed text-[#495867] sm:text-lg">
+              {excerpt}
+            </p>
+          ) : null}
+
+          {(date || post.author.name) && (
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-[#495867]">
+              {date && <time>{date}</time>}
+              {date && post.author.name && (
+                <span aria-hidden className="text-[#b0bcc8]">
+                  ·
+                </span>
+              )}
+              {post.author.name && <span>{post.author.name}</span>}
+            </p>
+          )}
+        </header>
 
         {post.coverImageUrl && (
-          <div className="mb-8 overflow-hidden rounded-lg shadow-sm">
+          <div className="mb-8 overflow-hidden rounded-lg shadow-sm sm:mb-10">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={post.coverImageUrl} alt="" className="w-full object-cover" />
+            <img
+              src={post.coverImageUrl}
+              alt=""
+              className="aspect-[16/10] w-full object-cover sm:aspect-[2/1]"
+            />
           </div>
         )}
 
         <ArticleBody content={body} />
 
         {post.images.length > 0 && (
-          <section className="mt-12 border-t border-[#d4dde6] pt-10">
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <section className="mt-10 border-t border-[#d4dde6] pt-8 sm:mt-12 sm:pt-10">
+            <div className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-xl font-semibold text-[#0D131A]">
                 {t("article.gallery")}
               </h2>
@@ -176,13 +193,13 @@ export function ArticleView({
                 <button
                   type="button"
                   onClick={() => slideshow.startSlideshow(0)}
-                  className="rounded-md border border-[#495867] bg-[#495867] px-3 py-1.5 text-sm text-white hover:bg-[#3a4654]"
+                  className="w-full rounded-md border border-[#495867] bg-[#495867] px-3 py-2 text-sm text-white hover:bg-[#3a4654] sm:w-auto sm:py-1.5"
                 >
                   {t("gallery.startSlideshow")}
                 </button>
               )}
             </div>
-            <div className="grid gap-6 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6">
               {post.images.map((img, i) => {
                 const displayKind = resolveThumbKind(
                   img.kind,
@@ -240,19 +257,31 @@ export function ArticleView({
       </article>
 
       {relatedPosts.length > 0 && (
-        <section className="mx-auto mt-14 max-w-5xl border-t border-[#d4dde6] pt-10">
-          <h2 className="text-xl font-semibold text-[#0D131A]">
-            {t("article.related")}
-          </h2>
-          <p className="mt-1 text-sm text-[#495867]">{t("article.relatedHint")}</p>
-          <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="w-full border-t border-[#d4dde6] pt-8 sm:pt-10">
+          <div className="max-w-3xl">
+            <h2 className="text-xl font-semibold text-[#0D131A]">
+              {t("article.related")}
+            </h2>
+            <p className="mt-1 text-sm leading-relaxed text-[#495867]">
+              {t("article.relatedHint")}
+            </p>
+          </div>
+          <div
+            className={`mt-6 grid grid-cols-1 items-stretch gap-5 sm:mt-8 sm:gap-6 ${
+              relatedPosts.length === 1
+                ? "sm:grid-cols-1 sm:max-w-md"
+                : relatedPosts.length === 2
+                  ? "sm:grid-cols-2"
+                  : "sm:grid-cols-2 lg:grid-cols-3"
+            }`}
+          >
             {relatedPosts.map((related) => (
               <PostCard key={related.slug} post={related} />
             ))}
           </div>
         </section>
       )}
-    </>
+    </div>
   );
 }
 

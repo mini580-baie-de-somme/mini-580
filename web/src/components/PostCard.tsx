@@ -30,21 +30,39 @@ export function PostCard({ post }: { post: PostCardData }) {
     : null;
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-lg border border-[#d4dde6] bg-white shadow-sm transition hover:shadow-md">
-      {post.coverImageUrl && (
-        <Link
-          href={`/blog/${post.slug}`}
-          className="block aspect-[16/9] overflow-hidden bg-[#eef3f7]"
-          aria-label={title}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+    <article className="group flex h-full flex-col overflow-hidden rounded-lg border border-[#d4dde6] bg-white shadow-sm transition hover:shadow-md">
+      <Link
+        href={`/blog/${post.slug}`}
+        className="block aspect-[16/9] shrink-0 overflow-hidden bg-[#eef3f7]"
+        aria-label={title}
+      >
+        {post.coverImageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={post.coverImageUrl}
             alt=""
             className="h-full w-full object-cover transition group-hover:scale-[1.02]"
           />
-        </Link>
-      )}
+        ) : (
+          <span
+            className="flex h-full w-full items-center justify-center text-[#b0bcc8]"
+            aria-hidden
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="h-10 w-10 opacity-60"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.25"
+            >
+              <rect x="3.5" y="5.5" width="17" height="13" rx="1.5" />
+              <circle cx="9" cy="10.5" r="1.5" />
+              <path d="m6.5 16.5 3.5-3.5 2.5 2.5 3-3.5 3.5 4.5" />
+            </svg>
+          </span>
+        )}
+      </Link>
+
       <div className="flex flex-1 flex-col p-5">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <HullBadgeList hulls={post.hulls} />
@@ -57,16 +75,24 @@ export function PostCard({ post }: { post: PostCardData }) {
             </span>
           ))}
         </div>
-        <h2 className="text-lg font-semibold text-[#0D131A] group-hover:text-[#495867]">
+
+        <h2 className="text-lg font-semibold leading-snug text-[#0D131A] group-hover:text-[#495867]">
           <Link href={`/blog/${post.slug}`}>{title}</Link>
         </h2>
-        {date && <time className="mt-1 text-xs text-[#495867]">{date}</time>}
-        {excerpt && (
-          <p className="mt-3 line-clamp-3 flex-1 text-sm text-[#495867]">{excerpt}</p>
+
+        {date && (
+          <time className="mt-1.5 block text-xs text-[#495867]">{date}</time>
         )}
+
+        {excerpt ? (
+          <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-[#495867]">
+            {excerpt}
+          </p>
+        ) : null}
+
         <Link
           href={`/blog/${post.slug}`}
-          className="mt-4 text-sm font-medium text-[#495867] hover:underline"
+          className="mt-auto pt-4 text-sm font-medium text-[#495867] hover:underline"
         >
           {t("blog.readMore")}
         </Link>

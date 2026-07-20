@@ -47,7 +47,7 @@ export function BlogPageContent({
         {posts.length === 0 ? (
           <p className="mt-12 text-center text-[#495867]">{t("blog.empty")}</p>
         ) : (
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-10 grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
             {posts.map((post) => (
               <PostCard key={post.slug} post={post} />
             ))}
