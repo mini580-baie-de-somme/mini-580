@@ -94,12 +94,14 @@ flowchart TD
 Chaque `Media` stocke :
 
 - `kind` : IMAGE | DOCUMENT | VIDEO
-- `urlOrigin` + (IMAGE) formats dérivés `urlPicto` / `urlPetite` / `urlMoyenne` / `urlGrande`
+- `urlOrigin` + (IMAGE) formats dérivés `urlPicto` / `urlPetite` / `urlMoyenne` / `urlGrande` — **tous en `/media/...` local**
 - `titleFr/En`, `descriptionFr/En`, `takenAt`
-- transforms CSS (IMAGE) : `focusX/Y`, `zoom`, `rotation`, `cropX/Y/W/H`
+- Layout IMAGE (`ImageLayoutParams`) : `offsetX/Y`, `scaleX/Y`, `rotation`, `cropShape`, `cropInset`, `backgroundColor` + champs legacy sync (`focusX/Y`, `zoom`, …)
 - liaison articles via `PostMedia` (`sortOrder`, `isCover`) — 0 à N posts
 
-Les variants IMAGE sont générés au upload (`sharp`). L’affichage applique le transform (`GalleryImage`) sur `urlMoyenne` (fallback origin).
+**Intégrité** : édition layout / rebake refusés si origin absente ou URL externe (422). Upload Telegram → bucket local direct. Médias Blogger historiques : re-upload originale requise — voir `docs/12-photo-editor-medias.md`.
+
+Les variants IMAGE sont régénérés au save layout (sharp, origin locale). Affichage public : variants rebakés (WYSIWYG avec l’éditeur).
 
 ## API tools médias (éditeur + assistant IA)
 

@@ -68,7 +68,10 @@ Phase 2 (VM dédiée) :
 - Types : `IMAGE` | `DOCUMENT` (PDF) | `VIDEO` (mp4/webm)
 - Indépendant des articles — liaison M:N via `PostMedia` (`sortOrder`, `isCover`)
 - Meta bilingue + transforms (IMAGE) + variants picto/petite/moyenne/grande
+- **Stockage** : bucket local `/media/...` (S3-like) — origin + variants sur disque VPS
+- **Intégrité** : audit `assessMediaIntegrity` — origin locale obligatoire pour édition layout ; badges UI `Local OK` / `Non conforme`
 - Éditeur : `/editeur/galerie` · public : `/galerie` (multi-médias, filtre `kind`)
+- Détail éditeur photo, rebake, clipboard, URLs virtuelles : **`docs/12-photo-editor-medias.md`**
 
 ### Milestone (jalon)
 - `titleFr/En`, `descriptionFr/En`, `milestoneDate`, `sortOrder`
@@ -97,6 +100,8 @@ Phase 2 (VM dédiée) :
 
 Listes éditeur (recherche, actions, clic ligne, infinite scroll, compteurs) : voir **[Design system listes éditeur](11-design-system-editeur.md)**.
 
+Modales / overlays (éditeur photo, médiathèque, diaporama) : **URLs virtuelles** + retour navigateur — voir **[Éditeur photo & médiathèque](12-photo-editor-medias.md)** § URLs virtuelles.
+
 Nav : menus publics sans libellé de section ; section **Édition** pour les menus éditeur.
 
 ## Stack
@@ -105,6 +110,8 @@ Nav : menus publics sans libellé de section ; section **Édition** pour les men
 - **Prisma 7** + `@prisma/adapter-pg`
 - **Auth** : JWT httpOnly cookie (jose) + bcrypt
 - **Style** : Inter, palette maritime (inspiré driftingdonkey.ch)
+- **Logging** : `web/src/lib/app-log.ts` — `LOG_LEVEL` / `NEXT_PUBLIC_LOG_LEVEL` ; DEV+TEST=`debug`, PROD=`warn`
+- **Description site** : « Class Mini 5.80 baie de Somme. Blog bilingue de construction de trois Class Globe 5.80 en baie de Somme. »
 
 ## Dev local
 
@@ -136,8 +143,9 @@ Voir **[Déploiement & CI/CD](07-deploy-cicd.md)** :
 | Phase | Contenu | Statut |
 |-------|---------|--------|
 | **1a** | Site public + DB + seed 3 articles + jalons | ✅ Livré |
-| **1b** | Auth + éditeur + autosave + preview | ✅ Livré |
-| **2** | VM OpenClaw Class Mini 5.80 Baie de Somme + Telegram publish | À faire |
+| **1b** | Auth + éditeur + autosave + preview + médiathèque + galerie publique + sync TEST↔PROD | ✅ Livré |
+| **1c** | Éditeur photo mobile, intégrité media, rebake strict, URLs virtuelles, CI/CD promotion package | ✅ Livré (v1.2.x) |
+| **2** | VM OpenClaw Class Mini 5.80 Baie de Somme + Telegram publish (production équipe) | En cours |
 | **3** | Google Drive, newsletter, commentaires | À faire |
 
 ## Contenu seed

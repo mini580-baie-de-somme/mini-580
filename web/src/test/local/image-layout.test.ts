@@ -54,10 +54,41 @@ describe("computeEditorPhotoLayout", () => {
       imageHeight: ih,
     });
 
-    expect(tilted.width).toBeGreaterThan(flat.width);
-    expect(tilted.height).toBeGreaterThan(flat.height);
+    const bounds45 = rotatedImageBounds(iw, ih, 45);
+    const { cropW, cropH } = computeEditorCropWindow(
+      DEFAULT_IMAGE_LAYOUT.cropInset,
+      stageW,
+      stageH
+    );
+    const expectedCover = Math.max(cropW / bounds45.width, cropH / bounds45.height);
+    expect(tilted.width).toBeCloseTo(bounds45.width * expectedCover, 3);
+    expect(tilted.height).toBeCloseTo(bounds45.height * expectedCover, 3);
+    // Rotation must change layout — not equivalent to 0° with raw iw/ih
+    expect(tilted.width).not.toBeCloseTo(flat.width, 1);
     expect(rotatedImageBounds(iw, ih, 90).width).toBeCloseTo(ih, 5);
     expect(rotatedImageBounds(iw, ih, 90).height).toBeCloseTo(iw, 5);
+  });
+
+  it("matches server draw size formula at 0° (pre-rotation iw/ih)", () => {
+    const iw = 800;
+    const ih = 600;
+    const stageW = 360;
+    const stageH = 480;
+    const { cropW, cropH } = computeEditorCropWindow(
+      DEFAULT_IMAGE_LAYOUT.cropInset,
+      stageW,
+      stageH
+    );
+    const coverScale = Math.max(cropW / iw, cropH / ih);
+    const layout = computeEditorPhotoLayout({
+      layout: DEFAULT_IMAGE_LAYOUT,
+      stageWidth: stageW,
+      stageHeight: stageH,
+      imageWidth: iw,
+      imageHeight: ih,
+    });
+    expect(layout.width).toBeCloseTo(iw * coverScale, 3);
+    expect(layout.height).toBeCloseTo(ih * coverScale, 3);
   });
 
   it("preserves source aspect ratio when lockAspect zooms uniformly", () => {
@@ -137,6 +168,17 @@ describe("cropCircleMetrics", () => {
     expect(circle.left + circle.size / 2).toBeCloseTo(circle.cx, 5);
     expect(circle.top + circle.size / 2).toBeCloseTo(circle.cy, 5);
   });
+
+  it("uses crop width as diameter on portrait 3:4 stages (shorter side)", () => {
+    const stageW = 300;
+    const stageH = stageW / IMAGE_ASPECT;
+    const win = computeEditorCropWindow(0.06, stageW, stageH);
+    const circle = cropCircleMetrics(win);
+    expect(win.cropW).toBeLessThan(win.cropH);
+    expect(circle.size).toBeCloseTo(win.cropW, 5);
+    expect(circle.top).toBeGreaterThan(win.cropTop);
+    expect(circle.top + circle.size).toBeLessThan(win.cropTop + win.cropH);
+  });
 });
 
 describe("offsetForScalePivot", () => {
@@ -150,6 +192,13 @@ describe("offsetForScalePivot", () => {
     const next = offsetForScalePivot(0.3, 0.6, 1, 2, 1.5, 3);
     expect(next.offsetX).toBeCloseTo(0.45, 5);
     expect(next.offsetY).toBeCloseTo(0.9, 5);
+  });
+
+  it("leaves offset unchanged when scale is unchanged", () => {
+    expect(offsetForScalePivot(0.25, -0.1, 1.5, 2, 1.5, 2)).toEqual({
+      offsetX: 0.25,
+      offsetY: -0.1,
+    });
   });
 });
 
@@ -277,6 +326,26 @@ describe("layoutFromLegacy", () => {
     expect(rebaked.offsetX).toBeCloseTo(0.25, 5);
     expect(rebaked.scaleX).toBeCloseTo(2.1, 5);
     expect(rebaked.rotation).toBe(30);
+  });
+
+  it("mergeLayoutPatch overlays patch onto stored legacy fields", () => {
+    const merged = mergeLayoutPatch(
+      {
+        offsetX: 0.1,
+        scaleX: 1.5,
+        scaleY: 1.5,
+        zoom: 1,
+        focusX: 0.5,
+        focusY: 0.5,
+        rotation: 10,
+        cropShape: "RECT",
+      },
+      { cropShape: "CIRCLE", rotation: 25, scaleX: 2 }
+    );
+    expect(merged.cropShape).toBe("CIRCLE");
+    expect(merged.rotation).toBe(25);
+    expect(merged.scaleX).toBe(2);
+    expect(merged.offsetX).toBeCloseTo(0.1, 5);
   });
 
   it("layoutForRebake with empty patch uses persisted scaleX over stale zoom", () => {

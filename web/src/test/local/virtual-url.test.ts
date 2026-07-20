@@ -110,6 +110,30 @@ describe("buildVirtualUrl", () => {
       "/editeur/galerie"
     );
   });
+
+  it("preserves unrelated query params when opening photo modal", () => {
+    const url = buildVirtualUrl(
+      "/editeur/post-1",
+      "search=hull&kind=photo",
+      { photo: "img-7" }
+    );
+    expect(url).toBe("/editeur/post-1?search=hull&kind=photo&photo=img-7");
+  });
+
+  it("clears all photo modal keys when serializing closed state", () => {
+    const patch = serializePhotoModalState({ kind: "closed" });
+    expect(patch).toEqual({
+      photo: null,
+      cover: null,
+      library: null,
+    });
+    const url = buildVirtualUrl(
+      "/editeur/post-1",
+      "photo=old&cover=1&library=1&search=x",
+      patch
+    );
+    expect(url).toBe("/editeur/post-1?search=x");
+  });
 });
 
 describe("closeVirtualUrl", () => {

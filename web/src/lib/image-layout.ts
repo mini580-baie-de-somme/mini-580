@@ -168,8 +168,8 @@ export function computeEditorPhotoLayout(input: EditorPhotoLayoutInput): {
   // Server rotates first, then cover-scales using post-rotation bounds.
   const rotated = rotatedImageBounds(iw, ih, layout.rotation);
   const coverScale = Math.max(cropW / rotated.width, cropH / rotated.height);
-  const width = Math.max(1, iw * coverScale * layout.scaleX);
-  const height = Math.max(1, ih * coverScale * layout.scaleY);
+  const width = Math.max(1, rotated.width * coverScale * layout.scaleX);
+  const height = Math.max(1, rotated.height * coverScale * layout.scaleY);
 
   const centerX = cropLeft + cropW / 2 + layout.offsetX * cropW;
   const centerY = cropTop + cropH / 2 + layout.offsetY * cropH;

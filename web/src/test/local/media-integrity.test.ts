@@ -96,4 +96,56 @@ describe("media-integrity", () => {
     expect(status.ok).toBe(true);
     expect(status.editable).toBe(true);
   });
+
+  it("flags non-/media origin path as ORIGIN_NOT_LOCAL", async () => {
+    const status = await assessMediaIntegrity({
+      kind: "IMAGE",
+      urlOrigin: "/uploads/ghost.jpg",
+      urlPicto: null,
+      urlPetite: null,
+      urlMoyenne: null,
+      urlGrande: null,
+    });
+    expect(status.ok).toBe(false);
+    expect(status.editable).toBe(false);
+    expect(status.issues).toContain("ORIGIN_NOT_LOCAL");
+  });
+
+  it("flags missing variant files for IMAGE media", async () => {
+    const jpeg = await sharp({
+      create: {
+        width: 200,
+        height: 150,
+        channels: 3,
+        background: { r: 1, g: 2, b: 3 },
+      },
+    })
+      .jpeg()
+      .toBuffer();
+    const urls = await storeOriginAndVariants(jpeg, "image/jpeg");
+    const root = process.env.MEDIA_ROOT!;
+    const pictoKey = mediaKeyFromUrl(urls.urlPicto!)!;
+    rmSync(resolve(root, pictoKey));
+
+    const status = await assessMediaIntegrity({
+      kind: "IMAGE",
+      ...urls,
+    });
+    expect(status.ok).toBe(false);
+    expect(status.editable).toBe(true);
+    expect(status.issues).toContain("VARIANT_MISSING");
+  });
+
+  it("assertEditableImageOrigin throws MediaIntegrityError when not editable", async () => {
+    await expect(
+      assertEditableImageOrigin({
+        kind: "IMAGE",
+        urlOrigin: "https://cdn.example.test/missing.jpg",
+        urlPicto: null,
+        urlPetite: null,
+        urlMoyenne: null,
+        urlGrande: null,
+      })
+    ).rejects.toMatchObject({ name: "MediaIntegrityError" });
+  });
 });

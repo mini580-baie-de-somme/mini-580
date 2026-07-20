@@ -13,8 +13,15 @@ npm run test:local
 
 Couvre :
 - CRUD Posts + FR/EN
-- CRUD Photos + FR/EN
-- édition move/zoom/rotate/crop → **régénère les 4 tailles** (bake)
+- CRUD Photos + FR/EN + layout (`ImageLayoutParams`, legacy merge)
+- édition move/zoom/rotate/crop → **régénère les 4 tailles** (rebake sharp, origin locale requise)
+- **Intégrité media** (`assessMediaIntegrity`, codes `REMOTE_ORIGIN`, `ORIGIN_MISSING`, …)
+- **Gestures mobile** (`photo-gestures` — pan, pinch zoom/rotation, pivot crop)
+- **Layout preview** (`image-layout`, `computeEditorPhotoLayout`, crop circulaire WYSIWYG)
+- **URLs virtuelles** (`virtual-url`, modales éditeur/galerie)
+- **Logging** (`app-log`, niveaux par env)
+- **Clipboard** (`media-clipboard`, blob image uniquement)
+- **Versioning build** (`build-version`, `build-counter.json`)
 - CRUD Tags / Themes / Jalons
 - Galerie publique (`/api/gallery` — published only + search)
 - Sync (OTP peer, apply pull, gardes, jobs async 202/409, peer média + checksum)
@@ -94,11 +101,37 @@ CI : push/PR sur `web/**` → workflow [Tests](../.github/workflows/test.yml).
 
 ## Photo — comportement produit
 
-`PATCH /api/posts/:id/images/:imageId` avec crop/zoom/rotate/focus :
-1. relit `urlOrigin`
-2. applique le transform (sharp)
-3. régénère `picto` / `petite` / `moyenne` / `grande`
-4. conserve l’origine intacte
+Spec complète : **`docs/12-photo-editor-medias.md`**
 
-Affichage public : variants bakés (pas de double CSS).  
-Éditeur : `GalleryImage mode="edit"` (origine + CSS live).
+### Layout & rebake
+
+`PATCH /api/posts/:id/images/:imageId` (ou médiathèque) avec layout :
+1. Vérif intégrité — origin **locale** `/media/...` sur disque (sinon 422)
+2. Persist layout + sync champs legacy (`zoom`, `focusX`, …)
+3. Rebake depuis origin + layout sauvé (sharp)
+4. Régénère `picto` / `petite` / `moyenne` / `grande` (boîtes 3:4 fixes)
+5. Échec rebake → 500 JSON `{ traceId, detail, step }`
+
+### Preview éditeur
+
+- Crop **proportionnel au canvas** (ratio 3:4) — inset slider
+- Zoom/rotation pivot **centre crop** (`offsetForScalePivot`)
+- Crop **CIRCLE** : cercle inscrit (pas ellipse CSS)
+- Remplacement originale → reset `DEFAULT_IMAGE_LAYOUT`
+
+### Affichage public
+
+Variants rebakés (pas de double CSS). Galerie / diaporama : ratio 3:4 ou cercle selon `cropShape`.
+
+### Tests locaux dédiés (25 fichiers)
+
+| Fichier | Sujet |
+|---------|-------|
+| `image-layout.test.ts` | Layout, crop window, pivot scale, cercle |
+| `photo-gestures.test.ts` | Pinch, pan, rotation |
+| `virtual-url.test.ts` | Query params modales |
+| `media-integrity*.test.ts` | Codes issue, URLs externes |
+| `media-clipboard.test.ts` | Coller blob |
+| `app-log.test.ts` | Niveaux log |
+| `build-version.test.ts` | Semver + compteur |
+| `photos.test.ts` / `media-library.test.ts` | CRUD + rebake |

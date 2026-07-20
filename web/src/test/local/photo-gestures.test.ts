@@ -58,4 +58,36 @@ describe("photo-gestures", () => {
     expect(next.offsetX).toBeCloseTo(1, 5);
     expect(next.offsetY).toBeCloseTo(-0.5, 5);
   });
+
+  it("layoutFromPinch keeps scaleY independent when lockAspect is false", () => {
+    const start = pinchSnapshot(
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      1,
+      2,
+      0,
+      0,
+      0
+    );
+    const next = layoutFromPinch(start, 150, 45, false);
+    expect(next.scaleX).toBeCloseTo(1.5, 5);
+    expect(next.scaleY).toBeCloseTo(3, 5);
+    expect(next.rotation).toBeCloseTo(45, 5);
+  });
+
+  it("scaleFromPinch is a no-op when start distance is zero", () => {
+    const start = pinchSnapshot(
+      { x: 10, y: 10 },
+      { x: 10, y: 10 },
+      1.2,
+      0.8,
+      15,
+      0,
+      0
+    );
+    expect(scaleFromPinch(start, 200, true)).toEqual({
+      scaleX: 1.2,
+      scaleY: 0.8,
+    });
+  });
 });

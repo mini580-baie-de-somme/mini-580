@@ -79,6 +79,25 @@ describe("media-variants — fixed 3:4 layout bake", () => {
     expect(master.byteLength).toBeGreaterThan(1000);
   });
 
+  it("circle crop with transparent background masks corners outside inscribed circle", async () => {
+    const jpeg = await makeLandscapeJpeg();
+    const master = await applyImageTransform(jpeg, {
+      ...DEFAULT_IMAGE_LAYOUT,
+      cropShape: "CIRCLE",
+      backgroundColor: "transparent",
+    });
+    const { data, info } = await sharp(master)
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const cornerIdx = 3;
+    expect(data[cornerIdx]).toBe(0);
+    const cx = Math.floor(info.width / 2);
+    const cy = Math.floor(info.height / 2);
+    const centerIdx = (cy * info.width + cx) * 4 + 3;
+    expect(data[centerIdx]).toBeGreaterThan(200);
+  });
+
   it("survives extreme pan/zoom that overflow the canvas (sharp composite clip)", async () => {
     const jpeg = await makeLandscapeJpeg();
     const master = await applyImageTransform(jpeg, {

@@ -18,6 +18,15 @@ Règles UI obligatoires pour **toutes** les listes CRUD de l’espace éditeur :
 - CRUD liste design system + upload PDF/vidéo/photo
 - Dans un article : upload **ou** sélection depuis la médiathèque (`media.attach`)
 - Détacher ≠ supprimer : `DELETE …/posts/:id/media/:mediaId` vs `DELETE …/media-library/:id`
+- **Édition IMAGE** : modal fullscreen (`PhotoEditModal`) — URL virtuelle `?media=<id>` (back navigateur ferme)
+- **Intégrité stockage** : colonne **Stockage** — badge `Local OK` / `Non conforme` ; liens URL externe cliquables sous le badge ; panneau ambre si origin non locale (Remplacer / Coller avant layout)
+- Spec détaillée : **`docs/12-photo-editor-medias.md`**
+
+## Éditeur article — médias attachés
+
+- Bandeau pictos : **wrap** (`flex-wrap`) — pas de scroll horizontal page (~5+ pictos)
+- Boutons réordonnancement ← → : touch target **36px**
+- Modales photo/couverture : URLs virtuelles `?photo=`, `?cover=`, `?library=` — voir doc 12
 
 ## Règles listes (obligatoires)
 

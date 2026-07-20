@@ -112,16 +112,18 @@ Après un changement de secret : relancer **Deploy TEST** (push `main` ou manuel
 
 ### Versioning (build TEST uniquement)
 
-- **Ligne** : `web/versions.json` — major.minor de base (ex. `1.1.0` ; le `.0` est la base patch, pas le compteur)
+- **Ligne** : `web/versions.json` — major.minor de base (ex. `1.2.0` ; le `.0` est la base patch, pas le compteur GitHub)
 - **Compteur** : `build-counter.json` à la racine — patch incrémenté à chaque build TEST **pour la ligne courante** ; **remis à 0** quand major.minor change
-- **Version affichée** : `major.minor.patch` — ex. `1.1.0`, `1.1.1`, `1.1.2`… (`GET /api/version`)
+- **Version affichée** : `major.minor.patch` — ex. `1.2.0`, `1.2.1`, `1.2.2`… (`GET /api/version`)
 - Le workflow **Deploy TEST** incrémente le compteur, commit `build-counter.json` (ne re-déclenche pas TEST : hors paths `web/**` / `deploy/**`), puis bake `BUILD_VERSION` dans l’image
 - Tags GHCR par build TEST :
   - `:test` — pointeur flottant (dernier build TEST validé)
-  - `:v1.1.0` — immuable (promotion PROD)
+  - `:v1.2.0` — immuable (promotion PROD)
   - `:sha-<commit>` — immuable (audit)
 
-**Bump minor (ex. 1.0 → 1.1)** : éditer `web/versions.json` (`fe` + `be` → `1.1.0`), push `main` → prochain build TEST = **v1.1.0** (compteur reset), puis v1.1.1, v1.1.2…
+**Bump minor (ex. 1.1 → 1.2)** : éditer `web/versions.json` (`fe` + `be` → `1.2.0`), push `main` → prochain build TEST = **v1.2.0** (compteur reset), puis v1.2.1, v1.2.2…
+
+> **Historique** : avant juillet 2026 le patch utilisait `github.run_number` (ex. 1.1.93) — abandonné. Ne pas promouvoir les tags `v1.1.93` etc.
 
 **Règle :** seul **Deploy TEST** rebuild l’image. **Deploy PROD ne rebuild jamais.**
 
@@ -138,7 +140,7 @@ Vérifier la version recette : `curl -sS https://test.classmini580.blog/api/vers
 Actions → **Deploy PROD** → Run workflow :
 
 1. `confirm` = `deploy-prod`
-2. `expected_version` = version TEST validée (ex. `1.1.2`) — **doit matcher** `test.classmini580.blog/api/version`
+2. `expected_version` = version TEST validée (ex. `1.2.2`) — **doit matcher** `test.classmini580.blog/api/version`
 
 Le workflow :
 
@@ -147,7 +149,7 @@ Le workflow :
 3. Déploie sur le VPS
 4. Vérifie que PROD live = même version
 
-**Redéployer TEST sans rebuild** (rollback / réalignement) : Actions → **Deploy TEST** → `redeploy_version` = ex. `1.1.2` (ne modifie pas `build-counter.json`).
+**Redéployer TEST sans rebuild** (rollback / réalignement) : Actions → **Deploy TEST** → `redeploy_version` = ex. `1.2.0` ou `1.0.89` (ne modifie pas `build-counter.json`).
 
 Les pushes sur `main` qui ne touchent que `.github/` ou `docs/` **ne déclenchent plus** de rebuild TEST (évite qu’un fix CI fasse dériver la version recette pendant une promotion PROD).
 
@@ -207,6 +209,23 @@ sudo -u deploy /opt/mini580/bin/deploy.sh test   # ou prod
 ```
 
 Backup recommandé : inclure `/opt/mini580/{test,prod}/media` dans les snapshots / rsync Hostinger.
+
+## Logging (observabilité)
+
+Module : `web/src/lib/app-log.ts` — voir aussi `docs/12-photo-editor-medias.md`.
+
+| Variable | TEST (`.env` VPS) | PROD |
+|----------|-------------------|------|
+| `LOG_LEVEL` | `debug` | `warn` |
+| `NEXT_PUBLIC_LOG_LEVEL` | `debug` | `warn` |
+
+Canaux utiles au debug save/rebake : `[media-trace]` (container web), `[photo-editor-trace]` (console navigateur).
+
+Consulter les logs container :
+
+```bash
+sudo -u deploy docker compose -f /opt/mini580/test/docker-compose.yml --env-file /opt/mini580/test/.env logs -f web | grep media-trace
+```
 
 ## Commandes utiles sur le VPS
 

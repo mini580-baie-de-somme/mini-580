@@ -32,6 +32,7 @@ Ce dépôt part de zéro pour reconstruire le site web, la documentation et la c
 | [Publication Telegram + IA](docs/09-telegram-publish.md) | Bot allowlist, review FR/EN, photos, preview |
 | [Tests d'intégration API](docs/10-api-integration-tests.md) | Vitest CRUD / photos / sync / tools IA |
 | [Design system listes éditeur](docs/11-design-system-editeur.md) | Recherche, actions, clic ligne, infinite scroll, compteurs, médiathèque |
+| [Éditeur photo & médiathèque](docs/12-photo-editor-medias.md) | Layout mobile, intégrité stockage, rebake, URLs virtuelles, logging |
 
 ## Application web (`web/`)
 
@@ -42,10 +43,10 @@ cp web/.env.example web/.env
 
 - **Login dev :** `admin@classmini580.blog` / `changeme123`
 - Pages : `/` · `/blog` · `/galerie` · `/timeline` · `/connexion` · `/editeur`
-- Médias : bucket local + galerie 0–N (`urlOrigin` + formats picto/petite/moyenne/grande) — éditeur drag-drop/paste
-- **Galerie publique :** `/galerie` — filtres date/jalon/tags/thèmes + diaporama
-- **Prod :** [classmini580.blog](https://classmini580.blog) · **Test :** [test.classmini580.blog](https://test.classmini580.blog)
-- **CI/CD :** push `main` → TEST · Deploy PROD manuel · **Tests** (local+Telegram+Cursor) via secret `CURSOR_API_KEY` (`docs/07-deploy-cicd.md`, `docs/10-api-integration-tests.md`)
+- Médias : bucket local S3-like (`/media/...`) — origin + variants rebake ; éditeur photo mobile (pan/pinch, crop 3:4) ; audit intégrité ; collage clipboard
+- **Galerie publique :** `/galerie` — filtres date/jalon/tags/thèmes + diaporama (`?view=` deep link)
+- **Prod :** [classmini580.blog](https://classmini580.blog) · **Test :** [test.classmini580.blog](https://test.classmini580.blog) — version `GET /api/version` (schéma `major.minor.patch`, compteur CI)
+- **CI/CD :** push `main` → build TEST · Deploy PROD = promotion `:vX.Y.Z` immuable (zéro rebuild) · voir `docs/07-deploy-cicd.md`
 - **Tests :** `npm run test:local` · `test:http` · `test:telegram` · sync clé locale `npm run test:cursor:sync` (depuis VPS, gitignoré)
 - **Secrets :** `CURSOR_*` (repo) + Telegram/sync/DB (environments) — jamais dans git
 ## Liens utiles
@@ -60,11 +61,11 @@ cp web/.env.example web/.env
 ## Prochaines étapes
 
 1. ~~Valider l'architecture OpenClaw~~ → spec validée (`docs/06-spec-technique.md`)
-2. ~~Lancer le squelette du site web~~ → Phase 1a/1b en place (`web/`)
-3. ~~Provisionner VPS Hostinger + domaine~~ → `classmini580.blog` + CI/CD Docker (`docs/07-deploy-cicd.md`)
-4. Valider édition + autosave + i18n en local (Simohra dev :8002)
-5. Valider DNS + TLS + premier deploy TEST
-6. Installer OpenClaw sur VM dédiée + bot Telegram Class Mini 5.80 Baie de Somme
+2. ~~Lancer le squelette du site web~~ → Phase 1a/1b/1c en place (`web/`)
+3. ~~Provisionner VPS Hostinger + domaine + CI/CD~~ → TEST/PROD live, promotion package (`docs/07-deploy-cicd.md`)
+4. ~~Éditeur photo mobile + intégrité media + rebake strict~~ → v1.2.x (`docs/12-photo-editor-medias.md`)
+5. Migrer médias Blogger non conformes (re-upload originale locale)
+6. Installer OpenClaw sur VM dédiée + bot Telegram Class Mini 5.80 Baie de Somme (Phase 2)
 7. ~~Développer le skill `mini580-ingest`~~ → webhook + FSM review (`docs/09-telegram-publish.md`)
-8. Migrer photos Blogger + enrichir contenu équipe
-9. Brancher `TELEGRAM_*` + `CURSOR_API_KEY` sur TEST et valider un post bout-en-bout
+8. Brancher `TELEGRAM_*` + `CURSOR_API_KEY` sur TEST et valider un post bout-en-bout équipe
+9. Enrichir contenu équipe + jalons
