@@ -1,5 +1,6 @@
 import "server-only";
 
+import { appLog } from "@/lib/app-log";
 import type { BotReply, InlineButton } from "@/lib/telegram/publish-flow";
 
 export function getTelegramBotToken(): string | null {
@@ -106,14 +107,29 @@ export async function sendTelegramReply(
     const { shouldReplyWithVoice, synthesizeTelegramVoiceMp3 } = await import(
       "@/lib/telegram/speech/tts"
     );
-    if (shouldReplyWithVoice(options?.inboundVoice ?? false)) {
-      const mp3 = await synthesizeTelegramVoiceMp3(reply.text);
-      await sendTelegramVoice(chatId, mp3, {
-        replyToMessageId: options?.replyToMessageId,
-      });
+    const inboundVoice = options?.inboundVoice ?? false;
+    if (!shouldReplyWithVoice(inboundVoice)) {
+      appLog("debug", "[telegram-tts] skip", { inboundVoice, chatId: String(chatId) });
+      return;
     }
+    appLog("info", "[telegram-tts] synthesize_start", {
+      chatId: String(chatId),
+      textChars: reply.text.length,
+    });
+    const mp3 = await synthesizeTelegramVoiceMp3(reply.text);
+    appLog("info", "[telegram-tts] synthesize_ok", {
+      chatId: String(chatId),
+      mp3Bytes: mp3.length,
+    });
+    await sendTelegramVoice(chatId, mp3, {
+      replyToMessageId: options?.replyToMessageId,
+    });
+    appLog("info", "[telegram-tts] sendVoice_ok", { chatId: String(chatId) });
   } catch (err) {
-    console.warn("[telegram] TTS failed (text already sent):", err);
+    appLog("warn", "[telegram-tts] failed (text already sent)", {
+      chatId: String(chatId),
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 }
 

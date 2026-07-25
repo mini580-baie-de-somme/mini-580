@@ -51,6 +51,26 @@ COPY --from=builder /app/node_modules/sharp ./node_modules/sharp
 COPY --from=builder /app/node_modules/@img ./node_modules/@img
 COPY --from=builder /app/node_modules/detect-libc ./node_modules/detect-libc
 COPY --from=builder /app/node_modules/semver ./node_modules/semver
+# Edge TTS — not always traced into standalone (dynamic import in sendTelegramReply)
+COPY --from=builder /app/node_modules/node-edge-tts ./node_modules/node-edge-tts
+COPY --from=builder /app/node_modules/ws ./node_modules/ws
+COPY --from=builder /app/node_modules/https-proxy-agent ./node_modules/https-proxy-agent
+COPY --from=builder /app/node_modules/agent-base ./node_modules/agent-base
+COPY --from=builder /app/node_modules/yargs ./node_modules/yargs
+COPY --from=builder /app/node_modules/yargs-parser ./node_modules/yargs-parser
+COPY --from=builder /app/node_modules/cliui ./node_modules/cliui
+COPY --from=builder /app/node_modules/escalade ./node_modules/escalade
+COPY --from=builder /app/node_modules/get-caller-file ./node_modules/get-caller-file
+COPY --from=builder /app/node_modules/require-directory ./node_modules/require-directory
+COPY --from=builder /app/node_modules/string-width ./node_modules/string-width
+COPY --from=builder /app/node_modules/strip-ansi ./node_modules/strip-ansi
+COPY --from=builder /app/node_modules/wrap-ansi ./node_modules/wrap-ansi
+COPY --from=builder /app/node_modules/emoji-regex ./node_modules/emoji-regex
+COPY --from=builder /app/node_modules/is-fullwidth-code-point ./node_modules/is-fullwidth-code-point
+COPY --from=builder /app/node_modules/ansi-regex ./node_modules/ansi-regex
+COPY --from=builder /app/node_modules/ansi-styles ./node_modules/ansi-styles
+COPY --from=builder /app/node_modules/color-convert ./node_modules/color-convert
+COPY --from=builder /app/node_modules/color-name ./node_modules/color-name
 
 # Prisma schema + CLI (isolated from Next standalone node_modules)
 COPY --from=builder /app/prisma ./prisma
