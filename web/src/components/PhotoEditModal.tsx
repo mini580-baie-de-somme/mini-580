@@ -241,7 +241,7 @@ export function PhotoEditModal({
           ...errBody,
         }, "error");
         throw new Error(
-          errBody.message ||
+          (typeof errBody.error === "string" ? errBody.error : errBody.detail) ||
             (lang === "fr"
               ? "Impossible de restaurer l’originale."
               : "Could not restore the original.")
