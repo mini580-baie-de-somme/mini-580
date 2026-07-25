@@ -16,6 +16,7 @@ type LatestPost = {
   publishedAt: Date | string | null;
   hulls: { hull: HullId }[];
   themes: { theme: { slug: string; labelFr: string; labelEn: string } }[];
+  tags: { tag: { name: string; labelFr: string; labelEn: string } }[];
 };
 
 const team = [

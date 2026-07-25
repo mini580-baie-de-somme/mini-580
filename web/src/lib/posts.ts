@@ -192,6 +192,7 @@ export async function syncPostRelations(
 const relatedCardInclude = {
   hulls: true,
   themes: { include: { theme: true } },
+  tags: { include: { tag: true } },
 } satisfies Prisma.PostInclude;
 
 export type RelatedPostCard = Prisma.PostGetPayload<{

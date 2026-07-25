@@ -5,6 +5,7 @@ import type { HullId } from "@/lib/types";
 import { resolveThumbKind } from "@/lib/media-file-client";
 import { ArticleBody } from "./LangToggle";
 import { GalleryImage } from "./GalleryImage";
+import { BlogTaxonomyLinks } from "./BlogTaxonomyLinks";
 import { HullBadgeList } from "./HullBadge";
 import { MediaKindThumb } from "./MediaKindThumb";
 import { MediaSlideshow, useMediaSlideshow } from "./MediaSlideshow";
@@ -48,7 +49,8 @@ type ArticlePost = {
   coverImageUrl: string | null;
   publishedAt: Date | string | null;
   hulls: { hull: HullId }[];
-  tags: { tag: { labelFr: string; labelEn: string } }[];
+  themes: { theme: { slug: string; labelFr: string; labelEn: string } }[];
+  tags: { tag: { name: string; labelFr: string; labelEn: string } }[];
   images: ArticleImage[];
   author: { name: string | null };
 };
@@ -63,6 +65,7 @@ type RelatedPost = {
   publishedAt: Date | string | null;
   hulls: { hull: HullId }[];
   themes: { theme: { slug: string; labelFr: string; labelEn: string } }[];
+  tags: { tag: { name: string; labelFr: string; labelEn: string } }[];
 };
 
 function imageSrc(img: ArticleImage): string {
@@ -125,17 +128,11 @@ export function ArticleView({
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 sm:gap-12">
       <article className="mx-auto w-full max-w-3xl">
         <header className="mb-8 space-y-4 sm:mb-10 sm:space-y-5">
-          <div className="flex flex-wrap gap-2">
-            <HullBadgeList hulls={post.hulls} />
-            {post.tags.map(({ tag }) => (
-              <span
-                key={tag.labelFr}
-                className="rounded bg-[#eef3f7] px-2 py-0.5 text-xs text-[#495867]"
-              >
-                {locale === "fr" ? tag.labelFr : tag.labelEn}
-              </span>
-            ))}
-          </div>
+          {post.hulls.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <HullBadgeList hulls={post.hulls} />
+            </div>
+          ) : null}
 
           <div className="flex items-start gap-3 sm:gap-4">
             <Link
@@ -146,9 +143,15 @@ export function ArticleView({
             >
               <BackArrowIcon className="h-5 w-5 sm:h-6 sm:w-6" />
             </Link>
-            <h1 className="min-w-0 flex-1 text-2xl font-bold leading-tight text-[#0D131A] sm:text-4xl sm:leading-tight">
-              {title}
-            </h1>
+            <div className="min-w-0 flex-1 space-y-2 sm:space-y-3">
+              <h1 className="text-2xl font-bold leading-tight text-[#0D131A] sm:text-4xl sm:leading-tight">
+                {title}
+              </h1>
+              <BlogTaxonomyLinks
+                themes={post.themes.map(({ theme }) => theme)}
+                className="pl-0"
+              />
+            </div>
           </div>
 
           {excerpt ? (
@@ -182,6 +185,11 @@ export function ArticleView({
         )}
 
         <ArticleBody content={body} />
+
+        <BlogTaxonomyLinks
+          tags={post.tags.map(({ tag }) => tag)}
+          className="mt-8 sm:mt-10"
+        />
 
         {post.images.length > 0 && (
           <section className="mt-10 border-t border-[#d4dde6] pt-8 sm:mt-12 sm:pt-10">
