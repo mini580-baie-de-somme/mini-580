@@ -18,6 +18,7 @@ export type AiToolDef = {
     | "tags"
     | "themes"
     | "milestones"
+    | "memory"
     | "sync"
     | "translate";
 };
@@ -432,6 +433,50 @@ export const AI_TOOLS: AiToolDef[] = [
     path: "/api/posts/:id/preview",
     auth: "bearer_or_session",
     category: "posts",
+  },
+
+  // Telegram agent long-term memory (rules & knowledge across sessions)
+  {
+    name: "agent_memory.list",
+    description:
+      "List persistent agent memory items (title + rule). Query: q, limit, offset. Excludes soft-deleted.",
+    method: "GET",
+    path: "/api/agent-memory",
+    auth: "bearer_or_session",
+    category: "memory",
+  },
+  {
+    name: "agent_memory.get",
+    description: "Get one agent memory item by id (for update/delete — never tell id to user)",
+    method: "GET",
+    path: "/api/agent-memory/:id",
+    auth: "bearer_or_session",
+    category: "memory",
+  },
+  {
+    name: "agent_memory.create",
+    description:
+      "Create a persistent memory item: body { title, rule }. Use when user asks to remember a rule or important fact for future chats.",
+    method: "POST",
+    path: "/api/agent-memory",
+    auth: "bearer_or_session",
+    category: "memory",
+  },
+  {
+    name: "agent_memory.update",
+    description: "Patch title and/or rule on a memory item. Body: { title?, rule? }",
+    method: "PATCH",
+    path: "/api/agent-memory/:id",
+    auth: "bearer_or_session",
+    category: "memory",
+  },
+  {
+    name: "agent_memory.delete",
+    description: "Soft-delete a memory item (removed from future context)",
+    method: "DELETE",
+    path: "/api/agent-memory/:id",
+    auth: "bearer_or_session",
+    category: "memory",
   },
 ];
 

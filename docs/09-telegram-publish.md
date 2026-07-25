@@ -13,6 +13,9 @@ Par défaut, Telegram parle à un **agent Cursor** qui appelle les endpoints via
 
 - lire / rechercher posts, galerie multi-médias, tags, thèmes, jalons
 - CRUD articles + publish/archive — **auteur = utilisateur Telegram mappé** (pas toujours le compte service)
+- **mémoire agent** persistante (`agent_memory.*`) : règles/connaissances entre sessions (soft delete)
+- bootstrap agent : consignes + mémoire une fois par fil Cursor ; tours suivants = message utilisateur + contexte actif (mémoire rafraîchie seulement si changée en base)
+- compaction auto **après** la réponse Telegram (seuil sur le tour qui vient de finir) quand `lastTurnInputTokens` ≥ 70% de `TELEGRAM_AGENT_CONTEXT_MAX_TOKENS` (défaut 128k) → synthèse stockée + nouveau fil Cursor au message suivant
 - médiathèque indépendante `Media` (IMAGE|DOCUMENT|VIDEO) : `media.*` tools — create/update/delete/attach/detach/reorder/set_cover
 - tools `photos.*` conservés en compat (même modèle sous-jacent)
 - liens d’aperçu `preview.create` → `/apercu/t/{token}`
@@ -52,6 +55,9 @@ UPDATE "User" SET "telegramUserId" = '8137936505' WHERE email = 'lpatrouix@gmail
 | `INGEST_API_KEY` | Bearer pour appels machine (OpenClaw) |
 | `CURSOR_API_KEY` | Accès modèle IA via `@cursor/sdk` (traduction / parsing) |
 | `CURSOR_MODEL` | Modèle Cursor (défaut `composer-2.5`) |
+| `TELEGRAM_AGENT_CONTEXT_MAX_TOKENS` | Fenêtre contexte pour seuil compaction (défaut `128000`) |
+| `TELEGRAM_AGENT_COMPACT_HIGH_RATIO` | Seuil compaction (défaut `0.7`) |
+| `TELEGRAM_AGENT_COMPACT_TARGET_RATIO` | Cible doc compaction (défaut `0.2`, prompt interne) |
 | `SITE_URL` | Liens d'aperçu absolus |
 
 Migration : `media_library` (`Media` + `PostMedia` depuis `PostImage`) · `telegram_publish_flow` · `PreviewToken`.
@@ -118,6 +124,9 @@ Auth : cookie session **ou** `Authorization: Bearer <INGEST_API_KEY>` (optionnel
 | Couverture | `POST /api/posts/:id/media/:mediaId/cover` |
 | Compat photos | `…/posts/:id/images*` (mêmes données sous-jacentes) |
 | Bucket brut | `POST /api/media` |
+| Mémoire agent | `GET/POST /api/agent-memory` · `GET/PATCH/DELETE …/:id` — champs `title`, `rule`, dates ; soft delete |
+
+Chaque tour Telegram injecte aussi la liste des règles actives dans le prompt agent (sans id visibles côté user).
 
 ## Secrets CI/CD (IA + Telegram)
 

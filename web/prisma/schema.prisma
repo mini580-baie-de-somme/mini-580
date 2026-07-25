@@ -223,6 +223,13 @@ model TelegramAgentThread {
   activePostId   String?
   /// Media currently being created/edited by the agent
   activeMediaId  String?
+  /// Rolling summary after explicit session compaction (replaces long Cursor history)
+  sessionSummary       String?   @db.Text
+  /// Last reported input token count for the agent turn (from SDK usage)
+  lastTurnInputTokens  Int?
+  /// Hash of injected memory brief — refresh memory block only when it changes
+  memoryBriefHash      String?
+  sessionCompactedAt   DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -254,6 +261,19 @@ enum SyncJobType {
   PUBLISH_MILESTONE
   CATALOG_PULL
   CATALOG_PUSH
+}
+
+/// Long-term rules/knowledge for the Telegram Cursor agent (persists across sessions).
+model AgentMemoryItem {
+  id        String    @id @default(cuid())
+  title     String
+  rule      String    @db.Text
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([deletedAt])
+  @@index([updatedAt])
 }
 
 /// Async TEST↔PROD sync job (global lock: only one PENDING/RUNNING at a time).

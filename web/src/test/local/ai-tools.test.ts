@@ -53,6 +53,7 @@ describe("API integration — IA tools full capacity (Bearer)", () => {
       "tags",
       "themes",
       "milestones",
+      "memory",
       "sync",
       "translate",
     ] as const) {

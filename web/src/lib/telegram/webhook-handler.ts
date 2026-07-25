@@ -8,6 +8,7 @@ import {
   sendTelegramReply,
 } from "@/lib/telegram/api";
 import {
+  maybeCompactTelegramSessionAfterTurn,
   resetTelegramAgent,
   runTelegramAgentTurn,
 } from "@/lib/telegram/agent";
@@ -245,6 +246,12 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<voi
       mediaUrls,
     });
     await sendTelegramReply(message.chat.id, { text: answer });
+    void maybeCompactTelegramSessionAfterTurn({
+      telegramUserId: userId,
+      telegramChatId: chatId,
+    }).catch((compactErr) => {
+      console.error("[telegram-agent] post-turn compaction failed:", compactErr);
+    });
   } catch (err) {
     await sendTelegramReply(message.chat.id, {
       text: `Erreur agent: ${err instanceof Error ? err.message : String(err)}`,

@@ -10,6 +10,14 @@ import {
   truncateToolResult,
   type ToolCallArgs,
 } from "@/lib/ai-tools-runtime";
+import { formatAgentMemoryBrief } from "@/lib/agent-memory";
+import {
+  SESSION_COMPACT_USER_PROMPT,
+  buildBootstrapUserMessage,
+  buildTurnUserMessage,
+  hashMemoryBrief,
+  shouldCompactSession,
+} from "@/lib/telegram/session-context";
 
 function getCursorApiKey(): string | null {
   return process.env.CURSOR_API_KEY?.trim() || null;
@@ -191,10 +199,12 @@ Tu aides les comptes autorisés à :
 - gérer la médiathèque indépendante (IMAGE|DOCUMENT|VIDEO) : media.create, media.update, media.delete
 - associer/détacher des médias à 0–N articles : media.attach, media.detach, media.reorder, media.set_cover
 - partager des liens de prévisualisation (preview_create)
+- mémoriser des règles et connaissances importantes entre sessions (agent_memory_*)
 
 Règles :
-- Utilise les tools HTTP (posts_*, media_*, tags_*, themes_*, milestones_*, gallery_list, translate, preview_create). photos_* restent disponibles (compat).
+- Utilise les tools HTTP (posts_*, media_*, tags_*, themes_*, milestones_*, agent_memory_*, gallery_list, translate, preview_create). photos_* restent disponibles (compat).
 - Réponds en français, concis, adapté à Telegram (Markdown simple).
+- Mémoire long terme : au bootstrap tu reçois les règles actives ; ensuite utilise agent_memory_list / create / update / delete. Ne jamais mentionner les id techniques à l'utilisateur (utilise le titre).
 - Avant de publier ou supprimer, confirme clairement avec l'utilisateur.
 - Créer un article : posts_create puis réutilise son id pour patchs et media.attach.
 - Médias Telegram (/media/...) : media.create puis media.attach, ou photos_upload (compat).
@@ -240,6 +250,156 @@ export async function resetTelegramAgent(
   });
 }
 
+async function persistTurnUsage(
+  threadId: string,
+  usage: { inputTokens?: number } | undefined
+): Promise<void> {
+  const input = usage?.inputTokens;
+  if (input == null || input <= 0) return;
+  await prisma.telegramAgentThread.update({
+    where: { id: threadId },
+    data: { lastTurnInputTokens: input },
+  });
+}
+
+const compactingThreadIds = new Set<string>();
+
+async function compactTelegramSession(input: {
+  threadId: string;
+  cursorAgentId: string;
+  apiKey: string;
+  model: { id: string };
+  cwd: string;
+}): Promise<string | null> {
+  try {
+    await using agent = await Agent.resume(input.cursorAgentId, {
+      apiKey: input.apiKey,
+      model: input.model,
+      local: { cwd: input.cwd },
+    });
+    const run = await agent.send(SESSION_COMPACT_USER_PROMPT);
+    const result = await run.wait();
+    const text =
+      typeof result.result === "string" ? result.result.trim() : "";
+    return text.length > 0 ? text : null;
+  } catch {
+    return null;
+  }
+}
+
+async function executeAgentSend(input: {
+  threadId: string;
+  agentId: string | null;
+  apiKey: string;
+  model: { id: string };
+  cwd: string;
+  customTools: Record<string, SDKCustomTool>;
+  message: string;
+  telegramUserId: string;
+  telegramChatId: string;
+}): Promise<{ resultText: string; agentId: string; usageInput?: number }> {
+  let agentId = input.agentId;
+  let resultText = "";
+
+  const agentOpts = {
+    apiKey: input.apiKey,
+    model: input.model,
+    local: { cwd: input.cwd, customTools: input.customTools },
+  };
+
+  if (agentId) {
+    try {
+      await using agent = await Agent.resume(agentId, agentOpts);
+      const run = await agent.send(input.message);
+      const result = await run.wait();
+      resultText = typeof result.result === "string" ? result.result : "";
+      if (result.status === "error") {
+        resultText =
+          result.error?.message ||
+          `Run en erreur (${result.id}). Réessaie ou envoie /reset.`;
+      }
+      return {
+        resultText,
+        agentId,
+        usageInput: result.usage?.inputTokens,
+      };
+    } catch {
+      agentId = null;
+    }
+  }
+
+  await using agent = await Agent.create({
+    ...agentOpts,
+    name: `tg-${input.telegramUserId}`,
+  });
+  agentId = agent.agentId;
+  await prisma.telegramAgentThread.update({
+    where: { id: input.threadId },
+    data: { cursorAgentId: agentId },
+  });
+
+  const run = await agent.send(input.message);
+  const result = await run.wait();
+  resultText = typeof result.result === "string" ? result.result : "";
+  if (result.status === "error") {
+    resultText =
+      result.error?.message ||
+      `Run en erreur (${result.id}). Réessaie ou envoie /reset.`;
+  }
+
+  return {
+    resultText,
+    agentId,
+    usageInput: result.usage?.inputTokens,
+  };
+}
+
+/**
+ * Compacts the Cursor thread after a user-visible turn (post-reply), when the
+ * completed turn reported input tokens ≥ compaction threshold.
+ */
+export async function maybeCompactTelegramSessionAfterTurn(input: {
+  telegramUserId: string;
+  telegramChatId: string;
+}): Promise<void> {
+  const thread = await prisma.telegramAgentThread.findUnique({
+    where: {
+      telegramUserId_telegramChatId: {
+        telegramUserId: input.telegramUserId,
+        telegramChatId: input.telegramChatId,
+      },
+    },
+  });
+  if (!thread?.cursorAgentId) return;
+  if (!shouldCompactSession(thread.lastTurnInputTokens)) return;
+  if (compactingThreadIds.has(thread.id)) return;
+
+  const apiKey = getCursorApiKey();
+  if (!apiKey) return;
+
+  compactingThreadIds.add(thread.id);
+  try {
+    const summary = await compactTelegramSession({
+      threadId: thread.id,
+      cursorAgentId: thread.cursorAgentId,
+      apiKey,
+      model: { id: getCursorModelId() },
+      cwd: getCursorCwd(),
+    });
+    await prisma.telegramAgentThread.update({
+      where: { id: thread.id },
+      data: {
+        cursorAgentId: null,
+        sessionSummary: summary ?? thread.sessionSummary,
+        sessionCompactedAt: new Date(),
+        lastTurnInputTokens: null,
+      },
+    });
+  } finally {
+    compactingThreadIds.delete(thread.id);
+  }
+}
+
 /**
  * Run one conversational turn with Cursor agent + platform customTools.
  */
@@ -264,60 +424,62 @@ export async function runTelegramAgentTurn(input: {
   const customTools = buildPlatformCustomTools(thread.id, input.telegramUserId);
   const cwd = getCursorCwd();
   const model = { id: getCursorModelId() };
+  const memoryBrief = await formatAgentMemoryBrief();
+  const memoryHash = hashMemoryBrief(memoryBrief);
+  const activeContext = formatActiveContext(thread);
+  const siteUrl = process.env.SITE_URL?.trim() || null;
+
+  const memoryChanged = thread.memoryBriefHash !== memoryHash;
+  const isBootstrap = !thread.cursorAgentId;
 
   const mediaBlock =
     input.mediaUrls && input.mediaUrls.length
-      ? `\n\nMédias Telegram déjà stockés (URLs publiques):\n${input.mediaUrls.map((u, i) => `${i + 1}. ${u}`).join("\n")}`
+      ? `\n\nMédias Telegram (URLs publiques):\n${input.mediaUrls.map((u, i) => `${i + 1}. ${u}`).join("\n")}`
       : "";
 
-  const message = `${SYSTEM_BRIEF}\n\n${formatActiveContext(thread)}\n\n---\nMessage utilisateur:\n${input.userMessage}${mediaBlock}`;
+  const message = isBootstrap
+    ? `${buildBootstrapUserMessage({
+        systemBrief: SYSTEM_BRIEF,
+        memoryBrief,
+        activeContext,
+        sessionSummary: thread.sessionSummary,
+        siteUrl,
+      })}\n\n---\nMessage utilisateur:\n${input.userMessage}${mediaBlock}`
+    : buildTurnUserMessage({
+        userMessage: input.userMessage,
+        mediaUrls: input.mediaUrls,
+        activeContext,
+        memoryBrief: memoryChanged ? memoryBrief : null,
+      });
 
-  let agentId = thread.cursorAgentId;
+  if (isBootstrap) {
+    await prisma.telegramAgentThread.update({
+      where: { id: thread.id },
+      data: { memoryBriefHash: memoryHash },
+    });
+  } else if (memoryChanged) {
+    await prisma.telegramAgentThread.update({
+      where: { id: thread.id },
+      data: { memoryBriefHash: memoryHash },
+    });
+  }
+
   let resultText = "";
 
   try {
-    if (agentId) {
-      try {
-        await using agent = await Agent.resume(agentId, {
-          apiKey,
-          model,
-          local: { cwd, customTools },
-        });
-        const run = await agent.send(message);
-        const result = await run.wait();
-        resultText = typeof result.result === "string" ? result.result : "";
-        if (result.status === "error") {
-          resultText =
-            result.error?.message ||
-            `Run en erreur (${result.id}). Réessaie ou envoie /reset.`;
-        }
-      } catch {
-        // Stale agent id — start fresh
-        agentId = null;
-      }
-    }
-
-    if (!agentId) {
-      await using agent = await Agent.create({
-        apiKey,
-        model,
-        name: `tg-${input.telegramUserId}`,
-        local: { cwd, customTools },
-      });
-      agentId = agent.agentId;
-      await prisma.telegramAgentThread.update({
-        where: { id: thread.id },
-        data: { cursorAgentId: agentId },
-      });
-      const run = await agent.send(message);
-      const result = await run.wait();
-      resultText = typeof result.result === "string" ? result.result : "";
-      if (result.status === "error") {
-        resultText =
-          result.error?.message ||
-          `Run en erreur (${result.id}). Réessaie ou envoie /reset.`;
-      }
-    }
+    const out = await executeAgentSend({
+      threadId: thread.id,
+      agentId: thread.cursorAgentId,
+      apiKey,
+      model,
+      cwd,
+      customTools,
+      message,
+      telegramUserId: input.telegramUserId,
+      telegramChatId: input.telegramChatId,
+    });
+    resultText = out.resultText;
+    await persistTurnUsage(thread.id, { inputTokens: out.usageInput });
   } catch (err) {
     resultText = `Erreur agent: ${err instanceof Error ? err.message : String(err)}`;
   }
