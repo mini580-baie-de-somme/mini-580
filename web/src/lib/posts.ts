@@ -235,6 +235,80 @@ export async function findRelatedPosts(
   });
 }
 
+const insensitiveContains = (q: string) =>
+  ({ contains: q, mode: "insensitive" }) as const;
+
+/** Post-level OR clauses for full-text search (blog, editor list, public API). */
+export function postSearchOrConditions(search: string): Prisma.PostWhereInput[] {
+  const q = search.trim();
+  if (!q) return [];
+
+  const mediaTextOr: Prisma.MediaWhereInput[] = [
+    { titleFr: insensitiveContains(q) },
+    { titleEn: insensitiveContains(q) },
+    { descriptionFr: insensitiveContains(q) },
+    { descriptionEn: insensitiveContains(q) },
+  ];
+
+  return [
+    { titleFr: insensitiveContains(q) },
+    { titleEn: insensitiveContains(q) },
+    { excerptFr: insensitiveContains(q) },
+    { excerptEn: insensitiveContains(q) },
+    { bodyFr: insensitiveContains(q) },
+    { bodyEn: insensitiveContains(q) },
+    { slug: insensitiveContains(q) },
+    {
+      tags: {
+        some: {
+          tag: {
+            OR: [
+              { name: insensitiveContains(q) },
+              { labelFr: insensitiveContains(q) },
+              { labelEn: insensitiveContains(q) },
+            ],
+          },
+        },
+      },
+    },
+    {
+      themes: {
+        some: {
+          theme: {
+            OR: [
+              { slug: insensitiveContains(q) },
+              { labelFr: insensitiveContains(q) },
+              { labelEn: insensitiveContains(q) },
+            ],
+          },
+        },
+      },
+    },
+    {
+      milestones: {
+        some: {
+          milestone: {
+            OR: [
+              { slug: insensitiveContains(q) },
+              { titleFr: insensitiveContains(q) },
+              { titleEn: insensitiveContains(q) },
+              { descriptionFr: insensitiveContains(q) },
+              { descriptionEn: insensitiveContains(q) },
+            ],
+          },
+        },
+      },
+    },
+    {
+      mediaLinks: {
+        some: {
+          media: { OR: mediaTextOr },
+        },
+      },
+    },
+  ];
+}
+
 export function publicPostWhere(
   filters?: {
     hull?: string;
@@ -258,16 +332,11 @@ export function publicPostWhere(
     where.tags = { some: { tag: { name: filters.tag } } };
   }
 
-  if (filters?.search) {
-    const q = filters.search;
-    where.OR = [
-      { titleFr: { contains: q, mode: "insensitive" } },
-      { titleEn: { contains: q, mode: "insensitive" } },
-      { excerptFr: { contains: q, mode: "insensitive" } },
-      { excerptEn: { contains: q, mode: "insensitive" } },
-      { bodyFr: { contains: q, mode: "insensitive" } },
-      { bodyEn: { contains: q, mode: "insensitive" } },
-    ];
+  const searchOr = filters?.search?.trim()
+    ? postSearchOrConditions(filters.search)
+    : [];
+  if (searchOr.length > 0) {
+    where.OR = searchOr;
   }
 
   return where;
@@ -307,13 +376,7 @@ export function editorPostWhere(
   }
 
   if (search) {
-    where.OR = [
-      { titleFr: { contains: search, mode: "insensitive" } },
-      { titleEn: { contains: search, mode: "insensitive" } },
-      { excerptFr: { contains: search, mode: "insensitive" } },
-      { excerptEn: { contains: search, mode: "insensitive" } },
-      { slug: { contains: search, mode: "insensitive" } },
-    ];
+    where.OR = postSearchOrConditions(search);
   }
 
   return where;

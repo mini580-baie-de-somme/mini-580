@@ -270,4 +270,62 @@ describe("API integration — Posts CRUD + FR/EN", () => {
     expect(pageBody.offset).toBe(0);
     expect(pageBody.total).toBeGreaterThanOrEqual(2);
   });
+
+  it("public blog search matches linked media metadata only", async () => {
+    const { POST, GET } = await import("@/app/api/posts/route");
+    const { makeTestJpeg } = await import("../helpers");
+    const mediaOnlyToken = `mediakey${Date.now().toString(36)}`;
+    const marker = uniqueSlug(`${PREFIX}-mediafind`);
+
+    const createRes = await POST(
+      jsonRequest("http://localhost/api/posts", {
+        method: "POST",
+        headers: bearerHeaders(),
+        body: JSON.stringify({
+          titleFr: `${marker} sans mot cle media`,
+          titleEn: "Plain article title",
+        }),
+      })
+    );
+    expect(createRes.status).toBe(201);
+    const post = await createRes.json();
+
+    const { POST: addImage } = await import("@/app/api/posts/[id]/images/route");
+    const jpeg = await makeTestJpeg();
+    const form = new FormData();
+    form.append("file", new File([jpeg], "yard.jpg", { type: "image/jpeg" }));
+    form.append("titleFr", "Photo normale");
+    form.append("descriptionFr", `Legende unique ${mediaOnlyToken} fin`);
+    const imgRes = await addImage(
+      new (await import("next/server")).NextRequest(
+        `http://localhost/api/posts/${post.id}/images`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${process.env.INGEST_API_KEY}` },
+          body: form,
+        }
+      ),
+      { params: Promise.resolve({ id: post.id }) }
+    );
+    expect(imgRes.status).toBe(201);
+
+    const { POST: publish } = await import("@/app/api/posts/[id]/publish/route");
+    const pubRes = await publish(
+      jsonRequest(`http://localhost/api/posts/${post.id}/publish`, {
+        method: "POST",
+        headers: bearerHeaders(),
+      }),
+      { params: Promise.resolve({ id: post.id }) }
+    );
+    expect(pubRes.status).toBe(200);
+
+    const searchRes = await GET(
+      jsonRequest("http://localhost/api/posts", {
+        searchParams: { search: mediaOnlyToken },
+      })
+    );
+    expect(searchRes.status).toBe(200);
+    const items = (await searchRes.json()) as { id: string }[];
+    expect(items.some((p) => p.id === post.id)).toBe(true);
+  });
 });
