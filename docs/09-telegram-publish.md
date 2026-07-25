@@ -16,6 +16,7 @@ Par défaut, Telegram parle à un **agent Cursor** qui appelle les endpoints via
 - **mémoire agent** persistante (`agent_memory.*`) : règles/connaissances entre sessions (soft delete)
 - bootstrap agent : consignes + mémoire une fois par fil Cursor ; tours suivants = message utilisateur + contexte actif (mémoire rafraîchie seulement si changée en base)
 - compaction auto **après** la réponse Telegram (seuil sur le tour qui vient de finir) quand `lastTurnInputTokens` ≥ 70% de `TELEGRAM_AGENT_CONTEXT_MAX_TOKENS` (défaut 128k) → synthèse stockée + nouveau fil Cursor au message suivant
+- **messages vocaux** : STT via `transcribe-audio.sh` (Whisper local si dispo, sinon OpenAI Whisper API) ; réponses TTS Microsoft Edge (`node-edge-tts`, même voix que OpenClaw par défaut) selon `TELEGRAM_TTS_AUTO`
 - médiathèque indépendante `Media` (IMAGE|DOCUMENT|VIDEO) : `media.*` tools — create/update/delete/attach/detach/reorder/set_cover
 - tools `photos.*` conservés en compat (même modèle sous-jacent)
 - liens d’aperçu `preview.create` → `/apercu/t/{token}`
@@ -58,6 +59,11 @@ UPDATE "User" SET "telegramUserId" = '8137936505' WHERE email = 'lpatrouix@gmail
 | `TELEGRAM_AGENT_CONTEXT_MAX_TOKENS` | Fenêtre contexte pour seuil compaction (défaut `128000`) |
 | `TELEGRAM_AGENT_COMPACT_HIGH_RATIO` | Seuil compaction (défaut `0.7`) |
 | `TELEGRAM_AGENT_COMPACT_TARGET_RATIO` | Cible doc compaction (défaut `0.2`, prompt interne) |
+| `OPENAI_API_KEY` | Fallback STT vocal (Whisper API) si pas de CLI local |
+| `TRANSCRIBE_AUDIO_SCRIPT` | Script STT (défaut `web/scripts/transcribe-audio.sh`, Docker `/opt/transcribe-audio.sh`) |
+| `TELEGRAM_TTS_AUTO` | `always` (défaut, comme OpenClaw), `voice` (réponse vocale si message vocal entrant), `off` |
+| `TELEGRAM_TTS_VOICE` | Voix Edge TTS (défaut `fr-FR-DeniseNeural`) |
+| `TELEGRAM_TTS_LANG` | Locale TTS (défaut `fr-FR`) |
 | `SITE_URL` | Liens d'aperçu absolus |
 
 Migration : `media_library` (`Media` + `PostMedia` depuis `PostImage`) · `telegram_publish_flow` · `PreviewToken`.

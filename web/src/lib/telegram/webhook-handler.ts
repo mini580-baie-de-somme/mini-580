@@ -31,6 +31,8 @@ type TelegramMessage = {
   text?: string;
   caption?: string;
   photo?: TelegramPhotoSize[];
+  voice?: { file_id: string; duration?: number };
+  audio?: { file_id: string; duration?: number; mime_type?: string };
 };
 type TelegramCallbackQuery = {
   id: string;
@@ -126,7 +128,24 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<voi
 
   const userId = String(message.from.id);
   const chatId = String(message.chat.id);
-  const text = (message.text || message.caption || "").trim();
+
+  let inboundVoice = false;
+  let text = "";
+  try {
+    const inbound = await resolveInboundTelegramContent({
+      text: message.text,
+      caption: message.caption,
+      voice: message.voice,
+      audio: message.audio,
+    });
+    text = inbound.text;
+    inboundVoice = inbound.inboundVoice;
+  } catch (err) {
+    await sendTelegramReply(message.chat.id, {
+      text: err instanceof Error ? err.message : String(err),
+    });
+    return;
+  }
 
   if (/^\/(start|aide|help)\b/i.test(text)) {
     await sendTelegramReply(message.chat.id, { text: HELP });
@@ -245,7 +264,7 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<voi
       userMessage,
       mediaUrls,
     });
-    await sendTelegramReply(message.chat.id, { text: answer });
+    await sendTelegramReply(message.chat.id, { text: answer }, { inboundVoice });
     void maybeCompactTelegramSessionAfterTurn({
       telegramUserId: userId,
       telegramChatId: chatId,

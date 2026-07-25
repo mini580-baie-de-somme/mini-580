@@ -3,7 +3,7 @@
 FROM node:22-bookworm-slim AS base
 WORKDIR /app
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && apt-get install -y --no-install-recommends openssl ca-certificates ffmpeg curl \
   && rm -rf /var/lib/apt/lists/*
 
 FROM base AS deps
@@ -51,7 +51,10 @@ RUN mkdir -p /opt/prisma-cli \
   && chown -R nextjs:nodejs /opt/prisma-cli /app
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+COPY scripts/transcribe-audio.sh /opt/transcribe-audio.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh /opt/transcribe-audio.sh
+
+ENV TRANSCRIBE_AUDIO_SCRIPT=/opt/transcribe-audio.sh
 
 USER nextjs
 EXPOSE 3000
