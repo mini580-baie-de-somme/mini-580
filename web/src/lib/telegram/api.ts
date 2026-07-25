@@ -109,24 +109,24 @@ export async function sendTelegramReply(
     );
     const inboundVoice = options?.inboundVoice ?? false;
     if (!shouldReplyWithVoice(inboundVoice)) {
-      appLog("debug", "[telegram-tts] skip", { inboundVoice, chatId: String(chatId) });
+      appLog("telegram-tts", "debug", "skip", { inboundVoice, chatId: String(chatId) });
       return;
     }
-    appLog("info", "[telegram-tts] synthesize_start", {
+    appLog("telegram-tts", "info", "synthesize_start", {
       chatId: String(chatId),
       textChars: reply.text.length,
     });
     const mp3 = await synthesizeTelegramVoiceMp3(reply.text);
-    appLog("info", "[telegram-tts] synthesize_ok", {
+    appLog("telegram-tts", "info", "synthesize_ok", {
       chatId: String(chatId),
       mp3Bytes: mp3.length,
     });
     await sendTelegramVoice(chatId, mp3, {
       replyToMessageId: options?.replyToMessageId,
     });
-    appLog("info", "[telegram-tts] sendVoice_ok", { chatId: String(chatId) });
+    appLog("telegram-tts", "info", "sendVoice_ok", { chatId: String(chatId) });
   } catch (err) {
-    appLog("warn", "[telegram-tts] failed (text already sent)", {
+    appLog("telegram-tts", "warn", "failed_text_already_sent", {
       chatId: String(chatId),
       error: err instanceof Error ? err.message : String(err),
     });
