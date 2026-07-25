@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { getEditorOrService } from "@/lib/service-auth";
 import { validatePlatformAuthorId } from "@/lib/editors";
-import { postInclude, uniqueSlug, syncPostRelations, withLegacyImages } from "@/lib/posts";
+import { postInclude, uniqueSlug, syncPostRelations, serializePostForApi } from "@/lib/posts";
 import { optionalNullableDateTime } from "@/lib/date-schema";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  return NextResponse.json(withLegacyImages(post));
+  return NextResponse.json(serializePostForApi(post));
 }
 
 const updateSchema = z.object({
@@ -110,7 +110,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       include: postInclude,
     });
 
-    return NextResponse.json(post ? withLegacyImages(post) : null);
+    return NextResponse.json(post ? serializePostForApi(post) : null);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.flatten() }, { status: 400 });

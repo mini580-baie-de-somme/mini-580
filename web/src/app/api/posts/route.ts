@@ -11,6 +11,8 @@ import {
   publicPostWhere,
   uniqueSlug,
   syncPostRelations,
+  serializePostForApi,
+  postListSummaryFields,
 } from "@/lib/posts";
 import { EDITOR_POSTS_PAGE_SIZE } from "@/lib/constants";
 import { getSyncEnv, isSyncConfigured, peerFetch } from "@/lib/sync-crypto";
@@ -86,6 +88,7 @@ export async function GET(request: NextRequest) {
         status: p.status,
         updatedAt: p.updatedAt.toISOString(),
         hulls: p.hulls,
+        ...postListSummaryFields(p),
         ...(prodIds.size > 0 ? { onProd: prodIds.has(p.id) } : {}),
       })),
       total,
@@ -100,7 +103,7 @@ export async function GET(request: NextRequest) {
     include: postInclude,
     orderBy: { publishedAt: "desc" },
   });
-  return NextResponse.json(posts);
+  return NextResponse.json(posts.map(serializePostForApi));
 }
 
 export async function POST(request: NextRequest) {
@@ -156,7 +159,7 @@ export async function POST(request: NextRequest) {
       include: postInclude,
     });
 
-    return NextResponse.json(full, { status: 201 });
+    return NextResponse.json(full ? serializePostForApi(full) : null, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.flatten() }, { status: 400 });

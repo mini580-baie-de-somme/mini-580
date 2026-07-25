@@ -2,6 +2,7 @@ import "server-only";
 
 import { Hull, PostStatus, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import { blogPathForSlug, publicBlogUrlForSlug } from "@/lib/site-url";
 import { parseHull, slugify } from "@/lib/utils";
 
 export { slugify, parseHull, hullToShort } from "@/lib/utils";
@@ -59,6 +60,30 @@ export function withLegacyImages<T extends PostWithRelations>(post: T) {
   }));
   const { mediaLinks: _ml, ...rest } = post;
   return { ...rest, images, mediaLinks: post.mediaLinks };
+}
+
+/** Public blog URL when PUBLISHED; null while draft/archived (blog route 404). */
+export function publicUrlForPost(post: { slug: string; status: PostStatus }): string | null {
+  if (post.status !== PostStatus.PUBLISHED) return null;
+  return publicBlogUrlForSlug(post.slug);
+}
+
+export function postListSummaryFields(post: {
+  slug: string;
+  status: PostStatus;
+}) {
+  return {
+    blogPath: blogPathForSlug(post.slug),
+    publicUrl: publicUrlForPost(post),
+  };
+}
+
+/** API / agent tool shape: legacy images + shareable blog link fields. */
+export function serializePostForApi<T extends PostWithRelations>(post: T) {
+  return {
+    ...withLegacyImages(post),
+    ...postListSummaryFields(post),
+  };
 }
 
 export async function uniqueSlug(base: string, excludeId?: string): Promise<string> {

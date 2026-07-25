@@ -18,6 +18,7 @@ describe("API integration — Posts CRUD + FR/EN", () => {
   let adminId: string;
 
   beforeAll(async () => {
+    process.env.SITE_URL = "https://test.classmini580.blog";
     const admin = await ensureAdminUser();
     adminId = admin.id;
     await cleanupTestPosts(PREFIX);
@@ -75,6 +76,8 @@ describe("API integration — Posts CRUD + FR/EN", () => {
     // Slug is auto-generated from titleFr — client slug is ignored.
     expect(created.slug).toBe(marker);
     expect(created.slug).not.toBe(ignoredClientSlug);
+    expect(created.blogPath).toBe(`/blog/${created.slug}`);
+    expect(created.publicUrl).toBeNull();
 
     const { GET: getOne, PATCH, DELETE } = await import(
       "@/app/api/posts/[id]/route"
@@ -143,6 +146,8 @@ describe("API integration — Posts CRUD + FR/EN", () => {
     expect(patched.slug).toBe(updatedTitle);
     expect(patched.slug).not.toBe("manual-slug-should-be-ignored");
 
+    const frozenSlug = patched.slug;
+
     // Publish freezes the slug even if titleFr changes.
     const { POST: publish } = await import(
       "@/app/api/posts/[id]/publish/route"
@@ -155,8 +160,12 @@ describe("API integration — Posts CRUD + FR/EN", () => {
       ctx
     );
     expect(statusRes.status).toBe(200);
+    const published = await statusRes.json();
+    expect(published.publicUrl).toBe(
+      `https://test.classmini580.blog/blog/${frozenSlug}`
+    );
+    expect(published.blogPath).toBe(`/blog/${frozenSlug}`);
 
-    const frozenSlug = patched.slug;
     const afterPublish = await PATCH(
       jsonRequest(`http://localhost/api/posts/${created.id}`, {
         method: "PATCH",

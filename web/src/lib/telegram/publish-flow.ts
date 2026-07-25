@@ -3,6 +3,7 @@ import "server-only";
 import { randomBytes } from "crypto";
 import { Hull, Prisma, TelegramSessionStep } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import { getPublicSiteBaseUrl } from "@/lib/site-url";
 import { postInclude, syncPostRelations, uniqueSlug, withLegacyImages } from "@/lib/posts";
 import { slugify } from "@/lib/utils";
 import {
@@ -48,11 +49,7 @@ const ACTIVE_STEPS: TelegramSessionStep[] = [
 ];
 
 function siteBaseUrl(): string {
-  return (
-    process.env.SITE_URL?.replace(/\/$/, "") ||
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
-    "http://localhost:3002"
-  );
+  return getPublicSiteBaseUrl();
 }
 
 function approveKeyboard(prefix = "ok"): InlineButton[][] {

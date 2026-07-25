@@ -27,7 +27,8 @@ export const AI_TOOLS: AiToolDef[] = [
   // Posts + FR/EN
   {
     name: "posts.list",
-    description: "List posts (published public, or all when authenticated)",
+    description:
+      "List posts (published public, or paginated editor list when authenticated). Each item includes blogPath (/blog/{slug}) and publicUrl (absolute link when PUBLISHED, else null).",
     method: "GET",
     path: "/api/posts",
     auth: "public",
@@ -36,7 +37,7 @@ export const AI_TOOLS: AiToolDef[] = [
   {
     name: "posts.create",
     description:
-      "Create a DRAFT post (empty body OK; titles default to Nouvel article / New article). Slug is always auto-generated from titleFr (client slug ignored). Optional publishedAt ISO for timeline/blog ordering. Returns id for patches and media.attach / photos.upload.",
+      "Create a DRAFT post (empty body OK; titles default to Nouvel article / New article). Slug is always auto-generated from titleFr (client slug ignored). Optional publishedAt ISO for timeline/blog ordering. Returns id, blogPath, publicUrl (null until published) for patches and media.attach / photos.upload.",
     method: "POST",
     path: "/api/posts",
     auth: "bearer_or_session",
@@ -44,7 +45,8 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "posts.get",
-    description: "Get one post by id",
+    description:
+      "Get one post by id. Response includes blogPath and publicUrl (shareable absolute URL when PUBLISHED; null for DRAFT/ARCHIVED — use preview.create for draft links).",
     method: "GET",
     path: "/api/posts/:id",
     auth: "public",
@@ -53,7 +55,7 @@ export const AI_TOOLS: AiToolDef[] = [
   {
     name: "posts.update",
     description:
-      "Patch post FR/EN content, publishedAt, and relations (tags/themes/milestones/hulls). Slug is never set manually: while DRAFT it re-syncs from titleFr; once PUBLISHED/ARCHIVED it stays frozen.",
+      "Patch post FR/EN content, publishedAt, and relations (tags/themes/milestones/hulls). Slug is never set manually: while DRAFT it re-syncs from titleFr; once PUBLISHED/ARCHIVED it stays frozen. Returns blogPath + publicUrl.",
     method: "PATCH",
     path: "/api/posts/:id",
     auth: "bearer_or_session",
@@ -69,7 +71,8 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "posts.publish",
-    description: "Publish a draft post",
+    description:
+      "Publish a draft post. Response includes publicUrl (absolute blog link to share) when status becomes PUBLISHED.",
     method: "POST",
     path: "/api/posts/:id/publish",
     auth: "bearer_or_session",
