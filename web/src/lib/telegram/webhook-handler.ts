@@ -20,6 +20,7 @@ import {
   startSession,
   type BotReply,
 } from "@/lib/telegram/publish-flow";
+import { resolveInboundTelegramContent } from "@/lib/telegram/speech/inbound";
 
 type TelegramUser = { id: number; username?: string; first_name?: string };
 type TelegramChat = { id: number; type: string };
