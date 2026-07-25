@@ -31,6 +31,18 @@ RUN groupadd --system --gid 1001 nodejs \
   && mkdir -p /data/media \
   && chown nextjs:nodejs /data/media
 
+# Local STT — same stack as OpenClaw (openai-whisper CLI + ffmpeg from base image)
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 python3-pip \
+  && pip3 install --break-system-packages --no-cache-dir \
+       torch --index-url https://download.pytorch.org/whl/cpu \
+  && pip3 install --break-system-packages --no-cache-dir openai-whisper --no-deps \
+  && pip3 install --break-system-packages --no-cache-dir tiktoken tqdm more-itertools numba numpy \
+  && mkdir -p /opt/whisper-cache \
+  && XDG_CACHE_HOME=/opt/whisper-cache python3 -c "import whisper; whisper.load_model('tiny')" \
+  && chown -R nextjs:nodejs /opt/whisper-cache \
+  && rm -rf /var/lib/apt/lists/*
+
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
@@ -55,6 +67,9 @@ COPY scripts/transcribe-audio.sh /opt/transcribe-audio.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh /opt/transcribe-audio.sh
 
 ENV TRANSCRIBE_AUDIO_SCRIPT=/opt/transcribe-audio.sh
+ENV WHISPER_BIN=/usr/local/bin/whisper
+ENV WHISPER_MODEL=tiny
+ENV XDG_CACHE_HOME=/opt/whisper-cache
 
 USER nextjs
 EXPOSE 3000

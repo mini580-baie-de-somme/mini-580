@@ -60,6 +60,8 @@ UPDATE "User" SET "telegramUserId" = '8137936505' WHERE email = 'lpatrouix@gmail
 | `TELEGRAM_AGENT_COMPACT_HIGH_RATIO` | Seuil compaction (défaut `0.7`) |
 | `TELEGRAM_AGENT_COMPACT_TARGET_RATIO` | Cible doc compaction (défaut `0.2`, prompt interne) |
 | `OPENAI_API_KEY` | Fallback STT vocal (Whisper API) si pas de CLI local |
+| `WHISPER_BIN` | CLI Whisper (Docker : `/usr/local/bin/whisper`, modèle `tiny` préchargé dans l’image) |
+| `WHISPER_MODEL` | Modèle local (défaut `tiny`) |
 | `TRANSCRIBE_AUDIO_SCRIPT` | Script STT (défaut `web/scripts/transcribe-audio.sh`, Docker `/opt/transcribe-audio.sh`) |
 | `TELEGRAM_TTS_AUTO` | `always` (défaut, comme OpenClaw), `voice` (réponse vocale si message vocal entrant), `off` |
 | `TELEGRAM_TTS_VOICE` | Voix Edge TTS (défaut `fr-FR-DeniseNeural`) |
