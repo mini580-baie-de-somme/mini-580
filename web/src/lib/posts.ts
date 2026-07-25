@@ -240,7 +240,6 @@ export async function findRelatedPosts(
     },
     include: {
       ...relatedCardInclude,
-      tags: true,
       milestones: true,
     },
     orderBy: { publishedAt: "desc" },
@@ -277,7 +276,7 @@ export async function findRelatedPosts(
   });
 
   return scored.slice(0, limit).map(({ post: c }) => {
-    const { tags: _tags, milestones: _milestones, ...card } = c;
+    const { milestones: _milestones, ...card } = c;
     return card;
   });
 }
