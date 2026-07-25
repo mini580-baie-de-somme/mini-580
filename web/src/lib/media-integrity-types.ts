@@ -18,6 +18,8 @@ export type MediaIntegrity = {
   messages: string[];
   /** Remote http(s) URLs still referenced in DB (audit / re-upload). */
   externalUrls: MediaExternalUrl[];
+  /** Missing local origin but a variant file exists — explicit repair API available. */
+  repairFromVariantAvailable?: boolean;
 };
 
 export type MediaIntegrityInput = {

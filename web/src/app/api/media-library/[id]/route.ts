@@ -20,6 +20,7 @@ import {
   rebakeErrorDetail,
 } from "@/lib/media-trace";
 import { enrichMediaWithIntegrity } from "@/lib/media-integrity";
+import { canRepairOriginFromLocalVariant } from "@/lib/media-origin-repair";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -79,7 +80,14 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   const enriched = await enrichMediaWithIntegrity(media);
-  return NextResponse.json(enriched);
+  const repairFromVariantAvailable = await canRepairOriginFromLocalVariant(media);
+  return NextResponse.json({
+    ...enriched,
+    integrity: {
+      ...enriched.integrity,
+      repairFromVariantAvailable,
+    },
+  });
 }
 
 const NEW_LAYOUT_KEYS = [

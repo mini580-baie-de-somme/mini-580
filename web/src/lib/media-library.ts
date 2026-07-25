@@ -329,6 +329,24 @@ export async function createMediaFromUrls(data: {
   });
 }
 
+/** Find media row matching any stored URL (origin or variant). */
+export async function findMediaByStoredUrl(url: string) {
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  return prisma.media.findFirst({
+    where: {
+      OR: [
+        { urlOrigin: trimmed },
+        { urlPicto: trimmed },
+        { urlPetite: trimmed },
+        { urlMoyenne: trimmed },
+        { urlGrande: trimmed },
+      ],
+    },
+    include: mediaInclude,
+  });
+}
+
 export async function attachMediaToPost(
   postId: string,
   mediaIds: string[],

@@ -120,7 +120,7 @@ export function PostGalleryEditor({
         const res = await fetch(`/api/posts/${postId}/images`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ urlOrigin: coverImageUrl }),
+          body: JSON.stringify({ resolveStoredUrl: coverImageUrl }),
         });
         if (!res.ok) {
           const errBody = await readApiErrorBody(res);

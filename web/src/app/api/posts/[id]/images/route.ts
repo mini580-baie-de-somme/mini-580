@@ -13,6 +13,7 @@ import {
   attachMediaToPost,
   createMediaFromUpload,
   createMediaFromUrls,
+  findMediaByStoredUrl,
   listPostMediaAsImages,
 } from "@/lib/media-library";
 import { optionalNullableDateTime } from "@/lib/date-schema";
@@ -27,6 +28,8 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 }
 
 const imageMetaSchema = z.object({
+  /** Link existing media by any stored URL (cover orphan sync). */
+  resolveStoredUrl: z.string().min(1).optional(),
   urlOrigin: z.string().min(1).optional(),
   urlPicto: z.string().nullable().optional(),
   urlPetite: z.string().nullable().optional(),
@@ -214,10 +217,52 @@ export async function POST(request: NextRequest, context: RouteContext) {
   try {
     const body = await request.json();
     const data = imageMetaSchema.parse(body);
+
+    const resolveUrl = data.resolveStoredUrl?.trim();
+    if (resolveUrl) {
+      const existing = await findMediaByStoredUrl(resolveUrl);
+      if (!existing) {
+        return NextResponse.json(
+          { error: "No media found for resolveStoredUrl" },
+          { status: 404 }
+        );
+      }
+      const alreadyLinked = await prisma.postMedia.findUnique({
+        where: { postId_mediaId: { postId, mediaId: existing.id } },
+      });
+      if (!alreadyLinked) {
+        await attachMediaToPost(postId, [existing.id]);
+      }
+      const images = await listPostMediaAsImages(postId);
+      const row = images.find((i) => i.id === existing.id);
+      if (!row) {
+        return NextResponse.json({ error: "Link failed" }, { status: 500 });
+      }
+      return NextResponse.json(row, {
+        status: alreadyLinked ? 200 : 201,
+      });
+    }
+
     const origin = data.urlOrigin ?? data.url ?? "";
     if (!origin) {
       return NextResponse.json({ error: "urlOrigin required" }, { status: 400 });
     }
+
+    const linked = await findMediaByStoredUrl(origin);
+    if (linked) {
+      const alreadyLinked = await prisma.postMedia.findUnique({
+        where: { postId_mediaId: { postId, mediaId: linked.id } },
+      });
+      if (!alreadyLinked) {
+        await attachMediaToPost(postId, [linked.id]);
+      }
+      const images = await listPostMediaAsImages(postId);
+      return NextResponse.json(
+        images.find((i) => i.id === linked.id),
+        { status: alreadyLinked ? 200 : 201 }
+      );
+    }
+
     const media = await createMediaFromUrls({
       urlOrigin: origin,
       urlPicto: data.urlPicto,

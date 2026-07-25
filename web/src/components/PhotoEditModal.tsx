@@ -167,7 +167,9 @@ export function PhotoEditModal({
   const [error, setError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [originEditable, setOriginEditable] = useState(true);
+  const [repairOriginAvailable, setRepairOriginAvailable] = useState(false);
   const [mediaIntegrity, setMediaIntegrity] = useState<MediaIntegrity | null>(null);
+  const [repairBusy, setRepairBusy] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -185,6 +187,7 @@ export function PhotoEditModal({
   useEffect(() => {
     if (mode !== "edit" || !draft?.id || pendingFile) {
       setOriginEditable(true);
+      setRepairOriginAvailable(false);
       setMediaIntegrity(null);
       return;
     }
@@ -199,6 +202,9 @@ export function PhotoEditModal({
         if (cancelled) return;
         const editable = full.integrity?.editable ?? false;
         setOriginEditable(editable);
+        setRepairOriginAvailable(
+          Boolean(full.integrity?.repairFromVariantAvailable)
+        );
         setMediaIntegrity(full.integrity ?? null);
         if (!editable) {
           setError(
@@ -206,6 +212,8 @@ export function PhotoEditModal({
               ? "Original absent du stockage local — remplace le fichier avant d’éditer le cadrage."
               : "Original missing from local storage — replace the file before editing layout."
           );
+        } else {
+          setError(null);
         }
       } catch {
         if (!cancelled) setOriginEditable(false);
@@ -215,6 +223,59 @@ export function PhotoEditModal({
       cancelled = true;
     };
   }, [mode, draft?.id, pendingFile, lang]);
+
+  async function repairOriginFromVariant() {
+    if (!draft?.id || repairBusy) return;
+    setRepairBusy(true);
+    setError(null);
+    const trace = { traceId: newPhotoEditorTraceId(), postId, mediaId: draft.id };
+    photoEditorTrace(trace, "originRepair.client.start", {}, "info");
+    try {
+      const res = await fetch(`/api/media-library/${draft.id}/repair-origin`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const errBody = await readApiErrorBody(res);
+        photoEditorTrace(trace, "originRepair.client.failed", {
+          status: res.status,
+          ...errBody,
+        }, "error");
+        throw new Error(
+          errBody.message ||
+            (lang === "fr"
+              ? "Impossible de restaurer l’originale."
+              : "Could not restore the original.")
+        );
+      }
+      const full = (await res.json()) as GalleryEditorImage & {
+        integrity?: MediaIntegrity;
+      };
+      setDraft((prev) =>
+        prev
+          ? {
+              ...prev,
+              urlOrigin: full.urlOrigin,
+              mimeType: full.mimeType ?? prev.mimeType,
+            }
+          : prev
+      );
+      const editable = full.integrity?.editable ?? true;
+      setOriginEditable(editable);
+      setRepairOriginAvailable(
+        Boolean(full.integrity?.repairFromVariantAvailable)
+      );
+      setMediaIntegrity(full.integrity ?? null);
+      setDirty(true);
+      photoEditorTrace(trace, "originRepair.client.done", {
+        editable,
+        urlOrigin: full.urlOrigin,
+      }, "info");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRepairBusy(false);
+    }
+  }
 
   function patchDraft(patch: Partial<GalleryEditorImage>) {
     setDraft((prev) => (prev ? { ...prev, ...patch } : prev));
@@ -639,28 +700,43 @@ export function PhotoEditModal({
           ) : hasPreview ? (
             <div className="flex h-full min-h-0 w-full flex-col p-2 sm:p-3">
               {isImage && !canEditImageLayout && (
-                <MediaIntegrityNotice
-                  panel
-                  locale={lang}
-                  integrity={mediaIntegrity}
-                  media={
-                    draft
-                      ? {
-                          urlOrigin: draft.urlOrigin,
-                          urlPicto: draft.urlPicto,
-                          urlPetite: draft.urlPetite,
-                          urlMoyenne: draft.urlMoyenne,
-                          urlGrande: draft.urlGrande,
-                        }
-                      : null
-                  }
-                  message={
-                    lang === "fr"
-                      ? "Original absent du stockage local — remplace le fichier avant d’éditer le cadrage."
-                      : "Original missing from local storage — replace the file before editing layout."
-                  }
-                  className="mb-2"
-                />
+                <div className="mb-2 space-y-2">
+                  <MediaIntegrityNotice
+                    panel
+                    locale={lang}
+                    integrity={mediaIntegrity}
+                    media={
+                      draft
+                        ? {
+                            urlOrigin: draft.urlOrigin,
+                            urlPicto: draft.urlPicto,
+                            urlPetite: draft.urlPetite,
+                            urlMoyenne: draft.urlMoyenne,
+                            urlGrande: draft.urlGrande,
+                          }
+                        : null
+                    }
+                    message={
+                      lang === "fr"
+                        ? "Original absent du stockage local — remplace le fichier avant d’éditer le cadrage."
+                        : "Original missing from local storage — replace the file before editing layout."
+                    }
+                  />
+                  {repairOriginAvailable ? (
+                    <button
+                      type="button"
+                      disabled={busy || repairBusy}
+                      onClick={() => void repairOriginFromVariant()}
+                      className="w-full rounded-md border border-amber-700/40 bg-white px-3 py-2 text-sm text-amber-950 hover:bg-amber-50 disabled:opacity-50"
+                    >
+                      {repairBusy
+                        ? "…"
+                        : lang === "fr"
+                          ? "Restaurer l’originale depuis la variante locale"
+                          : "Restore original from local variant"}
+                    </button>
+                  ) : null}
+                </div>
               )}
               <MediaPreview
                 kind={effectiveKind}
