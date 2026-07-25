@@ -28,7 +28,7 @@ export const AI_TOOLS: AiToolDef[] = [
   {
     name: "posts.list",
     description:
-      "List posts (published public, or paginated editor list when authenticated). Each item includes blogPath (/blog/{slug}) and publicUrl (absolute link when PUBLISHED, else null).",
+      "List posts (published public, or paginated editor list when authenticated). Each item includes blogPath, publicUrl, tags (id, name, labelFr/En), themes (id, slug, labels), milestones, tagIds/themeIds/milestoneIds for patches.",
     method: "GET",
     path: "/api/posts",
     auth: "public",
@@ -46,7 +46,7 @@ export const AI_TOOLS: AiToolDef[] = [
   {
     name: "posts.get",
     description:
-      "Get one post by id. Response includes blogPath and publicUrl (shareable absolute URL when PUBLISHED; null for DRAFT/ARCHIVED — use preview.create for draft links).",
+      "Get one post by id. Response includes blogPath, publicUrl, flat tags/themes/milestones (labels + ids), tagIds/themeIds/milestoneIds, and images.",
     method: "GET",
     path: "/api/posts/:id",
     auth: "public",

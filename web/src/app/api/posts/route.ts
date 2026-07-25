@@ -12,7 +12,7 @@ import {
   uniqueSlug,
   syncPostRelations,
   serializePostForApi,
-  postListSummaryFields,
+  serializePostEditorListItem,
 } from "@/lib/posts";
 import { EDITOR_POSTS_PAGE_SIZE } from "@/lib/constants";
 import { getSyncEnv, isSyncConfigured, peerFetch } from "@/lib/sync-crypto";
@@ -81,14 +81,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       items: posts.map((p) => ({
-        id: p.id,
-        slug: p.slug,
-        titleFr: p.titleFr,
-        titleEn: p.titleEn,
-        status: p.status,
-        updatedAt: p.updatedAt.toISOString(),
-        hulls: p.hulls,
-        ...postListSummaryFields(p),
+        ...serializePostEditorListItem(p),
         ...(prodIds.size > 0 ? { onProd: prodIds.has(p.id) } : {}),
       })),
       total,

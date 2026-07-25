@@ -329,10 +329,14 @@ describe("API integration — IA tools full capacity (Bearer)", () => {
     );
     expect(linked.status).toBe(200);
     const full = await linked.json();
-    expect(full.tags?.length ?? full.tags).toBeTruthy();
-    expect(full.milestones?.some((m: { milestoneId?: string; milestone?: { id: string } }) =>
-      m.milestoneId === milestoneId || m.milestone?.id === milestoneId
-    )).toBe(true);
+    expect(full.tagIds).toContain(tagId);
+    expect(full.themeIds).toContain(themeId);
+    expect(full.milestoneIds).toContain(milestoneId);
+    expect(full.tags?.some((t: { id: string }) => t.id === tagId)).toBe(true);
+    expect(full.themes?.some((t: { id: string }) => t.id === themeId)).toBe(true);
+    expect(
+      full.milestones?.some((m: { id: string }) => m.id === milestoneId)
+    ).toBe(true);
   });
 
   it("lists sync + translate tools as agent-callable surface", () => {

@@ -78,10 +78,56 @@ export function postListSummaryFields(post: {
   };
 }
 
+/** Flat tag/theme/milestone arrays for API responses and Telegram agent tools. */
+export function postRelationFields(post: PostWithRelations) {
+  return {
+    tagIds: post.tags.map((t) => t.tagId),
+    themeIds: post.themes.map((t) => t.themeId),
+    milestoneIds: post.milestones.map((m) => m.milestoneId),
+    tags: post.tags.map(({ tag }) => ({
+      id: tag.id,
+      name: tag.name,
+      labelFr: tag.labelFr,
+      labelEn: tag.labelEn,
+    })),
+    themes: post.themes.map(({ theme }) => ({
+      id: theme.id,
+      slug: theme.slug,
+      labelFr: theme.labelFr,
+      labelEn: theme.labelEn,
+    })),
+    milestones: post.milestones.map(({ milestone }) => ({
+      id: milestone.id,
+      slug: milestone.slug,
+      titleFr: milestone.titleFr,
+      titleEn: milestone.titleEn,
+      milestoneDate: milestone.milestoneDate.toISOString(),
+    })),
+  };
+}
+
+/** Editor paginated list — lightweight row with taxonomy for agent tools. */
+export function serializePostEditorListItem(post: PostWithRelations) {
+  return {
+    id: post.id,
+    slug: post.slug,
+    titleFr: post.titleFr,
+    titleEn: post.titleEn,
+    status: post.status,
+    updatedAt: post.updatedAt.toISOString(),
+    hulls: post.hulls,
+    ...postRelationFields(post),
+    ...postListSummaryFields(post),
+  };
+}
+
 /** API / agent tool shape: legacy images + shareable blog link fields. */
 export function serializePostForApi<T extends PostWithRelations>(post: T) {
+  const { tags: _tags, themes: _themes, milestones: _milestones, ...rest } =
+    withLegacyImages(post);
   return {
-    ...withLegacyImages(post),
+    ...rest,
+    ...postRelationFields(post),
     ...postListSummaryFields(post),
   };
 }
