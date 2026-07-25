@@ -34,7 +34,11 @@ export async function sendTelegramVoice(
   const form = new FormData();
   form.append("chat_id", String(chatId));
   const name = options?.filename ?? "reply.mp3";
-  form.append("voice", new Blob([audio], { type: "audio/mpeg" }), name);
+  form.append(
+    "voice",
+    new Blob([new Uint8Array(audio)], { type: "audio/mpeg" }),
+    name
+  );
   if (options?.replyToMessageId) {
     form.append("reply_to_message_id", String(options.replyToMessageId));
   }
