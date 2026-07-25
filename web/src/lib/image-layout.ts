@@ -165,11 +165,12 @@ export function computeEditorPhotoLayout(input: EditorPhotoLayoutInput): {
     H
   );
 
-  // Server rotates first, then cover-scales using post-rotation bounds.
+  // Cover scale uses post-rotation bounds (matches sharp after .rotate()).
+  // Preview draws the unrotated bitmap, then CSS rotate — box size uses source iw/ih.
   const rotated = rotatedImageBounds(iw, ih, layout.rotation);
   const coverScale = Math.max(cropW / rotated.width, cropH / rotated.height);
-  const width = Math.max(1, rotated.width * coverScale * layout.scaleX);
-  const height = Math.max(1, rotated.height * coverScale * layout.scaleY);
+  const width = Math.max(1, iw * coverScale * layout.scaleX);
+  const height = Math.max(1, ih * coverScale * layout.scaleY);
 
   const centerX = cropLeft + cropW / 2 + layout.offsetX * cropW;
   const centerY = cropTop + cropH / 2 + layout.offsetY * cropH;

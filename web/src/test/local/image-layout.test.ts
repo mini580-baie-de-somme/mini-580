@@ -61,9 +61,11 @@ describe("computeEditorPhotoLayout", () => {
       stageH
     );
     const expectedCover = Math.max(cropW / bounds45.width, cropH / bounds45.height);
-    expect(tilted.width).toBeCloseTo(bounds45.width * expectedCover, 3);
-    expect(tilted.height).toBeCloseTo(bounds45.height * expectedCover, 3);
-    // Rotation must change layout — not equivalent to 0° with raw iw/ih
+    expect(tilted.width).toBeCloseTo(iw * expectedCover, 3);
+    expect(tilted.height).toBeCloseTo(ih * expectedCover, 3);
+    // CSS rotate preserves source aspect on the element (no stretch at 45°)
+    expect(tilted.width / tilted.height).toBeCloseTo(iw / ih, 5);
+    // Cover scale still changes vs 0° because rotated bounds grow the crop requirement
     expect(tilted.width).not.toBeCloseTo(flat.width, 1);
     expect(rotatedImageBounds(iw, ih, 90).width).toBeCloseTo(ih, 5);
     expect(rotatedImageBounds(iw, ih, 90).height).toBeCloseTo(iw, 5);
@@ -89,6 +91,31 @@ describe("computeEditorPhotoLayout", () => {
     });
     expect(layout.width).toBeCloseTo(iw * coverScale, 3);
     expect(layout.height).toBeCloseTo(ih * coverScale, 3);
+  });
+
+  it("preserves source aspect at 90° (CSS rotate, same draw size as 0°)", () => {
+    const stageW = 360;
+    const stageH = 480;
+    const iw = 800;
+    const ih = 600;
+
+    const at0 = computeEditorPhotoLayout({
+      layout: DEFAULT_IMAGE_LAYOUT,
+      stageWidth: stageW,
+      stageHeight: stageH,
+      imageWidth: iw,
+      imageHeight: ih,
+    });
+    const at90 = computeEditorPhotoLayout({
+      layout: { ...DEFAULT_IMAGE_LAYOUT, rotation: 90 },
+      stageWidth: stageW,
+      stageHeight: stageH,
+      imageWidth: iw,
+      imageHeight: ih,
+    });
+
+    expect(at0.width / at0.height).toBeCloseTo(iw / ih, 5);
+    expect(at90.width / at90.height).toBeCloseTo(iw / ih, 5);
   });
 
   it("preserves source aspect ratio when lockAspect zooms uniformly", () => {
