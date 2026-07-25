@@ -16,7 +16,7 @@ Par défaut, Telegram parle à un **agent Cursor** qui appelle les endpoints via
 - **mémoire agent** persistante (`agent_memory.*`) : règles/connaissances entre sessions (soft delete)
 - bootstrap agent : consignes + mémoire une fois par fil Cursor ; tours suivants = message utilisateur + contexte actif (mémoire rafraîchie seulement si changée en base)
 - compaction auto **après** la réponse Telegram (seuil sur le tour qui vient de finir) quand `lastTurnInputTokens` ≥ 70% de `TELEGRAM_AGENT_CONTEXT_MAX_TOKENS` (défaut 128k) → synthèse stockée + nouveau fil Cursor au message suivant
-- **messages vocaux** : STT via `transcribe-audio.sh` (Whisper local si dispo, sinon OpenAI Whisper API) ; ack texte immédiat « Transcription… » puis agent ; webhook **200 tout de suite** (traitement async, évite timeout Telegram ~60s) ; réponses **texte + vocal** TTS (`node-edge-tts`) selon `TELEGRAM_TTS_AUTO` — image Docker : copie explicite `node-edge-tts` + deps dans le runtime standalone (`web/Dockerfile`, `outputFileTracingIncludes` webhook)
+- **messages vocaux** : STT via `transcribe-audio.sh` (Whisper local si dispo, sinon OpenAI Whisper API) ; ack texte immédiat « Transcription… » puis agent ; webhook **200 tout de suite** (traitement async, évite timeout Telegram ~60s) ; réponses **texte** ; **+ vocal TTS** (`node-edge-tts`) seulement si le message entrant était vocal (`TELEGRAM_TTS_AUTO=voice`, défaut) ou toujours si `always` — image Docker : copie explicite `node-edge-tts` + deps dans le runtime standalone (`web/Dockerfile`, `outputFileTracingIncludes` webhook)
 - médiathèque indépendante `Media` (IMAGE|DOCUMENT|VIDEO) : `media.*` tools — create/update/delete/attach/detach/reorder/set_cover
 - tools `photos.*` conservés en compat (même modèle sous-jacent)
 - liens d’aperçu `preview.create` → `/apercu/t/{token}`
@@ -63,7 +63,7 @@ UPDATE "User" SET "telegramUserId" = '8137936505' WHERE email = 'lpatrouix@gmail
 | `WHISPER_BIN` | CLI Whisper (Docker : `/usr/local/bin/whisper`, modèle `tiny` préchargé dans l’image) |
 | `WHISPER_MODEL` | Modèle local (défaut `tiny`) |
 | `TRANSCRIBE_AUDIO_SCRIPT` | Script STT (défaut `web/scripts/transcribe-audio.sh`, Docker `/opt/transcribe-audio.sh`) |
-| `TELEGRAM_TTS_AUTO` | `always` (défaut, comme OpenClaw), `voice` (réponse vocale si message vocal entrant), `off` |
+| `TELEGRAM_TTS_AUTO` | `voice` (défaut : vocal seulement si message vocal entrant), `always` (texte + vocal à chaque réponse), `off` |
 | `TELEGRAM_TTS_VOICE` | Voix Edge TTS (défaut `fr-FR-DeniseNeural`) |
 | `TELEGRAM_TTS_LANG` | Locale TTS (défaut `fr-FR`) |
 | `SITE_URL` | Liens d'aperçu absolus |

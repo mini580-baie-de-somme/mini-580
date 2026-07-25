@@ -16,16 +16,17 @@ describe("stripMarkdownForTts", () => {
 });
 
 describe("telegram TTS policy", () => {
-  it("defaults to always", () => {
+  it("defaults to voice (text in → text out, voice in → voice out)", () => {
     delete process.env.TELEGRAM_TTS_AUTO;
-    expect(resolveTelegramTtsAutoMode()).toBe("always");
-    expect(shouldReplyWithVoice(false)).toBe(true);
+    expect(resolveTelegramTtsAutoMode()).toBe("voice");
+    expect(shouldReplyWithVoice(false)).toBe(false);
+    expect(shouldReplyWithVoice(true)).toBe(true);
   });
 
-  it("voice mode only on inbound voice", () => {
-    process.env.TELEGRAM_TTS_AUTO = "voice";
+  it("always mode sends TTS on every reply", () => {
+    process.env.TELEGRAM_TTS_AUTO = "always";
+    expect(shouldReplyWithVoice(false)).toBe(true);
     expect(shouldReplyWithVoice(true)).toBe(true);
-    expect(shouldReplyWithVoice(false)).toBe(false);
   });
 
   it("truncates long replies for TTS", () => {

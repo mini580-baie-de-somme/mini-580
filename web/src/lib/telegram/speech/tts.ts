@@ -12,7 +12,7 @@ export type TelegramTtsAutoMode = "off" | "always" | "voice";
 const DEFAULT_MAX_CHARS = 1500;
 
 export function resolveTelegramTtsAutoMode(): TelegramTtsAutoMode {
-  const raw = (process.env.TELEGRAM_TTS_AUTO ?? "always").trim().toLowerCase();
+  const raw = (process.env.TELEGRAM_TTS_AUTO ?? "voice").trim().toLowerCase();
   if (raw === "off" || raw === "false" || raw === "0") return "off";
   if (raw === "voice" || raw === "reply_voice") return "voice";
   return "always";
