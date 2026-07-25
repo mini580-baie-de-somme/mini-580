@@ -16,7 +16,7 @@ Par défaut, Telegram parle à un **agent Cursor** qui appelle les endpoints via
 - **mémoire agent** persistante (`agent_memory.*`) : règles/connaissances entre sessions (soft delete)
 - bootstrap agent : consignes + mémoire une fois par fil Cursor ; tours suivants = message utilisateur + contexte actif (mémoire rafraîchie seulement si changée en base)
 - compaction auto **après** la réponse Telegram (seuil sur le tour qui vient de finir) quand `lastTurnInputTokens` ≥ 70% de `TELEGRAM_AGENT_CONTEXT_MAX_TOKENS` (défaut 128k) → synthèse stockée + nouveau fil Cursor au message suivant
-- **messages vocaux** : STT via `transcribe-audio.sh` (Whisper local si dispo, sinon OpenAI Whisper API) ; réponses TTS Microsoft Edge (`node-edge-tts`, même voix que OpenClaw par défaut) selon `TELEGRAM_TTS_AUTO`
+- **messages vocaux** : STT via `transcribe-audio.sh` (Whisper local si dispo, sinon OpenAI Whisper API) ; ack texte immédiat « Transcription… » puis agent ; webhook **200 tout de suite** (traitement async, évite timeout Telegram ~60s) ; réponses **texte + vocal** TTS (`node-edge-tts`) selon `TELEGRAM_TTS_AUTO`
 - médiathèque indépendante `Media` (IMAGE|DOCUMENT|VIDEO) : `media.*` tools — create/update/delete/attach/detach/reorder/set_cover
 - tools `photos.*` conservés en compat (même modèle sous-jacent)
 - liens d’aperçu `preview.create` → `/apercu/t/{token}`

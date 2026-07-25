@@ -31,11 +31,13 @@ export async function POST(request: NextRequest) {
 
   try {
     const update = (await request.json()) as TelegramUpdate;
-    await processTelegramUpdate(update);
+    // Ack immediately — STT + agent can exceed Telegram's webhook wait (~60s).
+    void processTelegramUpdate(update).catch((err) => {
+      console.error("telegram webhook background failed", err);
+    });
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("telegram webhook failed", err);
-    // Always 200 to Telegram to avoid retries storms on logic errors
     return NextResponse.json({ ok: false });
   }
 }

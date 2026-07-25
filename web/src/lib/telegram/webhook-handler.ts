@@ -5,6 +5,7 @@ import { isTelegramUserAllowed } from "@/lib/service-auth";
 import {
   answerCallbackQuery,
   downloadTelegramFile,
+  sendTelegramPlainText,
   sendTelegramReply,
 } from "@/lib/telegram/api";
 import {
@@ -130,9 +131,19 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<voi
   const userId = String(message.from.id);
   const chatId = String(message.chat.id);
 
+  const voiceOnly =
+    !message.text?.trim() &&
+    !message.caption?.trim() &&
+    Boolean(message.voice?.file_id || message.audio?.file_id);
+
   let inboundVoice = false;
   let text = "";
   try {
+    if (voiceOnly) {
+      await sendTelegramPlainText(message.chat.id, "🎤 Transcription en cours…", {
+        replyToMessageId: message.message_id,
+      });
+    }
     const inbound = await resolveInboundTelegramContent({
       text: message.text,
       caption: message.caption,
@@ -236,7 +247,7 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<voi
   }
 
   // Free-form agent
-  await sendTelegramReply(message.chat.id, { text: "⏳ …" });
+  await sendTelegramPlainText(message.chat.id, "⏳ …");
 
   const mediaUrls: string[] = [];
   if (message.photo?.length) {

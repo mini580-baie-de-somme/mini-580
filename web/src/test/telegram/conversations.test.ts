@@ -38,6 +38,11 @@ vi.mock("@/lib/telegram/api", () => ({
       outbound.push({ chatId, text: reply.text });
     }
   ),
+  sendTelegramPlainText: vi.fn(
+    async (chatId: number | string, text: string) => {
+      outbound.push({ chatId, text });
+    }
+  ),
   answerCallbackQuery: vi.fn(async () => undefined),
   downloadTelegramFile: vi.fn(async () => {
     const buffer = await makeTestJpeg();

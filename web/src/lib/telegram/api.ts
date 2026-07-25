@@ -53,6 +53,26 @@ export async function sendTelegramVoice(
   }
 }
 
+/** Status / progress lines — never TTS (avoids voice-only acks while STT runs). */
+export async function sendTelegramPlainText(
+  chatId: string | number,
+  text: string,
+  options?: { replyToMessageId?: number }
+) {
+  const payload: Record<string, unknown> = {
+    chat_id: chatId,
+    text,
+    disable_web_page_preview: true,
+  };
+  if (options?.replyToMessageId) {
+    payload.reply_to_message_id = options.replyToMessageId;
+  }
+  const result = await telegramCall("sendMessage", payload);
+  if (!result.ok) {
+    throw new Error(result.description || "sendMessage failed");
+  }
+}
+
 export async function sendTelegramReply(
   chatId: string | number,
   reply: BotReply,
@@ -75,6 +95,13 @@ export async function sendTelegramReply(
     };
   }
 
+  const result = await telegramCall("sendMessage", payload);
+  if (!result.ok) {
+    delete payload.parse_mode;
+    payload.text = reply.text.replace(/\*/g, "");
+    await telegramCall("sendMessage", payload);
+  }
+
   try {
     const { shouldReplyWithVoice, synthesizeTelegramVoiceMp3 } = await import(
       "@/lib/telegram/speech/tts"
@@ -84,18 +111,9 @@ export async function sendTelegramReply(
       await sendTelegramVoice(chatId, mp3, {
         replyToMessageId: options?.replyToMessageId,
       });
-      return;
     }
   } catch (err) {
-    console.warn("[telegram] TTS failed, falling back to text:", err);
-  }
-
-  const result = await telegramCall("sendMessage", payload);
-  if (!result.ok) {
-    // Retry without Markdown if parsing failed
-    delete payload.parse_mode;
-    payload.text = reply.text.replace(/\*/g, "");
-    await telegramCall("sendMessage", payload);
+    console.warn("[telegram] TTS failed (text already sent):", err);
   }
 }
 

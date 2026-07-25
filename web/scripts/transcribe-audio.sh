@@ -33,8 +33,12 @@ transcribe_local() {
   base="$(basename "$INPUT")"
   base="${base%.*}.txt"
   if [[ -f "$work_dir/$base" ]]; then
-    cat "$work_dir/$base"
-    return 0
+    local text
+    text="$(tr -d '\r' < "$work_dir/$base" | sed '/^[[:space:]]*$/d' | head -1)"
+    if [[ -n "${text//[[:space:]]/}" ]]; then
+      echo "$text"
+      return 0
+    fi
   fi
   return 1
 }
