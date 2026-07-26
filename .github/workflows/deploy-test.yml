@@ -60,7 +60,17 @@ jobs:
             echo "build-counter.json unchanged"
           else
             git commit -m "chore(ci): record build counter for v${{ steps.ver.outputs.version }}"
-            git push
+            for attempt in 1 2 3 4 5; do
+              git pull --rebase origin main
+              if git push origin HEAD:main; then
+                break
+              fi
+              echo "build-counter push failed (attempt $attempt), retrying..."
+              sleep $((attempt * 3))
+              if [ "$attempt" -eq 5 ]; then
+                exit 1
+              fi
+            done
           fi
 
       - name: Set up Docker Buildx
@@ -112,6 +122,8 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          timeout: 120s
+          command_timeout: 10m
           source: "deploy/docker-compose.test.yml,deploy/scripts/deploy.sh,deploy/nginx/test.classmini580.blog.conf"
           target: "/tmp/mini580-deploy-sync"
 
@@ -137,6 +149,8 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          timeout: 120s
+          command_timeout: 15m
           envs: GHCR_TOKEN,GHCR_USER,CURSOR_API_KEY,CURSOR_MODEL,INGEST_API_KEY,TELEGRAM_BOT_TOKEN,TELEGRAM_WEBHOOK_SECRET,TELEGRAM_ALLOWED_USER_IDS,TELEGRAM_SERVICE_USER_EMAIL,TELEGRAM_AGENT_WEB_ENABLED,SYNC_PRIVATE_KEY,SYNC_PEER_PUBLIC_KEY,SESSION_SECRET,POSTGRES_PASSWORD,OPENAI_API_KEY
           script: |
             set -euo pipefail
