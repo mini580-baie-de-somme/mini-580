@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { blogListPath } from "@/lib/blog-list-url";
+import { formatTagChipLabel } from "@/lib/tag-display";
 import { useLocale } from "./LocaleProvider";
 
 const chipClassName =
@@ -39,14 +40,15 @@ export function BlogTaxonomyLinks({
       })}
       {tags.map((tag) => {
         const label = locale === "fr" ? tag.labelFr : tag.labelEn;
+        const chip = formatTagChipLabel(label);
         return (
           <Link
             key={`tag-${tag.name}`}
             href={blogListPath({ tag: tag.name })}
             className={chipClassName}
-            title={`${t("blog.tag")} ${label}`}
+            title={`${t("blog.tag")} ${chip}`}
           >
-            {label}
+            {chip}
           </Link>
         );
       })}

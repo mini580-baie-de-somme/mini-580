@@ -149,6 +149,7 @@ export function ArticleView({
               </h1>
               <BlogTaxonomyLinks
                 themes={post.themes.map(({ theme }) => theme)}
+                tags={post.tags.map(({ tag }) => tag)}
                 className="pl-0"
               />
             </div>
@@ -185,11 +186,6 @@ export function ArticleView({
         )}
 
         <ArticleBody content={body} />
-
-        <BlogTaxonomyLinks
-          tags={post.tags.map(({ tag }) => tag)}
-          className="mt-8 sm:mt-10"
-        />
 
         {post.images.length > 0 && (
           <section className="mt-10 border-t border-[#d4dde6] pt-8 sm:mt-12 sm:pt-10">

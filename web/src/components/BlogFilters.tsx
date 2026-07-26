@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { countListFilters } from "@/lib/editor-list";
+import { formatTagChipLabel } from "@/lib/tag-display";
 import {
   EditorFilterChip,
   EditorFilterGroup,
@@ -76,7 +77,9 @@ export function BlogFilters({ options }: { options: FilterOptions }) {
       chips.push({
         key: "tag",
         prefix: t("blog.tag").replace(":", ""),
-        label: tag ? (locale === "fr" ? tag.labelFr : tag.labelEn) : tagName,
+        label: tag
+          ? formatTagChipLabel(locale === "fr" ? tag.labelFr : tag.labelEn)
+          : formatTagChipLabel(tagName),
       });
     }
 
@@ -142,7 +145,9 @@ export function BlogFilters({ options }: { options: FilterOptions }) {
                     )
                   }
                 >
-                  {locale === "fr" ? tag.labelFr : tag.labelEn}
+                  {formatTagChipLabel(
+                    locale === "fr" ? tag.labelFr : tag.labelEn
+                  )}
                 </EditorFilterChip>
               ))}
             </EditorFilterGroup>

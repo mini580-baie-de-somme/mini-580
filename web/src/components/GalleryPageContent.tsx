@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import type { GalleryPhoto } from "@/lib/gallery-types";
 import { countListFilters } from "@/lib/editor-list";
+import { formatTagChipLabel } from "@/lib/tag-display";
 import { resolveThumbKind } from "@/lib/media-file-client";
 import {
   GALLERY_VIEW_PARAM_KEYS,
@@ -168,7 +169,9 @@ export function GalleryPageContent({
       chips.push({
         key: "tag",
         prefix: t("blog.tag").replace(":", ""),
-        label: tag ? (locale === "fr" ? tag.labelFr : tag.labelEn) : tagName,
+        label: tag
+          ? formatTagChipLabel(locale === "fr" ? tag.labelFr : tag.labelEn)
+          : formatTagChipLabel(tagName),
       });
     }
 
@@ -292,7 +295,9 @@ export function GalleryPageContent({
                       )
                     }
                   >
-                    {locale === "fr" ? tag.labelFr : tag.labelEn}
+                    {formatTagChipLabel(
+                      locale === "fr" ? tag.labelFr : tag.labelEn
+                    )}
                   </EditorFilterChip>
                 ))}
               </EditorFilterGroup>

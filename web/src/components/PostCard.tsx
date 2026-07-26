@@ -78,6 +78,7 @@ export function PostCard({ post }: { post: PostCardData }) {
 
         <BlogTaxonomyLinks
           themes={post.themes.map(({ theme }) => theme)}
+          tags={post.tags.map(({ tag }) => tag)}
           className="mt-2"
         />
 
@@ -90,11 +91,6 @@ export function PostCard({ post }: { post: PostCardData }) {
             {excerpt}
           </p>
         ) : null}
-
-        <BlogTaxonomyLinks
-          tags={post.tags.map(({ tag }) => tag)}
-          className="mt-3"
-        />
 
         <Link
           href={`/blog/${post.slug}`}
