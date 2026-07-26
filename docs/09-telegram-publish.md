@@ -66,6 +66,7 @@ UPDATE "User" SET "telegramUserId" = '8137936505' WHERE email = 'lpatrouix@gmail
 | `TELEGRAM_TTS_AUTO` | `voice` (défaut : vocal seulement si message vocal entrant), `always` (texte + vocal à chaque réponse), `off` |
 | `TELEGRAM_TTS_VOICE` | Voix Edge TTS (défaut `fr-FR-DeniseNeural`) |
 | `TELEGRAM_TTS_LANG` | Locale TTS (défaut `fr-FR`) |
+| `TELEGRAM_AGENT_WEB_ENABLED` | `true` / `1` pour exposer `web_search` + `web_fetch` à l’agent Telegram (DuckDuckGo + fetch public, hors API blog) |
 | `SITE_URL` | Liens d'aperçu absolus |
 
 Migration : `media_library` (`Media` + `PostMedia` depuis `PostImage`) · `telegram_publish_flow` · `PreviewToken`.

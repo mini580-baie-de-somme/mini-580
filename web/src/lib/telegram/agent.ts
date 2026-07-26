@@ -18,6 +18,11 @@ import {
   hashMemoryBrief,
   shouldCompactSession,
 } from "@/lib/telegram/session-context";
+import {
+  AGENT_WEB_SYSTEM_APPENDIX,
+  buildAgentWebCustomTools,
+  isTelegramAgentWebEnabled,
+} from "@/lib/agent-web";
 
 function getCursorApiKey(): string | null {
   return process.env.CURSOR_API_KEY?.trim() || null;
@@ -188,7 +193,17 @@ function buildPlatformCustomTools(
     };
   }
 
+  if (isTelegramAgentWebEnabled()) {
+    Object.assign(tools, buildAgentWebCustomTools());
+  }
+
   return tools;
+}
+
+function systemBriefForAgent(): string {
+  return isTelegramAgentWebEnabled()
+    ? `${SYSTEM_BRIEF.trim()}\n${AGENT_WEB_SYSTEM_APPENDIX.trim()}`
+    : SYSTEM_BRIEF;
 }
 
 const SYSTEM_BRIEF = `Tu es l'assistant Class Mini 5.80 Baie de Somme sur Telegram.
@@ -439,7 +454,7 @@ export async function runTelegramAgentTurn(input: {
 
   const message = isBootstrap
     ? `${buildBootstrapUserMessage({
-        systemBrief: SYSTEM_BRIEF,
+        systemBrief: systemBriefForAgent(),
         memoryBrief,
         activeContext,
         sessionSummary: thread.sessionSummary,
