@@ -33,37 +33,20 @@ export function PostCard({ post }: { post: PostCardData }) {
 
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-lg border border-[#d4dde6] bg-white shadow-sm transition hover:shadow-md">
-      <Link
-        href={`/blog/${post.slug}`}
-        className="block aspect-[16/9] shrink-0 overflow-hidden bg-[#eef3f7]"
-        aria-label={title}
-      >
-        {post.coverImageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
+      {post.coverImageUrl ? (
+        <Link
+          href={`/blog/${post.slug}`}
+          className="block aspect-[16/9] shrink-0 overflow-hidden bg-[#eef3f7]"
+          aria-label={title}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={post.coverImageUrl}
             alt=""
             className="h-full w-full object-cover transition group-hover:scale-[1.02]"
           />
-        ) : (
-          <span
-            className="flex h-full w-full items-center justify-center text-[#b0bcc8]"
-            aria-hidden
-          >
-            <svg
-              viewBox="0 0 24 24"
-              className="h-10 w-10 opacity-60"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.25"
-            >
-              <rect x="3.5" y="5.5" width="17" height="13" rx="1.5" />
-              <circle cx="9" cy="10.5" r="1.5" />
-              <path d="m6.5 16.5 3.5-3.5 2.5 2.5 3-3.5 3.5 4.5" />
-            </svg>
-          </span>
-        )}
-      </Link>
+        </Link>
+      ) : null}
 
       <div className="flex flex-1 flex-col p-5">
         {post.hulls.length > 0 ? (
