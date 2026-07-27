@@ -1,0 +1,32 @@
+name: Ops — Docker prune VPS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free disk — unused Docker images and build cache
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          timeout: 120s
+          command_timeout: 15m
+          script: |
+            set -euo pipefail
+            echo "===== disk before ====="
+            df -h /
+            echo "===== docker df before ====="
+            docker system df || true
+            echo "===== prune unused images (keep running stacks) ====="
+            docker image prune -af || true
+            docker builder prune -af || true
+            docker system prune -af || true
+            echo "===== disk after ====="
+            df -h /
+            echo "===== docker df after ====="
+            docker system df || true
+            echo "DONE"
