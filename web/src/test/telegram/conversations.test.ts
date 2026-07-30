@@ -225,6 +225,8 @@ describe("Telegram conversation simulations — parcours guidé", () => {
     expect(reply).toMatch(/bienvenue/);
     expect(reply).toMatch(/999999999/);
     expect(reply).toMatch(/invitation|inv_/);
+    expect(reply).toMatch(/\/blog/);
+    expect(reply).toMatch(/connexion/);
   });
 
   it("one photo + new tag + delayed /traduire after FR edit (Cursor IA)", async () => {

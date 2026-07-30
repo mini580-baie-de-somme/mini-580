@@ -22,6 +22,7 @@ import {
   type BotReply,
 } from "@/lib/telegram/publish-flow";
 import { resolveInboundTelegramContent } from "@/lib/telegram/speech/inbound";
+import { buildUnauthorizedWelcome } from "@/lib/telegram/unauthorized-message";
 import { redeemUserInvite } from "@/lib/user-invite";
 
 type TelegramUser = { id: number; username?: string; first_name?: string };
@@ -63,23 +64,12 @@ function largestPhoto(photos: TelegramPhotoSize[]): TelegramPhotoSize {
 async function ensureAllowed(from: TelegramUser | undefined): Promise<BotReply | null> {
   if (!from) return { text: "Utilisateur Telegram inconnu." };
   if (!(await isTelegramUserAllowed(from.id))) {
-    const label = [from.first_name, from.username ? `@${from.username}` : null]
-      .filter(Boolean)
-      .join(" ");
     console.warn("telegram access denied", {
       userId: from.id,
       username: from.username,
       firstName: from.first_name,
     });
-    return {
-      text: [
-        "👋 Bienvenue Class Mini 5.80",
-        "",
-        `Ton ID Telegram : \`${from.id}\`${label ? `\n(${label})` : ""}`,
-        "",
-        "Transmets cet ID à un admin, ou ouvre le lien d'invitation qu'il t'a envoyé (`/start inv_…`).",
-      ].join("\n"),
-    };
+    return buildUnauthorizedWelcome(from);
   }
   return null;
 }
