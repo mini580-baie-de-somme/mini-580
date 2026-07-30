@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { DisplayLangToggle } from "@/components/DisplayLangToggle";
 
 type Summary = {
   id: string;
@@ -166,15 +165,12 @@ export function SyncPanel() {
             )}
           </p>
         </div>
-        <div className="flex shrink-0 flex-wrap items-start gap-3">
-          <DisplayLangToggle />
-          <Link
-            href="/editeur"
-            className="rounded-md border border-[#d4dde6] px-4 py-2 text-sm text-[#495867]"
-          >
-            ← Éditeur
-          </Link>
-        </div>
+        <Link
+          href="/editeur"
+          className="shrink-0 rounded-md border border-[#d4dde6] px-4 py-2 text-sm text-[#495867]"
+        >
+          ← Éditeur
+        </Link>
       </div>
 
       {loading && <p className="text-sm text-[#495867]">Chargement…</p>}

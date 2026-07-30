@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { AppUser } from "@/lib/auth";
-import { editorNav, isNavActive, isEditorRoute, publicNav } from "@/lib/nav-config";
+import { editorNav, isNavActive, publicNav } from "@/lib/nav-config";
 import { DisplayLangToggle } from "./DisplayLangToggle";
 import {
   ProfileDialog,
@@ -134,8 +134,6 @@ export function AppShell({ user, children }: { user: AppUser | null; children: R
   const [profileOpen, setProfileOpen] = useState(false);
   const pathname = usePathname();
   const { t } = useLocale();
-  const editorRoute = isEditorRoute(pathname);
-
   const closeMenu = useCallback(() => setMenuOpen(false), []);
 
   useEffect(() => {
@@ -233,19 +231,17 @@ export function AppShell({ user, children }: { user: AppUser | null; children: R
           </button>
           <BrandMark compact />
           <div className="flex shrink-0 items-center gap-2">
-            {!editorRoute ? <DisplayLangToggle /> : null}
+            <DisplayLangToggle />
             {user ? (
               <SidebarProfileAvatar user={user} onClick={openProfile} />
             ) : null}
           </div>
         </header>
 
-        {/* Desktop public lang bar — top right */}
-        {!editorRoute ? (
-          <div className="hidden lg:flex sticky top-0 z-20 justify-end border-b border-[#d4dde6] bg-white/90 px-6 py-3 backdrop-blur-sm">
-            <DisplayLangToggle />
-          </div>
-        ) : null}
+        {/* Desktop display lang — always top right */}
+        <div className="hidden lg:flex sticky top-0 z-20 justify-end border-b border-[#d4dde6] bg-white/90 px-6 py-3 backdrop-blur-sm">
+          <DisplayLangToggle />
+        </div>
 
         {children}
       </div>
