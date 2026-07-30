@@ -35,16 +35,33 @@ export async function isUserAdmin(userId: string): Promise<boolean> {
   return Boolean(user?.isAdmin && user.status === UserStatus.ACTIVE);
 }
 
+export function getTelegramAdminUserIds(): Set<string> {
+  return new Set(
+    (process.env.TELEGRAM_USER_ADMIN_IDS ?? "")
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+  );
+}
+
 export async function isTelegramUserAdmin(
   telegramUserId: string
 ): Promise<boolean> {
   const id = String(telegramUserId).trim();
   if (!id) return false;
+
   const user = await prisma.user.findUnique({
     where: { telegramUserId: id },
     select: { isAdmin: true, status: true },
   });
-  return Boolean(user?.isAdmin && user.status === UserStatus.ACTIVE);
+
+  if (user) {
+    if (user.status !== UserStatus.ACTIVE) return false;
+    if (user.isAdmin) return true;
+  }
+
+  // Env bootstrap fallback when DB isAdmin was not backfilled yet (post-migration).
+  return getTelegramAdminUserIds().has(id);
 }
 
 /** Session cookie or Bearer + X-Telegram-User-Id mapped to an ACTIVE admin. */
@@ -72,8 +89,10 @@ export async function getAdminFromRequest(
     where: { telegramUserId },
     select: adminSelect,
   });
-  if (user?.isAdmin && user.status === UserStatus.ACTIVE) {
-    return toSessionUser(user);
+  if (user?.status === UserStatus.ACTIVE) {
+    if (user.isAdmin || getTelegramAdminUserIds().has(telegramUserId)) {
+      return toSessionUser(user);
+    }
   }
   return null;
 }

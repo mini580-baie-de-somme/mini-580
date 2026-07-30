@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { UserStatus } from "@/generated/prisma/client";
 import { isTelegramUserAllowed } from "@/lib/service-auth";
+import { isTelegramUserAdmin } from "@/lib/user-auth";
 import { prisma } from "@/lib/db";
 import { agentCallableTools } from "@/lib/ai-tools-runtime";
 import { systemBriefForAgent } from "@/lib/telegram/agent";
@@ -51,6 +52,41 @@ describe("DB-based telegram allowlist", () => {
       where: { id: userId },
       data: { status: UserStatus.ACTIVE },
     });
+  });
+});
+
+describe("isTelegramUserAdmin env bootstrap fallback", () => {
+  const email = "it-tg-admin-fallback@test.local";
+  const tgId = "9000000102";
+  let userId: string;
+  const saved = process.env.TELEGRAM_USER_ADMIN_IDS;
+
+  beforeAll(async () => {
+    await ensureAdminUser();
+    const user = await prisma.user.create({
+      data: {
+        email,
+        firstName: "Fallback",
+        lastName: "Admin",
+        name: "Fallback Admin",
+        telegramUserId: tgId,
+        passwordHash: "!",
+        status: UserStatus.ACTIVE,
+        isAdmin: false,
+      },
+    });
+    userId = user.id;
+    process.env.TELEGRAM_USER_ADMIN_IDS = tgId;
+  });
+
+  afterAll(async () => {
+    await prisma.user.delete({ where: { id: userId } });
+    if (saved === undefined) delete process.env.TELEGRAM_USER_ADMIN_IDS;
+    else process.env.TELEGRAM_USER_ADMIN_IDS = saved;
+  });
+
+  it("treats env-listed telegram id as admin when DB isAdmin is false", async () => {
+    expect(await isTelegramUserAdmin(tgId)).toBe(true);
   });
 });
 

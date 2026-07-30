@@ -22,5 +22,10 @@ fi
 echo "==> prisma migrate deploy"
 prisma migrate deploy
 
+if [ -f prisma/bootstrap-admins.sql ]; then
+  echo "==> bootstrap platform admins"
+  prisma db execute --file prisma/bootstrap-admins.sql
+fi
+
 echo "==> starting Next.js"
 exec "$@"
