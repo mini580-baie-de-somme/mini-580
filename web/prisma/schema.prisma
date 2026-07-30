@@ -46,6 +46,24 @@ model User {
   posts           Post[]
   otpChallenges   AuthOtpChallenge[]
   invite          UserInvite?
+  webConnectLinks WebConnectLink[]
+}
+
+/// One-time web auto-login link (admin-generated, 5 min TTL + OTP fallback).
+model WebConnectLink {
+  id             String           @id @default(cuid())
+  token          String           @unique
+  userId         String
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  otpChallengeId String?          @unique
+  otpChallenge   AuthOtpChallenge? @relation(fields: [otpChallengeId], references: [id], onDelete: Restrict)
+  expiresAt      DateTime
+  usedAt         DateTime?
+  createdById    String?
+  createdAt      DateTime         @default(now())
+
+  @@index([expiresAt])
+  @@index([userId])
 }
 
 /// One-time Telegram onboarding link (admin-generated, redeemed via /start inv_*).
@@ -71,7 +89,8 @@ model AuthOtpChallenge {
   expiresAt    DateTime
   attempts     Int            @default(0)
   createdAt    DateTime       @default(now())
-  user         User?          @relation(fields: [email], references: [email], onDelete: Cascade)
+  user            User?           @relation(fields: [email], references: [email], onDelete: Cascade)
+  webConnectLink  WebConnectLink?
 
   @@index([email, purpose, createdAt])
   @@index([expiresAt])

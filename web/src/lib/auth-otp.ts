@@ -7,7 +7,7 @@ import { appLog } from "@/lib/app-log";
 import { prisma } from "@/lib/db";
 import { sendTelegramPlainText } from "@/lib/telegram/api";
 
-const OTP_TTL_MS = 5 * 60 * 1000;
+export const OTP_TTL_MS = 5 * 60 * 1000;
 const OTP_MAX_ATTEMPTS = 5;
 const OTP_RATE_LIMIT_COUNT = 3;
 const OTP_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
@@ -171,6 +171,11 @@ export async function verifyAuthOtp(input: {
     return { ok: false, status: 401, error: "Code incorrect" };
   }
 
+  await prisma.webConnectLink.updateMany({
+    where: { otpChallengeId: challenge.id },
+    data: { usedAt: new Date(), otpChallengeId: null },
+  });
+
   await prisma.authOtpChallenge.delete({ where: { id: challenge.id } });
 
   const user = await prisma.user.findUnique({
@@ -206,4 +211,77 @@ export async function createTestOtpChallenge(input: {
 
 export function otpFingerprint(code: string): string {
   return createHash("sha256").update(code).digest("hex").slice(0, 8);
+}
+
+/** Admin web-connect: OTP challenge without Telegram send or rate limit. */
+export async function createAdminWebConnectOtpChallenge(input: {
+  email: string;
+}): Promise<
+  | { ok: true; challengeId: string; code: string; expiresAt: Date }
+  | { ok: false; status: number; error: string }
+> {
+  const email = normalizeEmail(input.email);
+  appLog("auth-otp", "info", "admin_web_connect_create", { email });
+
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: { status: true },
+  });
+
+  if (!user || user.status !== UserStatus.ACTIVE) {
+    return { ok: false, status: 403, error: "Utilisateur inactif ou introuvable" };
+  }
+
+  const code = generateOtpCode();
+  const codeHash = await hashOtpCode(code);
+  const expiresAt = new Date(Date.now() + OTP_TTL_MS);
+
+  const challenge = await prisma.authOtpChallenge.create({
+    data: {
+      email,
+      purpose: AuthOtpPurpose.LOGIN,
+      codeHash,
+      expiresAt,
+    },
+  });
+
+  return { ok: true, challengeId: challenge.id, code, expiresAt };
+}
+
+/** Consume OTP by challenge id (magic-link redeem — no user-entered code). */
+export async function redeemOtpChallengeById(challengeId: string): Promise<VerifyOtpResult> {
+  const challenge = await prisma.authOtpChallenge.findUnique({
+    where: { id: challengeId },
+  });
+
+  if (!challenge) {
+    return { ok: false, status: 401, error: "Code expiré ou invalide" };
+  }
+
+  if (challenge.expiresAt.getTime() < Date.now()) {
+    return { ok: false, status: 401, error: "Code expiré ou invalide" };
+  }
+
+  if (challenge.purpose !== AuthOtpPurpose.LOGIN) {
+    return { ok: false, status: 400, error: "Challenge invalide" };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email: challenge.email },
+    select: { id: true, email: true, name: true, status: true },
+  });
+
+  if (!user || user.status !== UserStatus.ACTIVE) {
+    return { ok: false, status: 403, error: "Email not authorized" };
+  }
+
+  await prisma.webConnectLink.updateMany({
+    where: { otpChallengeId: challenge.id },
+    data: { usedAt: new Date(), otpChallengeId: null },
+  });
+
+  await prisma.authOtpChallenge.delete({ where: { id: challenge.id } });
+
+  appLog("auth-otp", "info", "redeem_by_challenge_id", { email: user.email, userId: user.id });
+  return { ok: true, userId: user.id, email: user.email, name: user.name };
 }

@@ -65,6 +65,7 @@ describe("agentCallableTools admin filter", () => {
     expect(tools).toContain("users.list");
     expect(tools).toContain("users.create");
     expect(tools).toContain("users.invite");
+    expect(tools).toContain("users.webConnect");
   });
 });
 
@@ -73,6 +74,7 @@ describe("systemBriefForAgent role conditioning", () => {
     const brief = systemBriefForAgent(true);
     expect(brief).toContain("users_list");
     expect(brief).toContain("users_invite");
+    expect(brief).toContain("users_webConnect");
     expect(brief).toContain("users_setAdmin");
   });
 

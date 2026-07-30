@@ -543,6 +543,15 @@ export const AI_TOOLS: AiToolDef[] = [
     auth: "bearer_or_session",
     category: "users",
   },
+  {
+    name: "users.webConnect",
+    description:
+      "Generate 5-minute web auto-login link + OTP fallback for an ACTIVE user. Returns copyPasteMessage (URL + code) for admin to forward via Telegram or mail. Admin only.",
+    method: "POST",
+    path: "/api/users/:id/web-connect",
+    auth: "bearer_or_session",
+    category: "users",
+  },
 ];
 
 export function aiToolsByCategory(category: AiToolDef["category"]): AiToolDef[] {

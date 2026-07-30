@@ -206,12 +206,13 @@ const USERS_ADMIN_APPENDIX = `
 Gestion des comptes (admin uniquement — tools users_* disponibles pour toi) :
 - users_list : lister les utilisateurs (ACTIVE/INACTIVE/PENDING ; ?includeArchived=true pour tout voir)
 - users_invite : créer une invitation Telegram (prénom, nom, email) → retourne copyPasteMessage à transmettre au nouvel utilisateur
+- users_webConnect : générer un lien de connexion web (5 min) + code OTP pour un utilisateur ACTIVE existant → copyPasteMessage à transmettre
 - users_create : prénom, nom, email, telegramUserId (si l'ID Telegram est déjà connu)
 - users_update : modifier prénom, nom, email, telegramUserId
 - users_deactivate : bloquer web + bot (INACTIVE)
 - users_archive : retirer des listes actives (ARCHIVED)
 - users_setAdmin : promouvoir ou rétrograder un admin (seul un admin peut le faire)
-Pour users_invite : affiche toujours copyPasteMessage tel quel (lien t.me + tag inv_*) pour que l'admin puisse copier-coller vers Telegram ou mail.
+Pour users_invite et users_webConnect : affiche toujours copyPasteMessage tel quel pour que l'admin puisse copier-coller vers Telegram ou mail.
 Ne jamais créer/modifier/désactiver un compte sans confirmation explicite de l'utilisateur.
 `;
 
