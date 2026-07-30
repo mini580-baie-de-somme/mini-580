@@ -54,7 +54,7 @@ export function EditorPostList({ filterOptions }: { filterOptions: FilterOptions
     queryString,
   });
 
-  async function remove(post: EditorPostListItem) {
+  function statusLabel(status: EditorPostListItem["status"]) {
     if (status === "PUBLISHED") return t("editor.status.published");
     if (status === "ARCHIVED") return t("editor.status.archived");
     return t("editor.status.draft");
