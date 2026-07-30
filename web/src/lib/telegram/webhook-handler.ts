@@ -22,6 +22,7 @@ import {
   type BotReply,
 } from "@/lib/telegram/publish-flow";
 import { resolveInboundTelegramContent } from "@/lib/telegram/speech/inbound";
+import { redeemUserInvite } from "@/lib/user-invite";
 
 type TelegramUser = { id: number; username?: string; first_name?: string };
 type TelegramChat = { id: number; type: string };
@@ -71,10 +72,21 @@ async function ensureAllowed(from: TelegramUser | undefined): Promise<BotReply |
       firstName: from.first_name,
     });
     return {
-      text: `⛔ Compte non autorisé.\n\nTon ID Telegram : \`${from.id}\`${label ? `\n(${label})` : ""}\n\nTransmets cet ID à l'admin pour être ajouté à l'allowlist.`,
+      text: [
+        "👋 Bienvenue Class Mini 5.80",
+        "",
+        `Ton ID Telegram : \`${from.id}\`${label ? `\n(${label})` : ""}`,
+        "",
+        "Transmets cet ID à un admin, ou ouvre le lien d'invitation qu'il t'a envoyé (`/start inv_…`).",
+      ].join("\n"),
     };
   }
   return null;
+}
+
+function extractStartPayload(text: string): string | null {
+  const match = /^\/start(?:@[\w_]+)?(?:\s+(.+))?$/i.exec(text.trim());
+  return match?.[1]?.trim() || null;
 }
 
 const HELP = [
@@ -122,12 +134,6 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<voi
   const message = update.message;
   if (!message?.from) return;
 
-  const denied = await ensureAllowed(message.from);
-  if (denied) {
-    await sendTelegramReply(message.chat.id, denied);
-    return;
-  }
-
   const userId = String(message.from.id);
   const chatId = String(message.chat.id);
 
@@ -156,6 +162,31 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<voi
     await sendTelegramReply(message.chat.id, {
       text: err instanceof Error ? err.message : String(err),
     });
+    return;
+  }
+
+  const startPayload = extractStartPayload(text);
+  if (startPayload && /^inv_/i.test(startPayload)) {
+    const label = [
+      message.from.first_name,
+      message.from.username ? `@${message.from.username}` : null,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    const redeemed = await redeemUserInvite({
+      payload: startPayload,
+      telegramUserId: userId,
+      telegramLabel: label || undefined,
+    });
+    await sendTelegramReply(message.chat.id, {
+      text: redeemed.ok ? redeemed.welcomeText : redeemed.errorText,
+    });
+    return;
+  }
+
+  const denied = await ensureAllowed(message.from);
+  if (denied) {
+    await sendTelegramReply(message.chat.id, denied);
     return;
   }
 

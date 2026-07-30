@@ -534,6 +534,15 @@ export const AI_TOOLS: AiToolDef[] = [
     auth: "bearer_or_session",
     category: "users",
   },
+  {
+    name: "users.invite",
+    description:
+      "Create PENDING user + invite tag/link for Telegram onboarding. Body: { firstName, lastName, email, isAdmin? }. Returns copyPasteMessage for admin to forward. Admin only.",
+    method: "POST",
+    path: "/api/users/invite",
+    auth: "bearer_or_session",
+    category: "users",
+  },
 ];
 
 export function aiToolsByCategory(category: AiToolDef["category"]): AiToolDef[] {

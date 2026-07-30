@@ -64,6 +64,7 @@ describe("agentCallableTools admin filter", () => {
     const tools = agentCallableTools({ isAdmin: true }).map((t) => t.name);
     expect(tools).toContain("users.list");
     expect(tools).toContain("users.create");
+    expect(tools).toContain("users.invite");
   });
 });
 
@@ -71,6 +72,7 @@ describe("systemBriefForAgent role conditioning", () => {
   it("includes users_* guidance for admin", () => {
     const brief = systemBriefForAgent(true);
     expect(brief).toContain("users_list");
+    expect(brief).toContain("users_invite");
     expect(brief).toContain("users_setAdmin");
   });
 

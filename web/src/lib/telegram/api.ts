@@ -7,6 +7,40 @@ export function getTelegramBotToken(): string | null {
   return process.env.TELEGRAM_BOT_TOKEN?.trim() || null;
 }
 
+let cachedBotUsername: string | null | undefined;
+
+/** Bot @username for t.me invite links — env override or getMe cache. */
+export async function getTelegramBotUsername(): Promise<string | null> {
+  const fromEnv = process.env.TELEGRAM_BOT_USERNAME?.trim().replace(/^@/, "");
+  if (fromEnv) return fromEnv;
+
+  if (cachedBotUsername !== undefined) {
+    return cachedBotUsername;
+  }
+
+  const token = getTelegramBotToken();
+  if (!token) {
+    cachedBotUsername = null;
+    return null;
+  }
+
+  try {
+    const meta = await telegramCall("getMe", {});
+    const username =
+      meta.ok &&
+      meta.result &&
+      typeof meta.result === "object" &&
+      typeof (meta.result as { username?: string }).username === "string"
+        ? (meta.result as { username: string }).username
+        : null;
+    cachedBotUsername = username;
+    return username;
+  } catch {
+    cachedBotUsername = null;
+    return null;
+  }
+}
+
 type TelegramApiResult = { ok: boolean; result?: unknown; description?: string };
 
 async function telegramCall(
