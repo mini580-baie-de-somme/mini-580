@@ -13,6 +13,17 @@ enum PostStatus {
   ARCHIVED
 }
 
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum AuthOtpPurpose {
+  LOGIN
+  PASSWORD_RESET
+}
+
 enum Hull {
   HULL_268
   HULL_269
@@ -20,13 +31,34 @@ enum Hull {
 }
 
 model User {
-  id              String   @id @default(cuid())
-  email           String   @unique
+  id              String     @id @default(cuid())
+  email           String     @unique
+  firstName       String?
+  lastName        String?
+  /// Derived display name: "firstName lastName" (kept for compat)
   name            String?
   passwordHash    String
-  telegramUserId  String?  @unique
-  createdAt       DateTime @default(now())
+  telegramUserId  String?    @unique
+  status          UserStatus @default(ACTIVE)
+  isAdmin         Boolean    @default(false)
+  createdAt       DateTime   @default(now())
   posts           Post[]
+  otpChallenges   AuthOtpChallenge[]
+}
+
+/// One-time login / password-reset codes (hashed, sent via Telegram).
+model AuthOtpChallenge {
+  id           String         @id @default(cuid())
+  email        String
+  purpose      AuthOtpPurpose
+  codeHash     String
+  expiresAt    DateTime
+  attempts     Int            @default(0)
+  createdAt    DateTime       @default(now())
+  user         User?          @relation(fields: [email], references: [email], onDelete: Cascade)
+
+  @@index([email, purpose, createdAt])
+  @@index([expiresAt])
 }
 
 model Post {

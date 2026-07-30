@@ -20,7 +20,8 @@ export type AiToolDef = {
     | "milestones"
     | "memory"
     | "sync"
-    | "translate";
+    | "translate"
+    | "users";
 };
 
 export const AI_TOOLS: AiToolDef[] = [
@@ -480,6 +481,58 @@ export const AI_TOOLS: AiToolDef[] = [
     path: "/api/agent-memory/:id",
     auth: "bearer_or_session",
     category: "memory",
+  },
+
+  // User management (admin only)
+  {
+    name: "users.list",
+    description:
+      "List platform users (ACTIVE + INACTIVE by default; ?includeArchived=true for all). Admin only.",
+    method: "GET",
+    path: "/api/users",
+    auth: "bearer_or_session",
+    category: "users",
+  },
+  {
+    name: "users.create",
+    description:
+      "Create user: { firstName, lastName, email, telegramUserId }. OTP-only until password set. Admin only.",
+    method: "POST",
+    path: "/api/users",
+    auth: "bearer_or_session",
+    category: "users",
+  },
+  {
+    name: "users.update",
+    description: "Patch user fields (firstName, lastName, email, telegramUserId). Admin only.",
+    method: "PATCH",
+    path: "/api/users/:id",
+    auth: "bearer_or_session",
+    category: "users",
+  },
+  {
+    name: "users.deactivate",
+    description: "Set user status INACTIVE. Admin only.",
+    method: "POST",
+    path: "/api/users/:id/deactivate",
+    auth: "bearer_or_session",
+    category: "users",
+  },
+  {
+    name: "users.archive",
+    description: "Set user status ARCHIVED. Admin only.",
+    method: "POST",
+    path: "/api/users/:id/archive",
+    auth: "bearer_or_session",
+    category: "users",
+  },
+  {
+    name: "users.setAdmin",
+    description: "Set isAdmin flag: { isAdmin: boolean }. Admin only.",
+    method: "POST",
+    path: "/api/users/:id/set-admin",
+    auth: "bearer_or_session",
+    category: "users",
   },
 ];
 

@@ -22,7 +22,7 @@ vi.mock("next/headers", () => ({
   cookies: async () => ({ get: () => undefined }),
 }));
 
-const LAURENT_TG = "8137936505";
+const LAURENT_TG = "9000007777";
 const HAMMED_TG = "7257839706";
 const LAURENT_EMAIL = "it-laurent-telegram@test.local";
 const PREFIX = "it-tg-author";
@@ -39,11 +39,16 @@ describe("Telegram author mapping", () => {
     const passwordHash = await hashPassword("changeme123");
     const laurent = await prisma.user.upsert({
       where: { email: LAURENT_EMAIL },
-      update: { name: "Laurent IT", telegramUserId: null },
+      update: {
+        name: "Laurent IT",
+        telegramUserId: null,
+        status: "ACTIVE",
+      },
       create: {
         email: LAURENT_EMAIL,
         name: "Laurent IT",
         passwordHash,
+        status: "ACTIVE",
       },
     });
     laurentId = laurent.id;
@@ -86,9 +91,10 @@ describe("Telegram author mapping", () => {
   it("maps via User.telegramUserId in DB", async () => {
     await prisma.user.update({
       where: { id: laurentId },
-      data: { telegramUserId: LAURENT_TG },
+      data: { telegramUserId: LAURENT_TG, status: "ACTIVE" },
     });
     delete process.env.TELEGRAM_USER_MAP;
+    delete process.env.TELEGRAM_ALLOWED_USER_IDS;
 
     const user = await resolveTelegramAuthorUser(LAURENT_TG);
     expect(user?.id).toBe(laurentId);
@@ -98,6 +104,7 @@ describe("Telegram author mapping", () => {
       where: { id: laurentId },
       data: { telegramUserId: null },
     });
+    process.env.TELEGRAM_ALLOWED_USER_IDS = `${LAURENT_TG},${HAMMED_TG}`;
   });
 
   it("maps via TELEGRAM_USER_MAP when DB column unset", async () => {

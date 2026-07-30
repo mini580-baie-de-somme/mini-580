@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { UserStatus } from "@/generated/prisma/client";
 import { hashPassword } from "@/lib/auth";
 import { SESSION_COOKIE } from "@/lib/constants";
 import { prisma } from "@/lib/db";
@@ -32,7 +33,7 @@ describe("Platform editors + post author", () => {
     await ensureAdminUser();
   });
 
-  it("lists only allowlisted users from DB", async () => {
+  it("lists ACTIVE users from DB", async () => {
     const editors = await listPlatformEditors();
     expect(editors.some((e) => e.email === ADMIN_EMAIL)).toBe(true);
   });
@@ -52,6 +53,7 @@ describe("Platform editors + post author", () => {
         email: laurentEmail,
         name: "Laurent IT",
         passwordHash,
+        status: UserStatus.ACTIVE,
       },
     });
 
@@ -99,7 +101,7 @@ describe("Platform editors + post author", () => {
     }
   });
 
-  it("rejects authorId not on allowlist", async () => {
+  it("rejects INACTIVE authorId on session create", async () => {
     const admin = await ensureAdminUser();
     const outsiderEmail = `it-outsider-${Date.now()}@example.com`;
     const outsider = await prisma.user.create({
@@ -107,29 +109,32 @@ describe("Platform editors + post author", () => {
         email: outsiderEmail,
         name: "Outsider",
         passwordHash: await hashPassword("changeme123"),
+        status: UserStatus.INACTIVE,
       },
     });
 
     const { createSessionToken } = await import("@/lib/auth");
     mockSessionToken.current = await createSessionToken(admin);
 
-    const { POST } = await import("@/app/api/posts/route");
-    const marker = uniqueSlug("it-author-bad");
-    const createRes = await POST(
-      jsonRequest("http://localhost/api/posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          titleFr: marker,
-          titleEn: marker,
-          authorId: outsider.id,
-        }),
-      })
-    );
-    expect(createRes.status).toBe(400);
-
-    mockSessionToken.current = undefined;
-    await prisma.user.delete({ where: { id: outsider.id } });
+    try {
+      const { POST } = await import("@/app/api/posts/route");
+      const marker = uniqueSlug("it-author-bad");
+      const createRes = await POST(
+        jsonRequest("http://localhost/api/posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            titleFr: marker,
+            titleEn: marker,
+            authorId: outsider.id,
+          }),
+        })
+      );
+      expect(createRes.status).toBe(400);
+    } finally {
+      mockSessionToken.current = undefined;
+      await prisma.user.delete({ where: { id: outsider.id } });
+    }
   });
 
   it("ignores authorId override on Bearer create", async () => {

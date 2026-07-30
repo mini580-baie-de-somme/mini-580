@@ -39,12 +39,15 @@ export function findAiTool(nameOrKey: string): AiToolDef | undefined {
 }
 
 /** Tools safe for the Telegram Cursor agent (Bearer). */
-export function agentCallableTools(): AiToolDef[] {
-  return AI_TOOLS.filter(
-    (t) =>
-      t.category !== "sync" &&
-      (t.auth === "bearer_or_session" || t.auth === "public")
-  );
+export function agentCallableTools(options?: {
+  isAdmin?: boolean;
+}): AiToolDef[] {
+  const isAdmin = options?.isAdmin ?? false;
+  return AI_TOOLS.filter((t) => {
+    if (t.category === "sync") return false;
+    if (t.category === "users" && !isAdmin) return false;
+    return t.auth === "bearer_or_session" || t.auth === "public";
+  });
 }
 
 function buildQuery(query?: ToolCallArgs["query"]): string {

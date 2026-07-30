@@ -1,24 +1,73 @@
 import bcrypt from "bcrypt";
-import { PostStatus, Hull } from "../web/src/generated/prisma/client";
+import { PostStatus, Hull, UserStatus } from "../web/src/generated/prisma/client";
 import { createPrismaClient } from "../web/src/lib/prisma-client";
+import { OTP_ONLY_PASSWORD_HASH } from "../web/src/lib/auth-constants";
+import { deriveUserName } from "../web/src/lib/user-names";
 import { classMilestones } from "./seed-data/milestones";
 
 const prisma = createPrismaClient();
 
-async function main() {
-  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? "admin@classmini580.blog";
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "changeme123";
-  const passwordHash = await bcrypt.hash(adminPassword, 12);
+const BOOTSTRAP_ADMINS = [
+  {
+    email: process.env.SEED_ADMIN_EMAIL ?? "admin@classmini580.blog",
+    firstName: "Hammed",
+    lastName: "Ramdani",
+    telegramUserId: "7257839706",
+    passwordFromEnv: true,
+  },
+  {
+    email: "lpatrouix@gmail.com",
+    firstName: "Laurent",
+    lastName: "Patrouix",
+    telegramUserId: "8137936505",
+    passwordFromEnv: false,
+  },
+];
 
-  const admin = await prisma.user.upsert({
-    where: { email: adminEmail },
-    update: { passwordHash, name: "Admin Class Mini 5.80" },
-    create: {
-      email: adminEmail,
-      name: "Admin Class Mini 5.80",
-      passwordHash,
-    },
+async function main() {
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "changeme123";
+  const defaultPasswordHash = await bcrypt.hash(adminPassword, 12);
+
+  let primaryAdminId: string | null = null;
+
+  for (const admin of BOOTSTRAP_ADMINS) {
+    const email = admin.email.trim().toLowerCase();
+    const name = deriveUserName(admin.firstName, admin.lastName);
+    const passwordHash = admin.passwordFromEnv
+      ? defaultPasswordHash
+      : OTP_ONLY_PASSWORD_HASH;
+
+    const user = await prisma.user.upsert({
+      where: { email },
+      update: {
+        firstName: admin.firstName,
+        lastName: admin.lastName,
+        name,
+        telegramUserId: admin.telegramUserId,
+        status: UserStatus.ACTIVE,
+        isAdmin: true,
+        ...(admin.passwordFromEnv ? { passwordHash: defaultPasswordHash } : {}),
+      },
+      create: {
+        email,
+        firstName: admin.firstName,
+        lastName: admin.lastName,
+        name,
+        telegramUserId: admin.telegramUserId,
+        passwordHash,
+        status: UserStatus.ACTIVE,
+        isAdmin: true,
+      },
+    });
+
+    if (admin.passwordFromEnv) primaryAdminId = user.id;
+  }
+
+  const admin = await prisma.user.findUnique({
+    where: { email: (process.env.SEED_ADMIN_EMAIL ?? "admin@classmini580.blog").toLowerCase() },
   });
+  if (!admin) throw new Error("Bootstrap admin missing after seed");
+  const adminId = primaryAdminId ?? admin.id;
 
   const themes = [
     { slug: "fournisseurs", labelFr: "Fournisseurs", labelEn: "Suppliers" },
@@ -163,7 +212,7 @@ Lesson learned: always verify plan compliance before ordering. Transparency incl
         status: PostStatus.PUBLISHED,
         publishedAt: p.publishedAt,
         coverImageUrl: p.coverImageUrl ?? null,
-        authorId: admin.id,
+        authorId: adminId,
       },
       create: {
         slug: p.slug,
@@ -176,7 +225,7 @@ Lesson learned: always verify plan compliance before ordering. Transparency incl
         status: PostStatus.PUBLISHED,
         publishedAt: p.publishedAt,
         coverImageUrl: p.coverImageUrl ?? null,
-        authorId: admin.id,
+        authorId: adminId,
       },
     });
 
@@ -213,7 +262,7 @@ Lesson learned: always verify plan compliance before ordering. Transparency incl
   }
 
   console.log("Seed complete:");
-  console.log(`  Admin: ${adminEmail}`);
+  console.log(`  Admins: ${BOOTSTRAP_ADMINS.map((a) => a.email).join(", ")}`);
   console.log(`  Posts: ${posts.length}`);
   console.log(`  Milestones: ${classMilestones.length}`);
   console.log(`  Themes: ${themes.length}`);

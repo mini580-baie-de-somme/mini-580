@@ -1,5 +1,6 @@
 import "server-only";
 
+import { UserStatus } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { getEditorsAllowlist } from "@/lib/auth";
 
@@ -9,8 +10,15 @@ export type PlatformEditor = {
   name: string | null;
 };
 
-/** Platform editors = users in DB whose email is on EDITORS_ALLOWLIST. */
+/** Platform editors = ACTIVE users in DB (allowlist env fallback when no status rows). */
 export async function listPlatformEditors(): Promise<PlatformEditor[]> {
+  const activeUsers = await prisma.user.findMany({
+    where: { status: UserStatus.ACTIVE },
+    select: { id: true, email: true, name: true },
+    orderBy: [{ name: "asc" }, { email: "asc" }],
+  });
+  if (activeUsers.length > 0) return activeUsers;
+
   const allowlist = new Set(getEditorsAllowlist());
   if (allowlist.size === 0) return [];
 

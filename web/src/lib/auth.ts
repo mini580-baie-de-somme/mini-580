@@ -1,8 +1,10 @@
 import bcrypt from "bcrypt";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { UserStatus } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { SESSION_COOKIE, SESSION_MAX_AGE } from "@/lib/constants";
+import { isOtpOnlyPasswordHash } from "@/lib/auth-constants";
 
 export interface SessionUser {
   id: string;
@@ -25,8 +27,15 @@ export function getEditorsAllowlist(): string[] {
     .filter(Boolean);
 }
 
-export function isEmailAllowed(email: string): boolean {
-  return getEditorsAllowlist().includes(email.toLowerCase());
+/** DB ACTIVE user, with EDITORS_ALLOWLIST env fallback during migration. */
+export async function isEmailAllowed(email: string): Promise<boolean> {
+  const normalized = email.trim().toLowerCase();
+  const user = await prisma.user.findUnique({
+    where: { email: normalized },
+    select: { status: true },
+  });
+  if (user) return user.status === UserStatus.ACTIVE;
+  return getEditorsAllowlist().includes(normalized);
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -37,6 +46,7 @@ export async function verifyPassword(
   password: string,
   hash: string
 ): Promise<boolean> {
+  if (isOtpOnlyPasswordHash(hash)) return false;
   return bcrypt.compare(password, hash);
 }
 
@@ -86,9 +96,10 @@ export async function getSessionUserFromDb(): Promise<SessionUser | null> {
   if (!session) return null;
   const user = await prisma.user.findUnique({
     where: { id: session.id },
-    select: { id: true, email: true, name: true },
+    select: { id: true, email: true, name: true, status: true },
   });
-  return user;
+  if (!user || user.status !== UserStatus.ACTIVE) return null;
+  return { id: user.id, email: user.email, name: user.name };
 }
 
 function sessionCookieSecure(): boolean {

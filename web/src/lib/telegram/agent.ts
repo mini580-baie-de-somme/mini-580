@@ -11,6 +11,7 @@ import {
   type ToolCallArgs,
 } from "@/lib/ai-tools-runtime";
 import { formatAgentMemoryBrief } from "@/lib/agent-memory";
+import { isTelegramUserAdmin } from "@/lib/user-auth";
 import {
   SESSION_COMPACT_USER_PROMPT,
   buildBootstrapUserMessage,
@@ -131,11 +132,12 @@ async function rememberActiveIds(
 
 function buildPlatformCustomTools(
   threadId: string,
-  telegramUserId: string
+  telegramUserId: string,
+  isAdmin: boolean
 ): Record<string, SDKCustomTool> {
   const tools: Record<string, SDKCustomTool> = {};
 
-  for (const def of agentCallableTools()) {
+  for (const def of agentCallableTools({ isAdmin })) {
     const key = toolNameToKey(def.name);
     tools[key] = {
       description: `${def.description} [${def.method} ${def.path}]`,
@@ -436,7 +438,12 @@ export async function runTelegramAgentTurn(input: {
     input.telegramUserId,
     input.telegramChatId
   );
-  const customTools = buildPlatformCustomTools(thread.id, input.telegramUserId);
+  const isAdmin = await isTelegramUserAdmin(input.telegramUserId);
+  const customTools = buildPlatformCustomTools(
+    thread.id,
+    input.telegramUserId,
+    isAdmin
+  );
   const cwd = getCursorCwd();
   const model = { id: getCursorModelId() };
   const memoryBrief = await formatAgentMemoryBrief();

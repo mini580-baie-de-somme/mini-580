@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { UserStatus } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import {
   createSessionToken,
@@ -7,6 +8,8 @@ import {
   sessionCookieOptions,
   verifyPassword,
 } from "@/lib/auth";
+import { appLog } from "@/lib/app-log";
+import { isOtpOnlyPasswordHash } from "@/lib/auth-constants";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -17,8 +20,11 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { email, password } = loginSchema.parse(body);
+    const normalized = email.toLowerCase();
 
-    if (!isEmailAllowed(email)) {
+    appLog("auth-login", "info", "attempt", { email: normalized });
+
+    if (!(await isEmailAllowed(normalized))) {
       return NextResponse.json(
         { error: "Email not authorized" },
         { status: 403 }
@@ -26,9 +32,15 @@ export async function POST(request: NextRequest) {
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email: normalized },
     });
-    if (!user || !(await verifyPassword(password, user.passwordHash))) {
+    if (
+      !user ||
+      user.status !== UserStatus.ACTIVE ||
+      isOtpOnlyPasswordHash(user.passwordHash) ||
+      !(await verifyPassword(password, user.passwordHash))
+    ) {
+      appLog("auth-login", "warn", "invalid_credentials", { email: normalized });
       return NextResponse.json(
         { error: "Invalid credentials" },
         { status: 401 }
@@ -40,6 +52,8 @@ export async function POST(request: NextRequest) {
       email: user.email,
       name: user.name,
     });
+
+    appLog("auth-login", "info", "ok", { userId: user.id });
 
     const response = NextResponse.json({
       user: { id: user.id, email: user.email, name: user.name },

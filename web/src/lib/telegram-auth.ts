@@ -1,10 +1,28 @@
 import "server-only";
 
 import type { SessionUser } from "@/lib/auth";
+import { UserStatus } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { isTelegramUserAllowed } from "@/lib/service-auth";
 
 export const TELEGRAM_USER_ID_HEADER = "X-Telegram-User-Id";
+
+const sessionUserSelect = {
+  id: true,
+  email: true,
+  name: true,
+  status: true,
+} as const;
+
+function activeSessionUser(row: {
+  id: string;
+  email: string;
+  name: string | null;
+  status: UserStatus;
+}): SessionUser | null {
+  if (row.status !== UserStatus.ACTIVE) return null;
+  return { id: row.id, email: row.email, name: row.name };
+}
 
 function serviceUserEmail(): string | null {
   return (
@@ -33,16 +51,17 @@ export function parseTelegramUserMap(): Map<string, string> {
 export async function resolveServiceEditorUser(): Promise<SessionUser | null> {
   const email = serviceUserEmail();
   if (!email) return null;
-  return prisma.user.findUnique({
+  const user = await prisma.user.findUnique({
     where: { email },
-    select: { id: true, email: true, name: true },
+    select: sessionUserSelect,
   });
+  return user ? activeSessionUser(user) : null;
 }
 
 /**
  * Map a Telegram user id to a platform User (author).
  * Lookup: DB telegramUserId → TELEGRAM_USER_MAP → TELEGRAM_SERVICE_USER_EMAIL.
- * Only maps when the id is in TELEGRAM_ALLOWED_USER_IDS; otherwise service user.
+ * Only maps when the id is allowed (DB ACTIVE or env allowlist); otherwise service user.
  */
 export async function resolveTelegramAuthorUser(
   telegramUserId: string
@@ -50,23 +69,29 @@ export async function resolveTelegramAuthorUser(
   const id = String(telegramUserId).trim();
   if (!id) return resolveServiceEditorUser();
 
-  if (!isTelegramUserAllowed(id)) {
+  if (!(await isTelegramUserAllowed(id))) {
     return resolveServiceEditorUser();
   }
 
   const byTelegram = await prisma.user.findUnique({
     where: { telegramUserId: id },
-    select: { id: true, email: true, name: true },
+    select: sessionUserSelect,
   });
-  if (byTelegram) return byTelegram;
+  if (byTelegram) {
+    const active = activeSessionUser(byTelegram);
+    if (active) return active;
+  }
 
   const mappedEmail = parseTelegramUserMap().get(id);
   if (mappedEmail) {
     const byEmail = await prisma.user.findUnique({
       where: { email: mappedEmail },
-      select: { id: true, email: true, name: true },
+      select: sessionUserSelect,
     });
-    if (byEmail) return byEmail;
+    if (byEmail) {
+      const active = activeSessionUser(byEmail);
+      if (active) return active;
+    }
   }
 
   return resolveServiceEditorUser();

@@ -141,8 +141,8 @@ const messages = {
 
   "login.title": { fr: "Connexion éditeur", en: "Editor sign-in" },
   "login.subtitle": {
-    fr: "Accès réservé aux membres de l'équipe Class Mini 5.80 Baie de Somme (allowlist email).",
-    en: "Access restricted to Class Mini 5.80 Baie de Somme team members (email allowlist).",
+    fr: "Accès réservé aux membres actifs de l'équipe Class Mini 5.80 Baie de Somme.",
+    en: "Access restricted to active Class Mini 5.80 Baie de Somme team members.",
   },
   "login.email": { fr: "Email", en: "Email" },
   "login.password": { fr: "Mot de passe", en: "Password" },
@@ -150,6 +150,19 @@ const messages = {
   "login.loading": { fr: "Connexion…", en: "Signing in…" },
   "login.failed": { fr: "Connexion impossible", en: "Sign-in failed" },
   "login.network": { fr: "Erreur réseau", en: "Network error" },
+  "login.modePassword": { fr: "Mot de passe", en: "Password" },
+  "login.modeOtp": { fr: "Code Telegram", en: "Telegram code" },
+  "login.otpRequest": { fr: "Recevoir un code", en: "Send code" },
+  "login.otpCode": { fr: "Code à 4 chiffres", en: "4-digit code" },
+  "login.otpVerify": { fr: "Valider le code", en: "Verify code" },
+  "login.otpSent": {
+    fr: "Code envoyé sur Telegram (valide 5 minutes).",
+    en: "Code sent on Telegram (valid 5 minutes).",
+  },
+  "login.otpRequestFailed": {
+    fr: "Impossible d'envoyer le code.",
+    en: "Could not send the code.",
+  },
 
   "article.gallery": { fr: "Médias", en: "Media" },
   "article.back": { fr: "Retour au blog", en: "Back to blog" },

@@ -61,7 +61,7 @@ function largestPhoto(photos: TelegramPhotoSize[]): TelegramPhotoSize {
 
 async function ensureAllowed(from: TelegramUser | undefined): Promise<BotReply | null> {
   if (!from) return { text: "Utilisateur Telegram inconnu." };
-  if (!isTelegramUserAllowed(from.id)) {
+  if (!(await isTelegramUserAllowed(from.id))) {
     const label = [from.first_name, from.username ? `@${from.username}` : null]
       .filter(Boolean)
       .join(" ");

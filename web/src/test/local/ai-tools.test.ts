@@ -56,6 +56,7 @@ describe("API integration — IA tools full capacity (Bearer)", () => {
       "memory",
       "sync",
       "translate",
+      "users",
     ] as const) {
       expect(cats.has(c)).toBe(true);
       expect(aiToolsByCategory(c).length).toBeGreaterThan(0);

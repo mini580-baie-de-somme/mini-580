@@ -4,6 +4,8 @@ import { resolve } from "node:path";
 import { NextRequest } from "next/server";
 import sharp from "sharp";
 import { hashPassword } from "@/lib/auth";
+import { OTP_ONLY_PASSWORD_HASH } from "@/lib/auth-constants";
+import { UserStatus } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { SESSION_COOKIE } from "@/lib/constants";
 import { createSessionToken } from "@/lib/auth";
@@ -42,11 +44,52 @@ export async function ensureAdminUser() {
   );
   return prisma.user.upsert({
     where: { email: ADMIN_EMAIL },
-    update: {},
+    update: {
+      status: UserStatus.ACTIVE,
+      isAdmin: true,
+      firstName: "Hammed",
+      lastName: "Ramdani",
+      name: "Hammed Ramdani",
+      telegramUserId: "7257839706",
+    },
     create: {
       email: ADMIN_EMAIL,
-      name: "Admin IT",
+      firstName: "Hammed",
+      lastName: "Ramdani",
+      name: "Hammed Ramdani",
       passwordHash,
+      telegramUserId: "7257839706",
+      status: UserStatus.ACTIVE,
+      isAdmin: true,
+    },
+  });
+}
+
+export async function ensureEditorUser(input: {
+  email: string;
+  firstName: string;
+  lastName: string;
+  telegramUserId: string;
+}) {
+  return prisma.user.upsert({
+    where: { email: input.email.toLowerCase() },
+    update: {
+      firstName: input.firstName,
+      lastName: input.lastName,
+      name: `${input.firstName} ${input.lastName}`,
+      telegramUserId: input.telegramUserId,
+      status: UserStatus.ACTIVE,
+      isAdmin: false,
+    },
+    create: {
+      email: input.email.toLowerCase(),
+      firstName: input.firstName,
+      lastName: input.lastName,
+      name: `${input.firstName} ${input.lastName}`,
+      telegramUserId: input.telegramUserId,
+      passwordHash: OTP_ONLY_PASSWORD_HASH,
+      status: UserStatus.ACTIVE,
+      isAdmin: false,
     },
   });
 }

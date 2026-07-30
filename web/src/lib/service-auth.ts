@@ -2,7 +2,9 @@ import "server-only";
 
 import { timingSafeEqual } from "crypto";
 import { NextRequest } from "next/server";
+import { UserStatus } from "@/generated/prisma/client";
 import { getSession, type SessionUser } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import {
   resolveServiceEditorUser,
   resolveTelegramAuthorUser,
@@ -64,8 +66,20 @@ export function getTelegramAllowedUserIds(): Set<string> {
   );
 }
 
-export function isTelegramUserAllowed(userId: string | number): boolean {
+/** DB ACTIVE telegram user, with TELEGRAM_ALLOWED_USER_IDS env fallback. */
+export async function isTelegramUserAllowed(
+  userId: string | number
+): Promise<boolean> {
+  const id = String(userId).trim();
+  if (!id) return false;
+
+  const user = await prisma.user.findUnique({
+    where: { telegramUserId: id },
+    select: { status: true },
+  });
+  if (user) return user.status === UserStatus.ACTIVE;
+
   const allow = getTelegramAllowedUserIds();
   if (allow.size === 0) return false;
-  return allow.has(String(userId));
+  return allow.has(id);
 }
