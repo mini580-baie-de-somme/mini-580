@@ -145,14 +145,11 @@ export function SyncPanel() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-semibold text-[#0D131A]">
-              Synchronisation TEST ↔ PROD
-            </h1>
-            <DisplayLangToggle />
-          </div>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl font-semibold text-[#0D131A]">
+            Synchronisation TEST ↔ PROD
+          </h1>
           <p className="mt-1 text-sm text-[#495867]">
             Environnement actuel :{" "}
             <strong>{status?.env ?? "…"}</strong>
@@ -169,12 +166,15 @@ export function SyncPanel() {
             )}
           </p>
         </div>
-        <Link
-          href="/editeur"
-          className="rounded-md border border-[#d4dde6] px-4 py-2 text-sm text-[#495867]"
-        >
-          ← Éditeur
-        </Link>
+        <div className="flex shrink-0 flex-wrap items-start gap-3">
+          <DisplayLangToggle />
+          <Link
+            href="/editeur"
+            className="rounded-md border border-[#d4dde6] px-4 py-2 text-sm text-[#495867]"
+          >
+            ← Éditeur
+          </Link>
+        </div>
       </div>
 
       {loading && <p className="text-sm text-[#495867]">Chargement…</p>}

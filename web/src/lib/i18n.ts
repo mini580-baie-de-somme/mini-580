@@ -27,6 +27,9 @@ const messages = {
   "profile.roleEditor": { fr: "Éditeur", en: "Editor" },
   "profile.close": { fr: "Fermer", en: "Close" },
 
+  "lang.display": { fr: "Affichage", en: "Display" },
+  "lang.content": { fr: "Contenu", en: "Content" },
+
   "footer.tagline": {
     fr: "Class Mini 5.80 baie de Somme. Blog bilingue de construction de trois Class Globe 5.80 en baie de Somme.",
     en: "Class Mini 5.80 Baie de Somme. Bilingual blog documenting the construction of three Class Globe 5.80 boats in the Baie de Somme.",

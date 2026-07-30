@@ -282,21 +282,28 @@ export function PostEditor({
           ←
         </Link>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="truncate text-2xl font-semibold text-[#0D131A]">
-              {displayTitle}
-            </h1>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl font-semibold text-[#0D131A] sm:text-2xl sm:truncate">
+                {displayTitle}
+              </h1>
+              <p className="mt-0.5 text-sm text-[#495867]">
+                {lang === "fr" ? "Modification" : "Editing"}
+              </p>
+            </div>
             <DisplayLangToggle />
           </div>
-          <p className="mt-0.5 text-sm text-[#495867]">
-            {lang === "fr" ? "Modification" : "Editing"}
-          </p>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <LangToggle lang={lang} onChange={setLang} />
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-[#495867]/70">
+              {t("lang.content")}
+            </span>
+            <LangToggle lang={lang} onChange={setLang} />
+          </div>
           <span className="text-sm text-[#495867]">{saveLabel}</span>
           <span
             className={`rounded px-2 py-0.5 text-xs ${

@@ -6,7 +6,7 @@ import type { AppUser } from "@/lib/auth";
 import { deriveUserName } from "@/lib/user-names";
 import { useLocale } from "./LocaleProvider";
 
-function userInitials(user: AppUser): string {
+export function userInitials(user: AppUser): string {
   const name =
     user.name ?? deriveUserName(user.firstName, user.lastName) ?? user.email;
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -18,6 +18,30 @@ function userInitials(user: AppUser): string {
 
 function displayName(user: AppUser): string {
   return user.name ?? deriveUserName(user.firstName, user.lastName) ?? user.email;
+}
+
+/** Compact avatar for mobile header — opens profile dialog. */
+export function SidebarProfileAvatar({
+  user,
+  onClick,
+}: {
+  user: AppUser;
+  onClick: () => void;
+}) {
+  const { t } = useLocale();
+  const initials = userInitials(user);
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#495867] text-xs font-semibold text-white hover:bg-[#3a4654]"
+      aria-label={t("nav.myProfile")}
+      aria-haspopup="dialog"
+    >
+      {initials}
+    </button>
+  );
 }
 
 export function SidebarProfileChip({

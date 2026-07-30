@@ -6,7 +6,11 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { AppUser } from "@/lib/auth";
 import { editorNav, isNavActive, isEditorRoute, publicNav } from "@/lib/nav-config";
 import { DisplayLangToggle } from "./DisplayLangToggle";
-import { ProfileDialog, SidebarProfileChip } from "./SidebarUserProfile";
+import {
+  ProfileDialog,
+  SidebarProfileAvatar,
+  SidebarProfileChip,
+} from "./SidebarUserProfile";
 import { useLocale } from "./LocaleProvider";
 
 function BurgerIcon({ open }: { open: boolean }) {
@@ -228,7 +232,12 @@ export function AppShell({ user, children }: { user: AppUser | null; children: R
             <BurgerIcon open={menuOpen} />
           </button>
           <BrandMark compact />
-          {!editorRoute ? <DisplayLangToggle /> : <span className="w-[72px]" aria-hidden />}
+          <div className="flex shrink-0 items-center gap-2">
+            {!editorRoute ? <DisplayLangToggle /> : null}
+            {user ? (
+              <SidebarProfileAvatar user={user} onClick={openProfile} />
+            ) : null}
+          </div>
         </header>
 
         {/* Desktop public lang bar — top right */}
