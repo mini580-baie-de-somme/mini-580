@@ -96,12 +96,25 @@ describe("agentCallableTools admin filter", () => {
     expect(tools.some((n) => n.startsWith("users."))).toBe(false);
   });
 
+  it("includes account.* for non-admin", () => {
+    const tools = agentCallableTools({ isAdmin: false }).map((t) => t.name);
+    expect(tools).toContain("account.me");
+    expect(tools).toContain("account.webConnect");
+    expect(tools).toContain("account.setPassword");
+  });
+
   it("includes users.* for admin", () => {
     const tools = agentCallableTools({ isAdmin: true }).map((t) => t.name);
     expect(tools).toContain("users.list");
     expect(tools).toContain("users.create");
     expect(tools).toContain("users.invite");
     expect(tools).toContain("users.webConnect");
+  });
+
+  it("includes account.* for admin", () => {
+    const tools = agentCallableTools({ isAdmin: true }).map((t) => t.name);
+    expect(tools).toContain("account.me");
+    expect(tools).toContain("account.update");
   });
 });
 
@@ -112,11 +125,14 @@ describe("systemBriefForAgent role conditioning", () => {
     expect(brief).toContain("users_invite");
     expect(brief).toContain("users_webConnect");
     expect(brief).toContain("users_setAdmin");
+    expect(brief).toContain("account_me");
   });
 
-  it("tells non-admin that users tools are unavailable", () => {
+  it("tells non-admin about account self-service only", () => {
     const brief = systemBriefForAgent(false);
     expect(brief).not.toContain("users_list");
-    expect(brief).toContain("n'as pas les tools users_*");
+    expect(brief).toContain("account_me");
+    expect(brief).toContain("account_webConnect");
+    expect(brief).toContain("Ne liste jamais d'autres utilisateurs");
   });
 });

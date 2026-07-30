@@ -21,7 +21,8 @@ export type AiToolDef = {
     | "memory"
     | "sync"
     | "translate"
-    | "users";
+    | "users"
+    | "account";
 };
 
 export const AI_TOOLS: AiToolDef[] = [
@@ -551,6 +552,62 @@ export const AI_TOOLS: AiToolDef[] = [
     path: "/api/users/:id/web-connect",
     auth: "bearer_or_session",
     category: "users",
+  },
+
+  // Self-service account (own profile only — all ACTIVE editors)
+  {
+    name: "account.me",
+    description:
+      "Get your own platform account (name, email, status). Never lists other users.",
+    method: "GET",
+    path: "/api/account/me",
+    auth: "bearer_or_session",
+    category: "account",
+  },
+  {
+    name: "account.update",
+    description:
+      "Update your own profile: { firstName?, lastName?, email? }. Cannot change Telegram id, status, or admin flag.",
+    method: "PATCH",
+    path: "/api/account/me",
+    auth: "bearer_or_session",
+    category: "account",
+  },
+  {
+    name: "account.webConnect",
+    description:
+      "Generate a 5-minute web auto-login link + OTP fallback for yourself. Returns copyPasteMessage.",
+    method: "POST",
+    path: "/api/account/web-connect",
+    auth: "bearer_or_session",
+    category: "account",
+  },
+  {
+    name: "account.otpLogin",
+    description:
+      "Send a 4-digit login OTP to your Telegram for web login at /connexion (Code Telegram tab).",
+    method: "POST",
+    path: "/api/account/otp/login",
+    auth: "bearer_or_session",
+    category: "account",
+  },
+  {
+    name: "account.otpPasswordReset",
+    description:
+      "Send a 4-digit OTP to your Telegram to reset your web password.",
+    method: "POST",
+    path: "/api/account/otp/password-reset",
+    auth: "bearer_or_session",
+    category: "account",
+  },
+  {
+    name: "account.setPassword",
+    description:
+      "Set a new web password using PASSWORD_RESET OTP: { code, newPassword } (min 8 chars).",
+    method: "POST",
+    path: "/api/account/password",
+    auth: "bearer_or_session",
+    category: "account",
   },
 ];
 

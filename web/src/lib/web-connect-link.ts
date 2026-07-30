@@ -29,6 +29,8 @@ export function buildWebConnectCopyPaste(input: {
   connectUrl: string;
   otpCode: string;
   expiresAt: Date;
+  /** When true, expiry hint points to bot self-service instead of admin. */
+  selfService?: boolean;
 }): WebConnectCopyPaste {
   const expiresTime = input.expiresAt.toLocaleTimeString("fr-FR", {
     hour: "2-digit",
@@ -50,7 +52,9 @@ export function buildWebConnectCopyPaste(input: {
     `Code : ${input.otpCode}`,
     "Onglet « Code Telegram » si besoin.",
     "",
-    `Expire à ${expiresTime}. Demande un nouveau lien à l'admin si expiré.`,
+    input.selfService
+      ? `Expire à ${expiresTime}. Regénère un nouveau lien via le bot Telegram si expiré.`
+      : `Expire à ${expiresTime}. Demande un nouveau lien à l'admin si expiré.`,
   ].join("\n");
 
   return {
@@ -68,6 +72,7 @@ export type CreateWebConnectLinkResult =
 export async function createWebConnectLink(input: {
   userId: string;
   createdById?: string;
+  selfService?: boolean;
 }): Promise<CreateWebConnectLinkResult> {
   appLog("web-connect", "info", "create", {
     userId: input.userId,
@@ -134,6 +139,7 @@ export async function createWebConnectLink(input: {
     connectUrl,
     otpCode: otp.code,
     expiresAt,
+    selfService: input.selfService,
   });
 
   appLog("web-connect", "info", "created", {

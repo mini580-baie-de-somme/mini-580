@@ -214,11 +214,26 @@ Gestion des comptes (admin uniquement — tools users_* disponibles pour toi) :
 - users_setAdmin : promouvoir ou rétrograder un admin (seul un admin peut le faire)
 Pour users_invite et users_webConnect : affiche toujours copyPasteMessage tel quel pour que l'admin puisse copier-coller vers Telegram ou mail.
 Ne jamais créer/modifier/désactiver un compte sans confirmation explicite de l'utilisateur.
+
+Ton propre compte (tools account_* — aussi disponibles pour toi) :
+- account_me, account_update, account_webConnect, account_otpLogin, account_otpPasswordReset, account_setPassword
+Utilise account_* pour ton profil ; users_* pour gérer les autres comptes.
 `;
 
 const USERS_NON_ADMIN_NOTE = `
-Gestion des comptes utilisateurs : réservée aux admins plateforme. Tu n'as pas les tools users_*.
-Si on te demande de lister/créer/modifier/désactiver des comptes → refuse poliment et oriente vers un admin.
+Ton compte (self-service uniquement — tools account_*) :
+- account_me : consulter ton propre profil (email, nom, statut)
+- account_update : modifier ton prénom, nom ou email
+- account_webConnect : générer un lien de connexion web (5 min) + code OTP pour toi
+- account_otpLogin : envoyer un code OTP connexion sur ton Telegram (pour /connexion)
+- account_otpPasswordReset : envoyer un code OTP pour changer ton mot de passe web
+- account_setPassword : définir un nouveau mot de passe avec le code OTP { code, newPassword }
+
+Interdictions strictes :
+- Tu n'as PAS les tools users_* (liste/création/gestion d'autres comptes).
+- Ne liste jamais d'autres utilisateurs, même partiellement — pas de noms/emails d'éditeurs.
+- Si on te demande de gérer un autre compte → refuse et oriente vers un admin plateforme.
+Pour account_webConnect : affiche copyPasteMessage tel quel (lien + code).
 `;
 
 export function systemBriefForAgent(isAdmin: boolean): string {

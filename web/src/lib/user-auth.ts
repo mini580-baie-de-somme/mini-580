@@ -109,3 +109,43 @@ export async function requireAdminFromRequest(
   if (!admin) return "forbidden";
   return admin;
 }
+
+/** Session cookie or Bearer + X-Telegram-User-Id mapped to an ACTIVE user (any role). */
+export async function getActiveUserFromRequest(
+  request: NextRequest
+): Promise<SessionUser | null> {
+  const session = await getSession();
+  if (session) {
+    const user = await prisma.user.findUnique({
+      where: { id: session.id },
+      select: adminSelect,
+    });
+    if (user?.status === UserStatus.ACTIVE) return toSessionUser(user);
+    return null;
+  }
+
+  if (!isValidIngestApiKey(extractBearerToken(request))) return null;
+
+  const telegramUserId = request.headers.get(TELEGRAM_USER_ID_HEADER)?.trim();
+  if (!telegramUserId) return null;
+
+  const user = await prisma.user.findUnique({
+    where: { telegramUserId },
+    select: adminSelect,
+  });
+  if (user?.status === UserStatus.ACTIVE) return toSessionUser(user);
+  return null;
+}
+
+export async function requireActiveUserFromRequest(
+  request: NextRequest
+): Promise<SessionUser | "unauthorized" | "forbidden"> {
+  const session = await getSession();
+  const bearerOk = isValidIngestApiKey(extractBearerToken(request));
+
+  if (!session && !bearerOk) return "unauthorized";
+
+  const user = await getActiveUserFromRequest(request);
+  if (!user) return "forbidden";
+  return user;
+}
