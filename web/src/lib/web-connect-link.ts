@@ -184,6 +184,10 @@ export async function redeemWebConnectLink(
     return { ok: false, reason: "invalid_user" };
   }
 
+  if (!link.otpChallengeId) {
+    return { ok: false, reason: "expired" };
+  }
+
   const verified = await redeemOtpChallengeById(link.otpChallengeId);
   if (!verified.ok) {
     return { ok: false, reason: "expired" };
