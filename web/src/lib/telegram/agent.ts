@@ -202,10 +202,28 @@ function buildPlatformCustomTools(
   return tools;
 }
 
-function systemBriefForAgent(): string {
+const USERS_ADMIN_APPENDIX = `
+Gestion des comptes (admin uniquement — tools users_* disponibles pour toi) :
+- users_list : lister les utilisateurs (ACTIVE/INACTIVE ; ?includeArchived=true pour tout voir)
+- users_create : prénom, nom, email, telegramUserId (OTP-only jusqu'au 1er mot de passe)
+- users_update : modifier prénom, nom, email, telegramUserId
+- users_deactivate : bloquer web + bot (INACTIVE)
+- users_archive : retirer des listes actives (ARCHIVED)
+- users_setAdmin : promouvoir ou rétrograder un admin (seul un admin peut le faire)
+Ne jamais créer/modifier/désactiver un compte sans confirmation explicite de l'utilisateur.
+`;
+
+const USERS_NON_ADMIN_NOTE = `
+Gestion des comptes utilisateurs : réservée aux admins plateforme. Tu n'as pas les tools users_*.
+Si on te demande de lister/créer/modifier/désactiver des comptes → refuse poliment et oriente vers un admin.
+`;
+
+export function systemBriefForAgent(isAdmin: boolean): string {
+  const roleBlock = isAdmin ? USERS_ADMIN_APPENDIX : USERS_NON_ADMIN_NOTE;
+  const base = `${SYSTEM_BRIEF.trim()}${roleBlock}`;
   return isTelegramAgentWebEnabled()
-    ? `${SYSTEM_BRIEF.trim()}\n${AGENT_WEB_SYSTEM_APPENDIX.trim()}`
-    : SYSTEM_BRIEF;
+    ? `${base}\n${AGENT_WEB_SYSTEM_APPENDIX.trim()}`
+    : base;
 }
 
 const SYSTEM_BRIEF = `Tu es l'assistant Class Mini 5.80 Baie de Somme sur Telegram.
@@ -461,7 +479,7 @@ export async function runTelegramAgentTurn(input: {
 
   const message = isBootstrap
     ? `${buildBootstrapUserMessage({
-        systemBrief: systemBriefForAgent(),
+        systemBrief: systemBriefForAgent(isAdmin),
         memoryBrief,
         activeContext,
         sessionSummary: thread.sessionSummary,

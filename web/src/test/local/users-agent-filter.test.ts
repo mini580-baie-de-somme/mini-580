@@ -3,6 +3,7 @@ import { UserStatus } from "@/generated/prisma/client";
 import { isTelegramUserAllowed } from "@/lib/service-auth";
 import { prisma } from "@/lib/db";
 import { agentCallableTools } from "@/lib/ai-tools-runtime";
+import { systemBriefForAgent } from "@/lib/telegram/agent";
 import { ensureAdminUser } from "../helpers";
 
 const DB_TG = "9000000101";
@@ -63,5 +64,19 @@ describe("agentCallableTools admin filter", () => {
     const tools = agentCallableTools({ isAdmin: true }).map((t) => t.name);
     expect(tools).toContain("users.list");
     expect(tools).toContain("users.create");
+  });
+});
+
+describe("systemBriefForAgent role conditioning", () => {
+  it("includes users_* guidance for admin", () => {
+    const brief = systemBriefForAgent(true);
+    expect(brief).toContain("users_list");
+    expect(brief).toContain("users_setAdmin");
+  });
+
+  it("tells non-admin that users tools are unavailable", () => {
+    const brief = systemBriefForAgent(false);
+    expect(brief).not.toContain("users_list");
+    expect(brief).toContain("n'as pas les tools users_*");
   });
 });
