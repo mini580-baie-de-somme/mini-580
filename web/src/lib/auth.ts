@@ -12,6 +12,12 @@ export interface SessionUser {
   name: string | null;
 }
 
+export interface AppUser extends SessionUser {
+  firstName: string | null;
+  lastName: string | null;
+  isAdmin: boolean;
+}
+
 function getSecret() {
   const secret = process.env.SESSION_SECRET;
   if (!secret || secret.length < 32) {
@@ -91,15 +97,30 @@ export async function requireSession(): Promise<SessionUser> {
   return session;
 }
 
-export async function getSessionUserFromDb(): Promise<SessionUser | null> {
+export async function getSessionUserFromDb(): Promise<AppUser | null> {
   const session = await getSession();
   if (!session) return null;
   const user = await prisma.user.findUnique({
     where: { id: session.id },
-    select: { id: true, email: true, name: true, status: true },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      firstName: true,
+      lastName: true,
+      isAdmin: true,
+      status: true,
+    },
   });
   if (!user || user.status !== UserStatus.ACTIVE) return null;
-  return { id: user.id, email: user.email, name: user.name };
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    isAdmin: user.isAdmin,
+  };
 }
 
 function sessionCookieSecure(): boolean {

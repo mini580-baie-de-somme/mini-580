@@ -9,6 +9,7 @@ import { useLocale } from "./LocaleProvider";
 import { HullBadgeList } from "./HullBadge";
 import { EditorPostFilters } from "./EditorPostFilters";
 import { EditorListCount } from "./EditorListCount";
+import { EditorPageHeader } from "./EditorPageHeader";
 import { useEditorInfiniteList } from "./useEditorInfiniteList";
 
 type EditorPostListItem = {
@@ -53,13 +54,7 @@ export function EditorPostList({ filterOptions }: { filterOptions: FilterOptions
     queryString,
   });
 
-  async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/");
-    router.refresh();
-  }
-
-  function statusLabel(status: EditorPostListItem["status"]) {
+  async function remove(post: EditorPostListItem) {
     if (status === "PUBLISHED") return t("editor.status.published");
     if (status === "ARCHIVED") return t("editor.status.archived");
     return t("editor.status.draft");
@@ -89,24 +84,17 @@ export function EditorPostList({ filterOptions }: { filterOptions: FilterOptions
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold text-[#0D131A]">{t("editor.title")}</h1>
-        <div className="flex flex-wrap gap-2">
+      <EditorPageHeader
+        title={t("editor.title")}
+        actions={
           <Link
             href="/editeur/nouveau"
             className="rounded-md bg-[#495867] px-4 py-2 text-sm text-white hover:bg-[#3a4654]"
           >
             {t("editor.newPost")}
           </Link>
-          <button
-            type="button"
-            onClick={logout}
-            className="rounded-md border border-[#d4dde6] px-4 py-2 text-sm text-[#495867]"
-          >
-            {t("editor.logout")}
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       <EditorPostFilters options={filterOptions} />
 

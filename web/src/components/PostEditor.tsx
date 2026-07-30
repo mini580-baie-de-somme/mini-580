@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { HullId } from "@/lib/types";
 import { LangToggle } from "./LangToggle";
+import { DisplayLangToggle } from "./DisplayLangToggle";
 import { PostGalleryEditor } from "./PostGalleryEditor";
 import { useLocale } from "./LocaleProvider";
 import type { GalleryEditorImage } from "@/lib/gallery-editor";
@@ -281,9 +282,12 @@ export function PostEditor({
           ←
         </Link>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-2xl font-semibold text-[#0D131A]">
-            {displayTitle}
-          </h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="truncate text-2xl font-semibold text-[#0D131A]">
+              {displayTitle}
+            </h1>
+            <DisplayLangToggle />
+          </div>
           <p className="mt-0.5 text-sm text-[#495867]">
             {lang === "fr" ? "Modification" : "Editing"}
           </p>

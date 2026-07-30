@@ -40,3 +40,8 @@ export function isNavActive(pathname: string, href: string): boolean {
 
   return pathname === href || pathname.startsWith(`${href}/`);
 }
+
+/** Editor back-office routes (display locale moves to page headers). */
+export function isEditorRoute(pathname: string): boolean {
+  return pathname === "/editeur" || pathname.startsWith("/editeur/");
+}

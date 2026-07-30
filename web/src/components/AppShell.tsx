@@ -3,15 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { editorNav, isNavActive, publicNav } from "@/lib/nav-config";
-import { LangToggle } from "./LangToggle";
+import type { AppUser } from "@/lib/auth";
+import { editorNav, isNavActive, isEditorRoute, publicNav } from "@/lib/nav-config";
+import { DisplayLangToggle } from "./DisplayLangToggle";
+import { ProfileDialog, SidebarProfileChip } from "./SidebarUserProfile";
 import { useLocale } from "./LocaleProvider";
-
-type AppUser = {
-  id: string;
-  email: string;
-  name: string | null;
-} | null;
 
 function BurgerIcon({ open }: { open: boolean }) {
   return (
@@ -54,9 +50,11 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
 function NavLinks({
   user,
   onNavigate,
+  onOpenProfile,
 }: {
-  user: AppUser;
+  user: AppUser | null;
   onNavigate?: () => void;
+  onOpenProfile?: () => void;
 }) {
   const pathname = usePathname();
   const { t } = useLocale();
@@ -71,6 +69,9 @@ function NavLinks({
     }
     return "flex items-center gap-2 rounded-md px-3 py-2.5 text-sm text-[#0D131A] hover:bg-[#eef3f7] hover:text-[#495867]";
   };
+
+  const profileButtonClass =
+    "flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm text-[#0D131A] hover:bg-[#eef3f7] hover:text-[#495867]";
 
   return (
     <nav className="flex flex-col gap-1">
@@ -89,16 +90,28 @@ function NavLinks({
         {user ? t("nav.sectionEditor") : t("nav.sectionAccount")}
       </p>
       {user ? (
-        editorNav.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={onNavigate}
-            className={linkClass(item.href, item.primary)}
+        <>
+          {editorNav.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onNavigate}
+              className={linkClass(item.href, item.primary)}
+            >
+              {t(item.key)}
+            </Link>
+          ))}
+          <button
+            type="button"
+            onClick={() => {
+              onOpenProfile?.();
+              onNavigate?.();
+            }}
+            className={profileButtonClass}
           >
-            {t(item.key)}
-          </Link>
-        ))
+            {t("nav.myProfile")}
+          </button>
+        </>
       ) : (
         <Link
           href="/connexion"
@@ -112,10 +125,12 @@ function NavLinks({
   );
 }
 
-export function AppShell({ user, children }: { user: AppUser; children: ReactNode }) {
+export function AppShell({ user, children }: { user: AppUser | null; children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const pathname = usePathname();
-  const { locale, setLocale, t } = useLocale();
+  const { t } = useLocale();
+  const editorRoute = isEditorRoute(pathname);
 
   const closeMenu = useCallback(() => setMenuOpen(false), []);
 
@@ -136,6 +151,12 @@ export function AppShell({ user, children }: { user: AppUser; children: ReactNod
     };
   }, [menuOpen, closeMenu]);
 
+  const openProfile = useCallback(() => setProfileOpen(true), []);
+
+  const sidebarProfile = user ? (
+    <SidebarProfileChip user={user} onClick={openProfile} />
+  ) : null;
+
   return (
     <div className="flex min-h-screen">
       {/* Desktop sidebar */}
@@ -144,11 +165,11 @@ export function AppShell({ user, children }: { user: AppUser; children: ReactNod
           <BrandMark />
         </div>
         <div className="flex flex-1 flex-col overflow-y-auto px-3 py-4">
-          <NavLinks user={user} />
+          <NavLinks user={user} onOpenProfile={openProfile} />
         </div>
-        <div className="border-t border-[#d4dde6] px-4 py-4">
-          <LangToggle lang={locale} onChange={setLocale} />
-        </div>
+        {user ? (
+          <div className="border-t border-[#d4dde6] px-3 py-3">{sidebarProfile}</div>
+        ) : null}
       </aside>
 
       {/* Mobile drawer */}
@@ -179,11 +200,18 @@ export function AppShell({ user, children }: { user: AppUser; children: ReactNod
           </button>
         </div>
         <div className="flex flex-1 flex-col overflow-y-auto px-3 py-4">
-          <NavLinks user={user} onNavigate={closeMenu} />
+          <NavLinks
+            user={user}
+            onNavigate={closeMenu}
+            onOpenProfile={() => {
+              openProfile();
+              closeMenu();
+            }}
+          />
         </div>
-        <div className="border-t border-[#d4dde6] px-4 py-4">
-          <LangToggle lang={locale} onChange={setLocale} />
-        </div>
+        {user ? (
+          <div className="border-t border-[#d4dde6] px-3 py-3">{sidebarProfile}</div>
+        ) : null}
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -200,11 +228,26 @@ export function AppShell({ user, children }: { user: AppUser; children: ReactNod
             <BurgerIcon open={menuOpen} />
           </button>
           <BrandMark compact />
-          <LangToggle lang={locale} onChange={setLocale} />
+          {!editorRoute ? <DisplayLangToggle /> : <span className="w-[72px]" aria-hidden />}
         </header>
+
+        {/* Desktop public lang bar — top right */}
+        {!editorRoute ? (
+          <div className="hidden lg:flex sticky top-0 z-20 justify-end border-b border-[#d4dde6] bg-white/90 px-6 py-3 backdrop-blur-sm">
+            <DisplayLangToggle />
+          </div>
+        ) : null}
 
         {children}
       </div>
+
+      {user ? (
+        <ProfileDialog
+          user={user}
+          open={profileOpen}
+          onOpenChange={setProfileOpen}
+        />
+      ) : null}
     </div>
   );
 }

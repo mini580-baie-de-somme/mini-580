@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { DisplayLangToggle } from "@/components/DisplayLangToggle";
 
 type Summary = {
   id: string;
@@ -146,9 +147,12 @@ export function SyncPanel() {
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-[#0D131A]">
-            Synchronisation TEST ↔ PROD
-          </h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-semibold text-[#0D131A]">
+              Synchronisation TEST ↔ PROD
+            </h1>
+            <DisplayLangToggle />
+          </div>
           <p className="mt-1 text-sm text-[#495867]">
             Environnement actuel :{" "}
             <strong>{status?.env ?? "…"}</strong>

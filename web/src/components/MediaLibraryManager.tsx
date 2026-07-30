@@ -11,6 +11,7 @@ import {
 import { useLocale } from "./LocaleProvider";
 import { EditorListCount } from "./EditorListCount";
 import { EditorListSearch } from "./EditorListSearch";
+import { EditorPageHeader } from "./EditorPageHeader";
 import {
   EditorFilterChip,
   EditorFilterGroup,
@@ -576,28 +577,28 @@ export function MediaLibraryManager() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-[#0D131A]">{t("media.title")}</h1>
-          <p className="mt-1 text-sm text-[#495867]">{t("media.subtitle")}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href="/editeur"
-            className="rounded-md border border-[#d4dde6] px-3 py-2 text-sm text-[#495867]"
-          >
-            ← {t("nav.editor")}
-          </Link>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={startCreate}
-            className="rounded-md bg-[#495867] px-3 py-2 text-sm text-white hover:bg-[#3a4654] disabled:opacity-50"
-          >
-            {t("media.new")}
-          </button>
-        </div>
-      </div>
+      <EditorPageHeader
+        title={t("media.title")}
+        subtitle={t("media.subtitle")}
+        actions={
+          <>
+            <Link
+              href="/editeur"
+              className="rounded-md border border-[#d4dde6] px-3 py-2 text-sm text-[#495867]"
+            >
+              ← {t("nav.editor")}
+            </Link>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={startCreate}
+              className="rounded-md bg-[#495867] px-3 py-2 text-sm text-white hover:bg-[#3a4654] disabled:opacity-50"
+            >
+              {t("media.new")}
+            </button>
+          </>
+        }
+      />
 
       {(error || localError) && !editingId && (
         <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-800">

@@ -17,6 +17,15 @@ const messages = {
   "nav.sectionSite": { fr: "Site", en: "Site" },
   "nav.sectionEditor": { fr: "Édition", en: "Editor" },
   "nav.sectionAccount": { fr: "Compte", en: "Account" },
+  "nav.myProfile": { fr: "Mon profil", en: "My profile" },
+
+  "profile.title": { fr: "Mon profil", en: "My profile" },
+  "profile.name": { fr: "Nom", en: "Name" },
+  "profile.email": { fr: "E-mail", en: "Email" },
+  "profile.role": { fr: "Rôle", en: "Role" },
+  "profile.roleAdmin": { fr: "Administrateur", en: "Administrator" },
+  "profile.roleEditor": { fr: "Éditeur", en: "Editor" },
+  "profile.close": { fr: "Fermer", en: "Close" },
 
   "footer.tagline": {
     fr: "Class Mini 5.80 baie de Somme. Blog bilingue de construction de trois Class Globe 5.80 en baie de Somme.",
