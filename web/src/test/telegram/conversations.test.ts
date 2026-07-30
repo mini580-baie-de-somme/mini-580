@@ -218,10 +218,13 @@ describe("Telegram conversation simulations — parcours guidé", () => {
     await cleanupBySlug("milestone", PREFIX);
   });
 
-  it("rejects unauthorized user", async () => {
+  it("rejects unauthorized user with friendly id discovery message", async () => {
     const run = await loadProcessor();
     await run(textMsg("/nouveau", 999999999));
-    expect(outbound.at(-1)?.text.toLowerCase()).toMatch(/autoris/);
+    const reply = outbound.at(-1)?.text.toLowerCase() ?? "";
+    expect(reply).toMatch(/bienvenue/);
+    expect(reply).toMatch(/999999999/);
+    expect(reply).toMatch(/invitation|inv_/);
   });
 
   it("one photo + new tag + delayed /traduire after FR edit (Cursor IA)", async () => {
