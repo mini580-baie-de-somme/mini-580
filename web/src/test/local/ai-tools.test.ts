@@ -357,4 +357,10 @@ describe("API integration — IA tools full capacity (Bearer)", () => {
     expect(create?.description).toMatch(/slug/i);
     expect(update?.description).toMatch(/frozen|DRAFT/i);
   });
+
+  it("posts.update documents Markdown body fields", () => {
+    const update = AI_TOOLS.find((t) => t.name === "posts.update");
+    expect(update?.description).toMatch(/Markdown/i);
+    expect(update?.description).toMatch(/bodyFr\/bodyEn/i);
+  });
 });

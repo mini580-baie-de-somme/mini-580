@@ -57,7 +57,7 @@ export const AI_TOOLS: AiToolDef[] = [
   {
     name: "posts.update",
     description:
-      "Patch post FR/EN content, publishedAt, authorId (platform editor id), and relations (tags/themes/milestones/hulls). Slug is never set manually: while DRAFT it re-syncs from titleFr; once PUBLISHED/ARCHIVED it stays frozen. Returns blogPath + publicUrl.",
+      "Patch post FR/EN content, publishedAt, authorId (platform editor id), and relations (tags/themes/milestones/hulls). bodyFr/bodyEn accept Markdown: **bold**, ##/### headings, blank-line paragraphs, - bullets, 1. numbered lists (rendered on public blog). Slug is never set manually: while DRAFT it re-syncs from titleFr; once PUBLISHED/ARCHIVED it stays frozen. Returns blogPath + publicUrl.",
     method: "PATCH",
     path: "/api/posts/:id",
     auth: "bearer_or_session",

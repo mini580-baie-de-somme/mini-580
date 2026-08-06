@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { HullId } from "@/lib/types";
 import { resolveThumbKind } from "@/lib/media-file-client";
-import { ArticleBody } from "./LangToggle";
+import { ArticleBody } from "./ArticleBody";
 import { GalleryImage } from "./GalleryImage";
 import { BlogTaxonomyLinks } from "./BlogTaxonomyLinks";
 import { HullBadgeList } from "./HullBadge";

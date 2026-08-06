@@ -29,15 +29,3 @@ export function LangToggle({
   );
 }
 
-export function ArticleBody({ content }: { content: string }) {
-  const paragraphs = content.split(/\n\n+/).filter(Boolean);
-  return (
-    <div className="prose prose-slate max-w-none prose-headings:text-[#0D131A] prose-p:text-[#0D131A]/90">
-      {paragraphs.map((p, i) => (
-        <p key={i} className="mb-4 leading-relaxed">
-          {p}
-        </p>
-      ))}
-    </div>
-  );
-}

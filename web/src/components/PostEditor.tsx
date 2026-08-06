@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { HullId } from "@/lib/types";
+import { ArticleBodyEditor } from "./ArticleBodyEditor";
 import { LangToggle } from "./LangToggle";
 import { PostGalleryEditor } from "./PostGalleryEditor";
 import { useLocale } from "./LocaleProvider";
@@ -428,18 +429,15 @@ export function PostEditor({
           rows={2}
           className="w-full rounded-md border border-[#d4dde6] px-3 py-2 text-sm"
         />
-        <textarea
+        <ArticleBodyEditor
+          lang={lang}
           value={lang === "fr" ? form.bodyFr : form.bodyEn}
-          onChange={(e) =>
+          onChange={(body) =>
             setForm((f) =>
-              lang === "fr"
-                ? { ...f, bodyFr: e.target.value }
-                : { ...f, bodyEn: e.target.value }
+              lang === "fr" ? { ...f, bodyFr: body } : { ...f, bodyEn: body }
             )
           }
           placeholder={lang === "fr" ? "Contenu (FR)" : "Content (EN)"}
-          rows={16}
-          className="w-full rounded-md border border-[#d4dde6] px-3 py-2 font-mono text-sm leading-relaxed"
         />
         <PostGalleryEditor
           postId={post.id}
