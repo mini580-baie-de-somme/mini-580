@@ -1,5 +1,7 @@
 /** Pure helpers for multi-touch photo canvas gestures (testable, no DOM). */
 
+import { offsetForScalePivot } from "@/lib/image-layout";
+
 export type Point = { x: number; y: number };
 
 export function distance(a: Point, b: Point): number {
@@ -64,12 +66,20 @@ export function rotationFromPinch(
   return start.rotation + (currentAngleDeg - start.angleDeg);
 }
 
+export type PinchCoverContext = {
+  /** coverScaleForCrop at gesture start rotation */
+  startCoverScale: number;
+  /** coverScaleForCrop at current rotation */
+  nextCoverScale: number;
+};
+
 /** Pinch zoom/rotate — scale relative to gesture start, offset pivots on crop center. */
 export function layoutFromPinch(
   start: PinchSnapshot,
   currentDistance: number,
   currentAngleDeg: number,
-  lockAspect: boolean
+  lockAspect: boolean,
+  cover?: PinchCoverContext
 ): {
   scaleX: number;
   scaleY: number;
@@ -77,14 +87,39 @@ export function layoutFromPinch(
   offsetX: number;
   offsetY: number;
 } {
-  const scaled = scaleFromPinch(start, currentDistance, lockAspect);
-  const factorX = start.scaleX !== 0 ? scaled.scaleX / start.scaleX : 1;
-  const factorY = start.scaleY !== 0 ? scaled.scaleY / start.scaleY : 1;
+  const startCover = cover?.startCoverScale ?? 1;
+  const nextRotation = rotationFromPinch(start, currentAngleDeg);
+  const nextCover = cover?.nextCoverScale ?? startCover;
+  const pinchFactor =
+    start.distance > 0 && currentDistance > 0 ? currentDistance / start.distance : 1;
+
+  const startEffectiveX = startCover * start.scaleX;
+  const startEffectiveY = startCover * start.scaleY;
+  const nextEffectiveX = startEffectiveX * pinchFactor;
+  const nextEffectiveY = startEffectiveY * pinchFactor;
+
+  const nextScaleX = nextCover > 0 ? nextEffectiveX / nextCover : start.scaleX;
+  const nextScaleY =
+    lockAspect
+      ? nextScaleX
+      : nextCover > 0
+        ? nextEffectiveY / nextCover
+        : start.scaleY;
+
+  const offset = offsetForScalePivot(
+    start.offsetX,
+    start.offsetY,
+    startEffectiveX,
+    startEffectiveY,
+    nextCover * nextScaleX,
+    nextCover * nextScaleY
+  );
+
   return {
-    scaleX: scaled.scaleX,
-    scaleY: scaled.scaleY,
-    rotation: rotationFromPinch(start, currentAngleDeg),
-    offsetX: start.offsetX * factorX,
-    offsetY: start.offsetY * factorY,
+    scaleX: nextScaleX,
+    scaleY: nextScaleY,
+    rotation: nextRotation,
+    offsetX: offset.offsetX,
+    offsetY: offset.offsetY,
   };
 }

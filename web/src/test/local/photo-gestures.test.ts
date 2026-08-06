@@ -75,6 +75,28 @@ describe("photo-gestures", () => {
     expect(next.rotation).toBeCloseTo(45, 5);
   });
 
+  it("layoutFromPinch compensates cover scale when rotation changes during pinch", () => {
+    const start = pinchSnapshot(
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      1,
+      1,
+      0,
+      0,
+      0
+    );
+    const startCover = 1;
+    const nextCover = 1.35;
+    const next = layoutFromPinch(start, 100, 45, true, {
+      startCoverScale: startCover,
+      nextCoverScale: nextCover,
+    });
+    expect(next.rotation).toBeCloseTo(45, 5);
+    expect(next.scaleX).toBeCloseTo(startCover / nextCover, 5);
+    expect(next.scaleY).toBeCloseTo(startCover / nextCover, 5);
+    expect(nextCover * next.scaleX).toBeCloseTo(startCover * start.scaleX, 5);
+  });
+
   it("scaleFromPinch is a no-op when start distance is zero", () => {
     const start = pinchSnapshot(
       { x: 10, y: 10 },

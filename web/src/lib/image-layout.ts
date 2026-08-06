@@ -145,6 +145,55 @@ export function rotatedImageBounds(
   };
 }
 
+/** Cover scale for the crop window — matches sharp after .rotate(). */
+export function coverScaleForCrop(
+  imageWidth: number,
+  imageHeight: number,
+  rotationDeg: number,
+  cropW: number,
+  cropH: number
+): number {
+  const rotated = rotatedImageBounds(imageWidth, imageHeight, rotationDeg);
+  return Math.max(cropW / rotated.width, cropH / rotated.height);
+}
+
+/**
+ * When rotation changes, coverScale changes too. Compensate scaleX/scaleY inversely
+ * so the photo keeps the same visual size/zoom (rotate in place, WYSIWYG with rebake).
+ */
+export function layoutPatchForRotationChange(
+  layout: ImageLayoutParams,
+  nextRotation: number,
+  imageWidth: number,
+  imageHeight: number,
+  cropW: number,
+  cropH: number
+): Partial<ImageLayoutParams> {
+  const prevCover = coverScaleForCrop(
+    imageWidth,
+    imageHeight,
+    layout.rotation,
+    cropW,
+    cropH
+  );
+  const nextCover = coverScaleForCrop(
+    imageWidth,
+    imageHeight,
+    nextRotation,
+    cropW,
+    cropH
+  );
+  const coverRatio = prevCover > 0 ? nextCover / prevCover : 1;
+  const nextScaleX = layout.scaleX / coverRatio;
+  const nextScaleY = layout.lockAspect ? nextScaleX : layout.scaleY / coverRatio;
+
+  return {
+    rotation: nextRotation,
+    scaleX: nextScaleX,
+    scaleY: nextScaleY,
+  };
+}
+
 /** Pixel placement for the editor preview — mirrors `applyImageTransform` in media-variants. */
 export function computeEditorPhotoLayout(input: EditorPhotoLayoutInput): {
   centerX: number;
@@ -167,8 +216,7 @@ export function computeEditorPhotoLayout(input: EditorPhotoLayoutInput): {
 
   // Cover scale uses post-rotation bounds (matches sharp after .rotate()).
   // Preview draws the unrotated bitmap, then CSS rotate — box size uses source iw/ih.
-  const rotated = rotatedImageBounds(iw, ih, layout.rotation);
-  const coverScale = Math.max(cropW / rotated.width, cropH / rotated.height);
+  const coverScale = coverScaleForCrop(iw, ih, layout.rotation, cropW, cropH);
   const width = Math.max(1, iw * coverScale * layout.scaleX);
   const height = Math.max(1, ih * coverScale * layout.scaleY);
 

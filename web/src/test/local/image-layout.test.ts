@@ -13,6 +13,8 @@ import {
   layoutForRebake,
   offsetForScalePivot,
   rotatedImageBounds,
+  coverScaleForCrop,
+  layoutPatchForRotationChange,
 } from "@/lib/image-layout";
 
 describe("image-layout constants", () => {
@@ -118,6 +120,25 @@ describe("computeEditorPhotoLayout", () => {
     expect(at90.width / at90.height).toBeCloseTo(iw / ih, 5);
   });
 
+  it("preserves source aspect when zooming after rotation", () => {
+    const stageW = 360;
+    const stageH = 480;
+    const iw = 800;
+    const ih = 600;
+    const base = { ...DEFAULT_IMAGE_LAYOUT, rotation: 45 };
+
+    for (const scale of [1, 1.5, 2, 2.5]) {
+      const layout = computeEditorPhotoLayout({
+        layout: { ...base, scaleX: scale, scaleY: scale },
+        stageWidth: stageW,
+        stageHeight: stageH,
+        imageWidth: iw,
+        imageHeight: ih,
+      });
+      expect(layout.width / layout.height).toBeCloseTo(iw / ih, 5);
+    }
+  });
+
   it("preserves source aspect ratio when lockAspect zooms uniformly", () => {
     const stageW = 360;
     const stageH = 480;
@@ -205,6 +226,64 @@ describe("cropCircleMetrics", () => {
     expect(circle.size).toBeCloseTo(win.cropW, 5);
     expect(circle.top).toBeGreaterThan(win.cropTop);
     expect(circle.top + circle.size).toBeLessThan(win.cropTop + win.cropH);
+  });
+});
+
+describe("coverScaleForCrop", () => {
+  it("changes with rotation (portrait source may need more cover at 90°)", () => {
+    const cropW = 300;
+    const cropH = 400;
+    const portrait = coverScaleForCrop(600, 800, 0, cropW, cropH);
+    const portrait90 = coverScaleForCrop(600, 800, 90, cropW, cropH);
+    expect(portrait90).not.toBeCloseTo(portrait, 3);
+  });
+});
+
+describe("layoutPatchForRotationChange", () => {
+  it("keeps effective visual scale when rotation changes (rotate in place)", () => {
+    const iw = 800;
+    const ih = 600;
+    const stageW = 360;
+    const stageH = 480;
+    const { cropW, cropH } = computeEditorCropWindow(
+      DEFAULT_IMAGE_LAYOUT.cropInset,
+      stageW,
+      stageH
+    );
+    const layout = { ...DEFAULT_IMAGE_LAYOUT, scaleX: 1.4, scaleY: 1.4 };
+    const effectiveBefore = coverScaleForCrop(iw, ih, layout.rotation, cropW, cropH) * layout.scaleX;
+
+    const patch = layoutPatchForRotationChange(layout, 45, iw, ih, cropW, cropH);
+    const next = { ...layout, ...patch };
+    const effectiveAfter =
+      coverScaleForCrop(iw, ih, next.rotation, cropW, cropH) * next.scaleX!;
+
+    expect(effectiveAfter).toBeCloseTo(effectiveBefore, 5);
+    expect(next.scaleX).not.toBeCloseTo(layout.scaleX, 3);
+  });
+
+  it("preserves draw aspect ratio after rotation compensation + zoom", () => {
+    const iw = 800;
+    const ih = 600;
+    const stageW = 360;
+    const stageH = 480;
+    const patch = layoutPatchForRotationChange(
+      DEFAULT_IMAGE_LAYOUT,
+      30,
+      iw,
+      ih,
+      computeEditorCropWindow(DEFAULT_IMAGE_LAYOUT.cropInset, stageW, stageH).cropW,
+      computeEditorCropWindow(DEFAULT_IMAGE_LAYOUT.cropInset, stageW, stageH).cropH
+    );
+    const layout = { ...DEFAULT_IMAGE_LAYOUT, ...patch, scaleX: patch.scaleX! * 2, scaleY: patch.scaleY! * 2 };
+    const drawn = computeEditorPhotoLayout({
+      layout,
+      stageWidth: stageW,
+      stageHeight: stageH,
+      imageWidth: iw,
+      imageHeight: ih,
+    });
+    expect(drawn.width / drawn.height).toBeCloseTo(iw / ih, 5);
   });
 });
 

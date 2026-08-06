@@ -7,8 +7,10 @@ import {
   IMAGE_ASPECT,
   computeEditorCropWindow,
   computeEditorPhotoLayout,
+  coverScaleForCrop,
   cropCircleMetrics,
   cropWindowFractions,
+  layoutPatchForRotationChange,
   offsetForScalePivot,
   type CropShape,
   type ImageLayoutParams,
@@ -240,7 +242,33 @@ export function PhotoCanvasEditor({
       const start = pinchStart.current;
       const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
       const ang = angleDeg(pts[0], pts[1]);
-      const next = layoutFromPinch(start, dist, ang, cur.lockAspect);
+      const nextRotation = start.rotation + (ang - start.angleDeg);
+      let cover: { startCoverScale: number; nextCoverScale: number } | undefined;
+      if (
+        imageNatural.width > 0 &&
+        imageNatural.height > 0 &&
+        cropWindowRef.current.cropW > 0 &&
+        cropWindowRef.current.cropH > 0
+      ) {
+        const { cropW, cropH } = cropWindowRef.current;
+        cover = {
+          startCoverScale: coverScaleForCrop(
+            imageNatural.width,
+            imageNatural.height,
+            start.rotation,
+            cropW,
+            cropH
+          ),
+          nextCoverScale: coverScaleForCrop(
+            imageNatural.width,
+            imageNatural.height,
+            nextRotation,
+            cropW,
+            cropH
+          ),
+        };
+      }
+      const next = layoutFromPinch(start, dist, ang, cur.lockAspect, cover);
       patch({
         scaleX: clamp(next.scaleX, 0.1, 8),
         scaleY: clamp(next.scaleY, 0.1, 8),
@@ -300,6 +328,34 @@ export function PhotoCanvasEditor({
       offsetX: clamp(offset.offsetX, -2, 2),
       offsetY: clamp(offset.offsetY, -2, 2),
     });
+  }
+
+  function applyRotationPatch(nextRotation: number) {
+    const cur = valueRef.current;
+    if (
+      imageNatural.width <= 0 ||
+      imageNatural.height <= 0 ||
+      stageSize.width <= 0 ||
+      stageSize.height <= 0
+    ) {
+      patch({ rotation: nextRotation });
+      return;
+    }
+    const crop = computeEditorCropWindow(
+      cur.cropInset,
+      stageSize.width,
+      stageSize.height
+    );
+    patch(
+      layoutPatchForRotationChange(
+        cur,
+        nextRotation,
+        imageNatural.width,
+        imageNatural.height,
+        crop.cropW,
+        crop.cropH
+      )
+    );
   }
 
   function onWheel(e: React.WheelEvent) {
@@ -383,9 +439,7 @@ export function PhotoCanvasEditor({
         maxWidth: "none",
         maxHeight: "none",
         transform: `translate(-50%, -50%) rotate(${photoLayout.rotation}deg)`,
-        transformOrigin: cropWindow
-          ? `${photoLayout.width / 2 - value.offsetX * cropWindow.cropW}px ${photoLayout.height / 2 - value.offsetY * cropWindow.cropH}px`
-          : "center center",
+        transformOrigin: "center center",
         objectFit: "fill",
         pointerEvents: "none",
         userSelect: "none",
@@ -427,13 +481,13 @@ export function PhotoCanvasEditor({
           label="↺"
           title="-90°"
           disabled={disabled}
-          onClick={() => patch({ rotation: value.rotation - 90 })}
+          onClick={() => applyRotationPatch(value.rotation - 90)}
         />
         <MobileToolbarButton
           label="↻"
           title="+90°"
           disabled={disabled}
-          onClick={() => patch({ rotation: value.rotation + 90 })}
+          onClick={() => applyRotationPatch(value.rotation + 90)}
         />
       </div>
     ) : null;
@@ -645,13 +699,13 @@ export function PhotoCanvasEditor({
           value={`${Math.round(value.rotation)}°`}
           step={1}
           disabled={disabled}
-          onAdjust={(d) => patch({ rotation: value.rotation + d })}
+          onAdjust={(d) => applyRotationPatch(value.rotation + d)}
         />
         <div className="flex items-center gap-1">
           <button
             type="button"
             disabled={disabled}
-            onClick={() => patch({ rotation: value.rotation - 90 })}
+            onClick={() => applyRotationPatch(value.rotation - 90)}
             className="min-h-[44px] min-w-[44px] rounded border border-[#d4dde6] px-1.5 py-0.5 text-xs"
             title="-90°"
           >
@@ -660,7 +714,7 @@ export function PhotoCanvasEditor({
           <button
             type="button"
             disabled={disabled}
-            onClick={() => patch({ rotation: value.rotation + 90 })}
+            onClick={() => applyRotationPatch(value.rotation + 90)}
             className="min-h-[44px] min-w-[44px] rounded border border-[#d4dde6] px-1.5 py-0.5 text-xs"
             title="+90°"
           >
