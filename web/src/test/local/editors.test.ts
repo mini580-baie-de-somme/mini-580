@@ -137,6 +137,59 @@ describe("Platform editors + post author", () => {
     }
   });
 
+  it("changes author on bearer PATCH", async () => {
+    const admin = await ensureAdminUser();
+    const laurentEmail = `it-laurent-bearer-${Date.now()}@classmini580.blog`;
+    const passwordHash = await hashPassword("changeme123");
+    const laurent = await prisma.user.create({
+      data: {
+        email: laurentEmail,
+        name: "Laurent IT Bearer",
+        passwordHash,
+        status: UserStatus.ACTIVE,
+      },
+    });
+
+    const prevAllowlist = process.env.EDITORS_ALLOWLIST;
+    process.env.EDITORS_ALLOWLIST = `${ADMIN_EMAIL},${laurentEmail}`;
+
+    try {
+      const { POST } = await import("@/app/api/posts/route");
+      const marker = uniqueSlug("it-author-bearer-patch");
+      const createRes = await POST(
+        jsonRequest("http://localhost/api/posts", {
+          method: "POST",
+          headers: bearerHeaders(),
+          body: JSON.stringify({ titleFr: marker, titleEn: marker }),
+        })
+      );
+      expect(createRes.status).toBe(201);
+      const created = await createRes.json();
+      expect(created.authorId).toBe(admin.id);
+
+      const { PATCH } = await import("@/app/api/posts/[id]/route");
+      const ctx = { params: Promise.resolve({ id: created.id }) };
+
+      const patchRes = await PATCH(
+        jsonRequest(`http://localhost/api/posts/${created.id}`, {
+          method: "PATCH",
+          headers: bearerHeaders(),
+          body: JSON.stringify({ authorId: laurent.id }),
+        }),
+        ctx
+      );
+      expect(patchRes.status).toBe(200);
+      const patched = await patchRes.json();
+      expect(patched.authorId).toBe(laurent.id);
+      expect(patched.author.name).toBe("Laurent IT Bearer");
+
+      await prisma.post.delete({ where: { id: created.id } });
+    } finally {
+      process.env.EDITORS_ALLOWLIST = prevAllowlist;
+      await prisma.user.delete({ where: { id: laurent.id } });
+    }
+  });
+
   it("ignores authorId override on Bearer create", async () => {
     const admin = await ensureAdminUser();
     const { POST } = await import("@/app/api/posts/route");

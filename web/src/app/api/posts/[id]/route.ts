@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { Hull } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/auth";
 import { getEditorOrService } from "@/lib/service-auth";
 import { validatePlatformAuthorId } from "@/lib/editors";
 import { postInclude, uniqueSlug, syncPostRelations, serializePostForApi } from "@/lib/posts";
@@ -71,8 +70,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
 
     let authorId: string | undefined;
-    const session = await getSession();
-    if (session && data.authorId !== undefined) {
+    if (data.authorId !== undefined) {
       const resolved = await validatePlatformAuthorId(data.authorId);
       if (!resolved) {
         return NextResponse.json({ error: "Invalid author" }, { status: 400 });
