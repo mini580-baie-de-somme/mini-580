@@ -62,7 +62,18 @@ jobs:
             find "$MEDIA" -type f 2>/dev/null | wc -l || true
             find "$MEDIA" -type f 2>/dev/null | tail -10 || true
 
-            echo "===== origin file existence (recent images) ====="
+            echo "===== recent media layout + variant mtimes ====="
+            docker compose -f "$COMPOSE" --env-file "$ENVF" exec -T db \
+              psql -U mini580 -d mini580_prod -t -A -F'|' -c \
+              "SELECT id, \"scaleX\", \"scaleY\", \"rotation\", \"offsetX\", \"offsetY\", LEFT(\"urlMoyenne\",80), \"updatedAt\"::text FROM \"Media\" WHERE kind='IMAGE' ORDER BY \"updatedAt\" DESC LIMIT 5;" 2>/dev/null \
+              | while IFS='|' read -r mid sx sy rot ox oy moy updated; do
+                  echo "MEDIA $mid updated=$updated scale=$sx rot=$rot offset=$ox,$oy"
+                  echo "  urlMoyenne=$moy"
+                  vkey=$(echo "$moyenne" | sed 's|^/media/||')
+                  if [ -n "$vkey" ] && [ -f "$MEDIA/$vkey" ]; then
+                    stat -c "  moyenne mtime=%y size=%s" "$MEDIA/$vkey" 2>/dev/null || ls -la "$MEDIA/$vkey"
+                  fi
+                done || true
             docker compose -f "$COMPOSE" --env-file "$ENVF" exec -T db \
               psql -U mini580 -d mini580_prod -t -A -F'|' -c \
               "SELECT id, \"urlOrigin\", \"urlMoyenne\", \"updatedAt\"::text FROM \"Media\" WHERE kind='IMAGE' ORDER BY \"updatedAt\" DESC LIMIT 10;" 2>/dev/null \
