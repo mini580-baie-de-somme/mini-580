@@ -111,7 +111,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
   const traceId = newMediaTraceId();
   const trace = { traceId, mediaId: id };
-  mediaTrace(trace, "patchMediaLibrary.start", { mediaId: id }, "info");
+  mediaTrace(trace, "patchMediaLibrary.start", { mediaId: id }, "warn");
 
   const existing = await prisma.media.findUnique({ where: { id } });
   if (!existing) {
@@ -195,7 +195,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         await syncCoverImageUrlsAfterRebake(id, variants, previousDisplayUrls);
         mediaTrace(trace, "patchMediaLibrary.rebake.done", {
           urlMoyenne: rebaked.urlMoyenne,
-        }, "info");
+        }, "warn");
         return NextResponse.json(await enrichMediaWithIntegrity(rebaked));
       } catch (err) {
         const detail = rebakeErrorDetail(err);

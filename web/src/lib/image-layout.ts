@@ -353,3 +353,45 @@ export function layoutForRebake(
   }
   return layoutFromLegacy(existing);
 }
+
+const LAYOUT_COMPARE_KEYS: (keyof ImageLayoutParams)[] = [
+  "offsetX",
+  "offsetY",
+  "scaleX",
+  "scaleY",
+  "rotation",
+  "lockAspect",
+  "cropShape",
+  "backgroundColor",
+  "cropInset",
+];
+
+/** Compare layout params for save guards (avoid silent layout drop). */
+export function layoutParamsEqual(
+  a: ImageLayoutParams,
+  b: ImageLayoutParams,
+  epsilon = 1e-4
+): boolean {
+  for (const key of LAYOUT_COMPARE_KEYS) {
+    const av = a[key];
+    const bv = b[key];
+    if (key === "lockAspect") {
+      if (Boolean(av) !== Boolean(bv)) return false;
+      continue;
+    }
+    if (key === "cropShape" || key === "backgroundColor") {
+      if (String(av) !== String(bv)) return false;
+      continue;
+    }
+    if (Math.abs(Number(av) - Number(bv)) > epsilon) return false;
+  }
+  return true;
+}
+
+export function layoutParamsDiffer(
+  a: ImageLayoutParams,
+  b: ImageLayoutParams,
+  epsilon?: number
+): boolean {
+  return !layoutParamsEqual(a, b, epsilon);
+}

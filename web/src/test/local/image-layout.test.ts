@@ -11,6 +11,8 @@ import {
   legacyFieldsFromLayout,
   mergeLayoutPatch,
   layoutForRebake,
+  layoutParamsDiffer,
+  layoutParamsEqual,
   offsetForScalePivot,
   rotatedImageBounds,
   coverScaleForCrop,
@@ -473,5 +475,12 @@ describe("layoutFromLegacy", () => {
     expect(rebaked.scaleX).toBeCloseTo(1.85, 5);
     expect(rebaked.rotation).toBe(40);
     expect(rebaked.offsetX).toBeCloseTo(0.12, 5);
+  });
+
+  it("layoutParamsEqual treats near-equal floats as equal", () => {
+    const a = { ...DEFAULT_IMAGE_LAYOUT, scaleX: 1.5, rotation: 30 };
+    const b = { ...DEFAULT_IMAGE_LAYOUT, scaleX: 1.50000001, rotation: 30.00000001 };
+    expect(layoutParamsEqual(a, b)).toBe(true);
+    expect(layoutParamsDiffer(a, { ...b, rotation: 31 })).toBe(true);
   });
 });

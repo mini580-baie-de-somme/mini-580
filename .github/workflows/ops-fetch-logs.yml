@@ -69,7 +69,7 @@ jobs:
               | while IFS='|' read -r mid sx sy rot ox oy moy updated; do
                   echo "MEDIA $mid updated=$updated scale=$sx rot=$rot offset=$ox,$oy"
                   echo "  urlMoyenne=$moy"
-                  vkey=$(echo "$moyenne" | sed 's|^/media/||')
+                  vkey=$(echo "$moy" | sed 's|^/media/||')
                   if [ -n "$vkey" ] && [ -f "$MEDIA/$vkey" ]; then
                     stat -c "  moyenne mtime=%y size=%s" "$MEDIA/$vkey" 2>/dev/null || ls -la "$MEDIA/$vkey"
                   fi

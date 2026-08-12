@@ -41,6 +41,7 @@ import {
 import {
   DEFAULT_IMAGE_LAYOUT,
   layoutFromLegacy,
+  layoutParamsDiffer,
   type ImageLayoutParams,
 } from "@/lib/image-layout";
 import {
@@ -193,7 +194,7 @@ export function MediaLibraryManager() {
   const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [originEditable, setOriginEditable] = useState(true);
+  const [originEditable, setOriginEditable] = useState(false);
   const [editingIntegrity, setEditingIntegrity] = useState<MediaIntegrity | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -354,6 +355,25 @@ export function MediaLibraryManager() {
   }
 
   async function save() {
+    const effectiveKind = file
+      ? kindFromFile(file)
+      : editingMedia?.kind ?? null;
+    if (
+      effectiveKind === "IMAGE" &&
+      editingId !== "new" &&
+      editingMedia &&
+      !file &&
+      !originEditable &&
+      layoutParamsDiffer(form.layout, layoutFromLegacy(editingMedia))
+    ) {
+      setLocalError(
+        locale === "fr"
+          ? "Impossible d'enregistrer le cadrage — original absent ou stockage non vérifiable. Remplace le fichier ou restaure l'originale."
+          : "Cannot save layout — original missing or storage could not be verified. Replace the file or restore the original."
+      );
+      return;
+    }
+
     setBusy(true);
     setError(null);
     setLocalError(null);

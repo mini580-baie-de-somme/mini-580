@@ -13,6 +13,7 @@ import {
 import {
   DEFAULT_IMAGE_LAYOUT,
   layoutFromLegacy,
+  layoutParamsDiffer,
   legacyFieldsFromLayout,
   type ImageLayoutParams,
 } from "@/lib/image-layout";
@@ -166,7 +167,9 @@ export function PhotoEditModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
-  const [originEditable, setOriginEditable] = useState(true);
+  const [originEditable, setOriginEditable] = useState(
+    mode !== "edit" || !draft?.id
+  );
   const [repairOriginAvailable, setRepairOriginAvailable] = useState(false);
   const [mediaIntegrity, setMediaIntegrity] = useState<MediaIntegrity | null>(null);
   const [repairBusy, setRepairBusy] = useState(false);
@@ -216,7 +219,13 @@ export function PhotoEditModal({
           setError(null);
         }
       } catch {
-        if (!cancelled) setOriginEditable(false);
+        // Transient fetch failure must not silently drop layout on save.
+        photoEditorTrace(
+          { traceId: newPhotoEditorTraceId(), postId, mediaId: draft?.id },
+          "integrity.fetch.failed",
+          {},
+          "warn"
+        );
       }
     })();
     return () => {
@@ -412,6 +421,21 @@ export function PhotoEditModal({
       return;
     }
 
+    if (
+      isImage &&
+      !canEditImageLayout &&
+      !pendingFile &&
+      draft?.id &&
+      layoutParamsDiffer(layout, layoutFromLegacy(draft))
+    ) {
+      setError(
+        lang === "fr"
+          ? "Impossible d'enregistrer le cadrage — original absent ou stockage non vérifiable. Utilise « Remplacer le fichier » ou « Restaurer l'originale »."
+          : "Cannot save layout — original missing or storage could not be verified. Use Replace file or Restore original."
+      );
+      return;
+    }
+
     setBusy(true);
     setError(null);
     const trace = { traceId: newPhotoEditorTraceId(), postId, mediaId: draft?.id };
@@ -525,7 +549,11 @@ export function PhotoEditModal({
           ...errBody,
         }, "error");
         const detail =
-          typeof errBody.detail === "string" ? errBody.detail : undefined;
+          typeof errBody.error === "string"
+            ? errBody.error
+            : typeof errBody.detail === "string"
+              ? errBody.detail
+              : undefined;
         const serverTrace =
           typeof errBody.traceId === "string" ? errBody.traceId : trace.traceId;
         throw new Error(
