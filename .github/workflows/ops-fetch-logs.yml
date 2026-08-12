@@ -62,12 +62,27 @@ jobs:
             find "$MEDIA" -type f 2>/dev/null | wc -l || true
             find "$MEDIA" -type f 2>/dev/null | tail -10 || true
 
-            echo "===== sample media with missing origin (DB check) ====="
+            echo "===== origin file existence (recent images) ====="
             docker compose -f "$COMPOSE" --env-file "$ENVF" exec -T db \
-              psql -U mini580 -d mini580_prod -t -c \
-              "SELECT COUNT(*) AS total_images FROM \"Media\" WHERE kind='IMAGE';" 2>/dev/null || true
-            docker compose -f "$COMPOSE" --env-file "$ENVF" exec -T db \
-              psql -U mini580 -d mini580_prod -t -c \
-              "SELECT id, LEFT(\"urlOrigin\",60) FROM \"Media\" WHERE kind='IMAGE' ORDER BY \"updatedAt\" DESC LIMIT 5;" 2>/dev/null || true
+              psql -U mini580 -d mini580_prod -t -A -F'|' -c \
+              "SELECT id, \"urlOrigin\", \"urlMoyenne\", \"updatedAt\"::text FROM \"Media\" WHERE kind='IMAGE' ORDER BY \"updatedAt\" DESC LIMIT 10;" 2>/dev/null \
+              | while IFS='|' read -r mid origin moyenne updated; do
+                  key=$(echo "$origin" | sed 's|^/media/||')
+                  if [ -n "$key" ] && [ -f "$MEDIA/$key" ]; then
+                    echo "OK origin $mid $updated"
+                  else
+                    echo "MISSING origin $mid $updated path=$MEDIA/$key"
+                  fi
+                  vkey=$(echo "$moyenne" | sed 's|^/media/||')
+                  if [ -n "$vkey" ] && [ -f "$MEDIA/$vkey" ]; then
+                    echo "  OK moyenne"
+                  else
+                    echo "  MISSING moyenne path=$MEDIA/$vkey"
+                  fi
+                done || true
+
+            echo "===== last 50 PATCH requests in logs (raw) ====="
+            docker compose -f "$COMPOSE" --env-file "$ENVF" logs --tail="$LOG_TAIL" web 2>&1 \
+              | grep -iE 'PATCH|images/|media-library' | tail -50 || true
 
             echo "===== DONE ====="
