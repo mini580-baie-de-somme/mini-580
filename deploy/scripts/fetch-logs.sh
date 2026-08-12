@@ -35,8 +35,9 @@ attempt=1
 max_attempts=3
 while [[ "$attempt" -le "$max_attempts" ]]; do
   echo "==> SSH fetch attempt $attempt/$max_attempts ($ENV_NAME, tail=$LOG_TAIL)"
-  if OPS_ENV="$ENV_NAME" LOG_TAIL="$LOG_TAIL" \
-    ssh "${SSH_OPTS[@]}" "${USER}@${HOST}" 'bash -s' < "$SCRIPT_DIR/fetch-logs-remote.sh"; then
+  if ssh "${SSH_OPTS[@]}" "${USER}@${HOST}" \
+    "OPS_ENV='${ENV_NAME}' LOG_TAIL='${LOG_TAIL}' bash -s" \
+    < "$SCRIPT_DIR/fetch-logs-remote.sh"; then
     exit 0
   fi
   if [[ "$attempt" -lt "$max_attempts" ]]; then

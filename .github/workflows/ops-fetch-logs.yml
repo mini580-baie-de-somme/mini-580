@@ -49,8 +49,8 @@ jobs:
           max=3
           while [[ "$attempt" -le "$max" ]]; do
             echo "==> SSH attempt $attempt/$max"
-            if OPS_ENV="$OPS_ENV" LOG_TAIL="$LOG_TAIL" \
-              ssh "${SSH_OPTS[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -s' \
+            if ssh "${SSH_OPTS[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
+              "OPS_ENV='${OPS_ENV}' LOG_TAIL='${LOG_TAIL}' bash -s" \
               < deploy/scripts/fetch-logs-remote.sh; then
               echo "OK"
               exit 0
