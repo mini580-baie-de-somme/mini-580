@@ -1,0 +1,61 @@
+name: Ops — Fetch VPS logs
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Stack (test or prod)"
+        required: true
+        type: choice
+        options:
+          - prod
+          - test
+        default: prod
+      tail:
+        description: "Log lines to fetch"
+        required: false
+        default: "2000"
+
+jobs:
+  fetch-logs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch container logs and media diagnostics
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          OPS_ENV: ${{ inputs.environment }}
+          LOG_TAIL: ${{ inputs.tail }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          timeout: 60s
+          command_timeout: 5m
+          envs: OPS_ENV,LOG_TAIL
+          script: |
+            set -euo pipefail
+            COMPOSE="/opt/mini580/${OPS_ENV}/docker-compose.yml"
+            ENVF="/opt/mini580/${OPS_ENV}/.env"
+            MEDIA="/opt/mini580/${OPS_ENV}/media"
+
+            echo "===== stack ps ====="
+            docker compose -f "$COMPOSE" --env-file "$ENVF" ps || true
+
+            echo "===== media dir perms ====="
+            ls -lad "$MEDIA" || true
+            ls -la "$MEDIA" 2>/dev/null | head -5 || true
+
+            echo "===== write check as uid 1001 ====="
+            docker compose -f "$COMPOSE" --env-file "$ENVF" exec -T -u 1001 web \
+              sh -c 'mkdir -p /data/media/_permcheck && rmdir /data/media/_permcheck && echo write_ok' \
+              || echo "WRITE_CHECK_FAILED"
+
+            echo "===== version ====="
+            curl -fsS "http://127.0.0.1:$([ "$OPS_ENV" = prod ] && echo 3000 || echo 3001)/api/version" || true
+
+            echo "===== recent web logs (media/rebake/errors) ====="
+            docker compose -f "$COMPOSE" --env-file "$ENVF" logs --tail="$LOG_TAIL" web 2>&1 \
+              | grep -iE 'media-trace|rebake|patchImage|patchMedia|error|EACCES|permission|integrity|Origin|422|500|write' \
+              | tail -200 || true
+
+            echo "===== DONE ====="
