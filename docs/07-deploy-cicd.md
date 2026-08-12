@@ -254,6 +254,15 @@ cd mini-580 && ./deploy/scripts/fetch-logs.sh prod 2000
 
 Scripts : `deploy/scripts/fetch-logs-remote.sh` (exécuté sur le VPS), `deploy/scripts/fetch-logs.sh` (wrapper local).
 
+**Logs nginx (accès HTTP) :** l’utilisateur `deploy` ne peut pas lire `/var/log/nginx/access.log` par défaut. Une fois sur le VPS en root :
+
+```bash
+sudo usermod -aG adm deploy
+# reconnecter la session SSH deploy
+```
+
+Après ça, `fetch-logs.sh` inclut les derniers hits API nginx. Sans ça, seuls les logs Docker (app) sont disponibles — et ils sont **réinitialisés à chaque redeploy** du conteneur `web`.
+
 ## Commandes utiles sur le VPS
 
 ```bash

@@ -29,10 +29,21 @@ echo "===== version ====="
 curl -fsS "http://127.0.0.1:${PORT}/api/version" || true
 echo
 
-echo "===== recent web logs (errors/warn) ====="
+echo "===== recent web logs (raw tail 120) ====="
+docker compose -f "$COMPOSE" --env-file "$ENVF" logs --tail=120 web 2>&1 || true
+
+echo "===== recent web logs (errors/warn/media-trace) ====="
 docker compose -f "$COMPOSE" --env-file "$ENVF" logs --tail="$LOG_TAIL" web 2>&1 \
-  | grep -iE 'error|warn|failed|EACCES|permission|integrity|rebake|layout rebake|image patch|patch failed|Origin|422|500|413' \
+  | grep -iE 'error|warn|failed|EACCES|permission|integrity|rebake|layout rebake|layoutRebake|image patch|patch failed|Origin|422|500|413|media-trace' \
   | tail -300 || true
+
+echo "===== nginx access (last 40 API hits) ====="
+NGX="/var/log/nginx/access.log"
+if [[ -r "$NGX" ]]; then
+  grep -E 'PATCH|POST|/api/' "$NGX" 2>/dev/null | tail -40 || true
+else
+  echo "SKIP: $NGX not readable (add deploy to adm: sudo usermod -aG adm deploy)"
+fi
 
 echo "===== media file count ====="
 find "$MEDIA" -type f 2>/dev/null | wc -l || true
