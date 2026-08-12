@@ -53,9 +53,21 @@ jobs:
             echo "===== version ====="
             curl -fsS "http://127.0.0.1:$([ "$OPS_ENV" = prod ] && echo 3000 || echo 3001)/api/version" || true
 
-            echo "===== recent web logs (media/rebake/errors) ====="
+            echo "===== recent web logs (all errors/warn) ====="
             docker compose -f "$COMPOSE" --env-file "$ENVF" logs --tail="$LOG_TAIL" web 2>&1 \
-              | grep -iE 'media-trace|rebake|patchImage|patchMedia|error|EACCES|permission|integrity|Origin|422|500|write' \
-              | tail -200 || true
+              | grep -iE 'error|warn|failed|EACCES|permission|integrity|rebake|layout rebake|image patch|patch failed|Origin|422|500|413' \
+              | tail -300 || true
+
+            echo "===== media file count ====="
+            find "$MEDIA" -type f 2>/dev/null | wc -l || true
+            find "$MEDIA" -type f 2>/dev/null | tail -10 || true
+
+            echo "===== sample media with missing origin (DB check) ====="
+            docker compose -f "$COMPOSE" --env-file "$ENVF" exec -T db \
+              psql -U mini580 -d mini580_prod -t -c \
+              "SELECT COUNT(*) AS total_images FROM \"Media\" WHERE kind='IMAGE';" 2>/dev/null || true
+            docker compose -f "$COMPOSE" --env-file "$ENVF" exec -T db \
+              psql -U mini580 -d mini580_prod -t -c \
+              "SELECT id, LEFT(\"urlOrigin\",60) FROM \"Media\" WHERE kind='IMAGE' ORDER BY \"updatedAt\" DESC LIMIT 5;" 2>/dev/null || true
 
             echo "===== DONE ====="
