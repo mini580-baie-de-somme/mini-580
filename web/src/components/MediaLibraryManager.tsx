@@ -22,6 +22,7 @@ import { MediaPreview } from "./MediaPreview";
 import { MediaKindThumb } from "./MediaKindThumb";
 import { DatetimeLocalInput } from "./DatetimeLocalInput";
 import { EditorSheetPanel } from "./EditorSheetPanel";
+import { PhotoCanvasEditor } from "./PhotoCanvasEditor";
 import { waitForMediaRebake } from "@/lib/wait-for-media-rebake";
 import { FullscreenEditorModal } from "./FullscreenEditorModal";
 import {
