@@ -50,7 +50,7 @@ import {
   isNetworkFetchError,
 } from "@/lib/fetch-with-network-retry";
 import { prepareImageForUpload } from "@/lib/prepare-upload-image";
-import { uploadFormData } from "@/lib/upload-form-data";
+import { uploadFormDataWithRetry } from "@/lib/upload-form-data";
 import { waitForMediaRebake } from "@/lib/wait-for-media-rebake";
 
 type Props = {
@@ -458,33 +458,48 @@ export function PhotoEditModal({
 
       if (pendingFile) {
         savePhase = "upload";
+        photoEditorTrace(trace, "save.prepare.start", {
+          bytes: pendingFile.size,
+          mime: pendingFile.type,
+          name: pendingFile.name,
+        }, "info");
+        const prepareStarted = Date.now();
         const uploadFile =
           effectiveKind === "IMAGE"
             ? await prepareImageForUpload(pendingFile)
             : pendingFile;
+        photoEditorTrace(trace, "save.prepare.done", {
+          bytesIn: pendingFile.size,
+          bytesOut: uploadFile.size,
+          mime: uploadFile.type,
+          ms: Date.now() - prepareStarted,
+        }, "info");
 
-        const body = new FormData();
-        body.append("file", uploadFile);
-        body.append("titleFr", current.titleFr);
-        body.append("titleEn", current.titleEn);
-        body.append("descriptionFr", current.descriptionFr);
-        body.append("descriptionEn", current.descriptionEn);
-        if (current.takenAt) {
-          const iso =
-            typeof current.takenAt === "string"
-              ? current.takenAt
-              : current.takenAt.toISOString();
-          body.append("takenAt", iso);
-        }
+        const buildUploadBody = () => {
+          const body = new FormData();
+          body.append("file", uploadFile);
+          body.append("titleFr", current.titleFr);
+          body.append("titleEn", current.titleEn);
+          body.append("descriptionFr", current.descriptionFr);
+          body.append("descriptionEn", current.descriptionEn);
+          if (current.takenAt) {
+            const iso =
+              typeof current.takenAt === "string"
+                ? current.takenAt
+                : current.takenAt.toISOString();
+            body.append("takenAt", iso);
+          }
+          return body;
+        };
 
         if (current.id) {
           photoEditorTrace(trace, "save.replace.start", {
             mediaId: current.id,
             bytes: uploadFile.size,
           }, "info");
-          const rep = await uploadFormData(
+          const rep = await uploadFormDataWithRetry(
             `/api/media-library/${current.id}/replace`,
-            body
+            buildUploadBody
           );
           if (!rep.ok) {
             const errBody = await readApiErrorBody(rep);
@@ -507,7 +522,10 @@ export function PhotoEditModal({
             bytes: uploadFile.size,
             mime: uploadFile.type,
           }, "info");
-          const res = await uploadFormData(`/api/posts/${postId}/media`, body);
+          const res = await uploadFormDataWithRetry(
+            `/api/posts/${postId}/media`,
+            buildUploadBody
+          );
           if (!res.ok) {
             const errBody = await readApiErrorBody(res);
             photoEditorTrace(trace, "save.upload.failed", {
@@ -672,8 +690,8 @@ export function PhotoEditModal({
       const message = isNetworkFetchError(err)
         ? savePhase === "upload"
           ? lang === "fr"
-            ? "Envoi du fichier interrompu — réessaie (Wi‑Fi conseillé pour les grosses photos)."
-            : "File upload interrupted — try again (Wi‑Fi recommended for large photos)."
+            ? "Envoi du fichier interrompu — réessaie (photo plus légère si ça persiste)."
+            : "File upload interrupted — try again (use a smaller photo if it persists)."
           : lang === "fr"
             ? "Enregistrement interrompu — réessaie dans quelques secondes."
             : "Save interrupted — try again in a few seconds."

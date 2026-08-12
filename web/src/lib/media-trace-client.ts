@@ -34,6 +34,8 @@ export function photoEditorTrace(
     typeof window !== "undefined" &&
     (level === "info" || level === "warn" || level === "error")
   ) {
+    const ua =
+      typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 160) : undefined;
     void fetch("/api/client-trace", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -44,9 +46,9 @@ export function photoEditorTrace(
         traceId: ctx.traceId,
         postId: ctx.postId,
         mediaId: ctx.mediaId,
+        userAgent: ua,
         data: payload,
       }),
-      keepalive: true,
     }).catch(() => {});
   }
 }

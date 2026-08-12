@@ -9,6 +9,7 @@ const bodySchema = z.object({
   traceId: z.string().optional(),
   postId: z.string().optional(),
   mediaId: z.string().optional(),
+  userAgent: z.string().optional(),
   level: z
     .enum(["trace", "debug", "info", "warn", "error"])
     .default("info"),
@@ -28,6 +29,7 @@ export async function POST(request: NextRequest) {
       traceId: parsed.traceId,
       postId: parsed.postId,
       mediaId: parsed.mediaId,
+      userAgent: parsed.userAgent,
       editorId: editor.id,
       editorEmail: editor.email,
       source: "client",

@@ -1,4 +1,6 @@
-/** XHR multipart upload — more reliable than fetch+FormData on Safari iOS for large bodies. */
+/** XHR multipart upload — more reliable than fetch+FormData on mobile for large bodies. */
+
+import { isNetworkFetchError } from "./fetch-with-network-retry";
 
 export type UploadFormDataOptions = {
   method?: "POST" | "PUT" | "PATCH";
@@ -67,4 +69,25 @@ export function uploadFormData(
 
     xhr.send(body);
   });
+}
+
+/** Retry transient upload failures; rebuild FormData each attempt (body is consumed once). */
+export async function uploadFormDataWithRetry(
+  url: string,
+  bodyFactory: () => FormData,
+  opts?: UploadFormDataOptions & { retries?: number; baseDelayMs?: number }
+): Promise<Response> {
+  const retries = opts?.retries ?? 4;
+  const baseDelayMs = opts?.baseDelayMs ?? 600;
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await uploadFormData(url, bodyFactory(), opts);
+    } catch (err) {
+      lastErr = err;
+      if (!isNetworkFetchError(err) || attempt === retries) throw err;
+      await new Promise((r) => setTimeout(r, baseDelayMs * (attempt + 1)));
+    }
+  }
+  throw lastErr;
 }
