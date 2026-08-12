@@ -129,6 +129,8 @@ jobs:
             upsert_env SYNC_PEER_PUBLIC_KEY "${SYNC_PEER_PUBLIC_KEY:-}"
             upsert_env SESSION_SECRET "${SESSION_SECRET:-}"
             upsert_env POSTGRES_PASSWORD "${POSTGRES_PASSWORD:-}"
+            upsert_env LOG_LEVEL "info"
+            upsert_env NEXT_PUBLIC_LOG_LEVEL "info"
             if command -v sudo >/dev/null 2>&1; then
               sudo cp /opt/mini580/nginx/classmini580.blog.conf /etc/nginx/sites-available/classmini580.blog.conf || true
               sudo nginx -t && sudo systemctl reload nginx || true
