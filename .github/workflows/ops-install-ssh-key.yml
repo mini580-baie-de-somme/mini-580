@@ -1,0 +1,57 @@
+name: Ops — Install SSH key
+
+on:
+  workflow_dispatch:
+    inputs:
+      public_key:
+        description: "OpenSSH public key line (ssh-ed25519 AAAA... comment)"
+        required: true
+        type: string
+      comment:
+        description: "Label stored in authorized_keys comment"
+        required: false
+        default: "openclaw-mini580"
+
+jobs:
+  install-key:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add public key to deploy authorized_keys
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          PUBKEY: ${{ inputs.public_key }}
+          KEY_COMMENT: ${{ inputs.comment }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          timeout: 120s
+          command_timeout: 2m
+          envs: PUBKEY,KEY_COMMENT
+          script: |
+            set -euo pipefail
+            AUTH=/home/deploy/.ssh/authorized_keys
+            # Normalize: single line, trim whitespace
+            LINE="$(printf '%s' "$PUBKEY" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+            if [[ -z "$LINE" ]]; then
+              echo "ERROR: empty public key"
+              exit 1
+            fi
+            if [[ "$LINE" != ssh-* ]]; then
+              echo "ERROR: expected OpenSSH public key (ssh-ed25519 ...)"
+              exit 1
+            fi
+            # Ensure comment suffix for audit
+            if [[ "$LINE" != *" ${KEY_COMMENT}" ]]; then
+              LINE="${LINE} ${KEY_COMMENT}"
+            fi
+            mkdir -p /home/deploy/.ssh
+            touch "$AUTH"
+            chmod 600 "$AUTH"
+            if grep -qxF "$LINE" "$AUTH"; then
+              echo "Key already present"
+            else
+              echo "$LINE" >> "$AUTH"
+              echo "Installed key: ${KEY_COMMENT}"
+            fi
+            echo "authorized_keys entries: $(wc -l < "$AUTH")"

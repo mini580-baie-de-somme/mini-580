@@ -227,6 +227,33 @@ Consulter les logs container :
 sudo -u deploy docker compose -f /opt/mini580/test/docker-compose.yml --env-file /opt/mini580/test/.env logs -f web | grep media-trace
 ```
 
+### Récupération des logs PROD/TEST (ops)
+
+**Cause connue des échecs CI :** les runners GitHub Actions ont une connectivité SSH **intermittente** vers le VPS (`dial tcp …:22: i/o timeout`). Ce n’est pas une mauvaise clé — le même secret fonctionne pour Deploy PROD/TEST quand le réseau répond. Le workflow **Ops — Fetch VPS logs** utilise maintenant SSH natif avec **3 tentatives** et `ConnectTimeout=45s` (au lieu de `appleboy/ssh-action` timeout 60s sans retry).
+
+| Méthode | Quand l’utiliser |
+|---------|------------------|
+| **GitHub Actions** | Actions → **Ops — Fetch VPS logs** → `environment=prod` (ou `test`), `tail=2000` |
+| **OpenClaw local** | `./deploy/scripts/fetch-logs.sh prod` (clé `~/.ssh/id_ed25519_mini580_openclaw`) |
+| **SSH direct VPS** | `ssh deploy@2.24.13.70` puis `docker compose … logs -f web` |
+
+**Première fois — accès OpenClaw au VPS :**
+
+```bash
+# 1. Générer une clé dédiée (OpenClaw)
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_mini580_openclaw -C "openclaw-mini580" -N ""
+
+# 2. Installer la clé publique sur le VPS via GitHub
+gh workflow run ops-install-ssh-key.yml --repo mini580-baie-de-somme/mini-580 \
+  -f public_key="$(cat ~/.ssh/id_ed25519_mini580_openclaw.pub)" \
+  -f comment=openclaw-mini580
+
+# 3. Récupérer les logs PROD
+cd mini-580 && ./deploy/scripts/fetch-logs.sh prod 2000
+```
+
+Scripts : `deploy/scripts/fetch-logs-remote.sh` (exécuté sur le VPS), `deploy/scripts/fetch-logs.sh` (wrapper local).
+
 ## Commandes utiles sur le VPS
 
 ```bash
