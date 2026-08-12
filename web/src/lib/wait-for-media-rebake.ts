@@ -32,7 +32,12 @@ export async function waitForMediaRebake<T extends RebakePollMedia>(
       continue;
     }
     if (!res.ok) continue;
-    const data = (await res.json()) as T;
+    let data: T;
+    try {
+      data = (await res.json()) as T;
+    } catch {
+      continue;
+    }
     const after = [data.urlMoyenne, data.urlGrande, data.urlPicto].filter(
       Boolean
     );

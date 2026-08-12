@@ -45,6 +45,10 @@ import {
 import type { MediaIntegrity } from "@/lib/media-integrity-types";
 import { MediaIntegrityNotice } from "./MediaIntegrityNotice";
 import { MediaClipboardPasteButton } from "./MediaClipboardPasteButton";
+import {
+  fetchWithNetworkRetry,
+  isNetworkFetchError,
+} from "@/lib/fetch-with-network-retry";
 import { waitForMediaRebake } from "@/lib/wait-for-media-rebake";
 
 type Props = {
@@ -466,10 +470,10 @@ export function PhotoEditModal({
 
         if (current.id) {
           photoEditorTrace(trace, "save.replace.start", { mediaId: current.id }, "debug");
-          const rep = await fetch(`/api/media-library/${current.id}/replace`, {
-            method: "POST",
-            body,
-          });
+          const rep = await fetchWithNetworkRetry(
+            `/api/media-library/${current.id}/replace`,
+            { method: "POST", body }
+          );
           if (!rep.ok) {
             const errBody = await readApiErrorBody(rep);
             photoEditorTrace(trace, "save.replace.failed", {
@@ -487,7 +491,7 @@ export function PhotoEditModal({
           photoEditorTrace(trace, "save.replace.done", { mediaId: current.id }, "info");
         } else {
           photoEditorTrace(trace, "save.upload.start", { postId }, "debug");
-          const res = await fetch(`/api/posts/${postId}/media`, {
+          const res = await fetchWithNetworkRetry(`/api/posts/${postId}/media`, {
             method: "POST",
             body,
           });
@@ -538,11 +542,15 @@ export function PhotoEditModal({
         mediaId: current.id,
         patchBody,
       }, "debug");
-      const res = await fetch(`/api/posts/${postId}/images/${current.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patchBody),
-      });
+      const res = await fetchWithNetworkRetry(
+        `/api/posts/${postId}/images/${current.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patchBody),
+          keepalive: true,
+        }
+      );
       if (!res.ok) {
         const errBody = await readApiErrorBody(res);
         photoEditorTrace(trace, "save.patch.failed", {
@@ -574,32 +582,9 @@ export function PhotoEditModal({
         rebakePending: Boolean(updated.rebakePending),
       }, "info");
 
-      let fresh = updated;
-      if (updated.rebakePending) {
-        photoEditorTrace(trace, "save.rebake.poll.start", { mediaId: current.id }, "info");
-        const rebaked = await waitForMediaRebake<GalleryEditorImage>(
-          current.id,
-          {
-            urlMoyenne: current.urlMoyenne,
-            urlGrande: current.urlGrande,
-            urlPicto: current.urlPicto,
-          }
-        );
-        if (rebaked) {
-          fresh = toEditorImage(rebaked);
-          photoEditorTrace(trace, "save.rebake.poll.done", {
-            mediaId: current.id,
-            urlMoyenne: fresh.urlMoyenne,
-          }, "info");
-        } else {
-          photoEditorTrace(trace, "save.rebake.poll.timeout", {
-            mediaId: current.id,
-          }, "warn");
-        }
-      }
       const saved: GalleryEditorImage = isImage
         ? {
-            ...fresh,
+            ...updated,
             offsetX: layout.offsetX,
             offsetY: layout.offsetY,
             scaleX: layout.scaleX,
@@ -615,20 +600,60 @@ export function PhotoEditModal({
               ? layout.scaleX
               : Math.max(layout.scaleX, layout.scaleY),
           }
-        : fresh;
+        : updated;
       setPendingFile(null);
       setDirty(false);
       onSaved(saved);
       onClose();
       photoEditorTrace(trace, "save.done", { mediaId: saved.id }, "info");
+
+      if (updated.rebakePending) {
+        photoEditorTrace(trace, "save.rebake.poll.start", { mediaId: current.id }, "info");
+        void waitForMediaRebake<GalleryEditorImage>(current.id, {
+          urlMoyenne: current.urlMoyenne,
+          urlGrande: current.urlGrande,
+          urlPicto: current.urlPicto,
+        }).then((rebaked) => {
+          if (!rebaked) {
+            photoEditorTrace(trace, "save.rebake.poll.timeout", {
+              mediaId: current.id,
+            }, "warn");
+            return;
+          }
+          photoEditorTrace(trace, "save.rebake.poll.done", {
+            mediaId: current.id,
+            urlMoyenne: rebaked.urlMoyenne,
+          }, "info");
+          onSaved(
+            isImage
+              ? {
+                  ...toEditorImage(rebaked),
+                  offsetX: layout.offsetX,
+                  offsetY: layout.offsetY,
+                  scaleX: layout.scaleX,
+                  scaleY: layout.scaleY,
+                  lockAspect: layout.lockAspect,
+                  rotation: layout.rotation,
+                  cropShape: layout.cropShape,
+                  backgroundColor: layout.backgroundColor,
+                  cropInset: layout.cropInset,
+                  focusX: 0.5 - layout.offsetX / 2,
+                  focusY: 0.5 - layout.offsetY / 2,
+                  zoom: layout.lockAspect
+                    ? layout.scaleX
+                    : Math.max(layout.scaleX, layout.scaleY),
+                }
+              : toEditorImage(rebaked)
+          );
+        });
+      }
     } catch (err) {
       const raw = err instanceof Error ? err.message : "Save failed";
-      const message =
-        raw === "Failed to fetch"
-          ? lang === "fr"
-            ? "Connexion interrompue — vérifie le réseau et réessaie."
-            : "Connection lost — check your network and try again."
-          : raw;
+      const message = isNetworkFetchError(err)
+        ? lang === "fr"
+          ? "Connexion interrompue — vérifie le réseau et réessaie."
+          : "Connection lost — check your network and try again."
+        : raw;
       photoEditorTrace(trace, "save.error", { message: raw }, "error");
       setError(
         lang === "fr"

@@ -34,8 +34,8 @@ docker compose -f "$COMPOSE" --env-file "$ENVF" logs --tail=120 web 2>&1 || true
 
 echo "===== recent web logs (errors/warn/media-trace) ====="
 docker compose -f "$COMPOSE" --env-file "$ENVF" logs --tail="$LOG_TAIL" web 2>&1 \
-  | grep -iE 'error|warn|failed|EACCES|permission|integrity|rebake|layout rebake|layoutRebake|image patch|patch failed|Origin|422|500|413|media-trace' \
-  | tail -300 || true
+  | { grep -iE 'error|warn|failed|EACCES|permission|integrity|rebake|layout rebake|layoutRebake|image patch|patch failed|Origin|422|500|413|media-trace' \
+  | tail -300; true; } || true
 
 echo "===== nginx access (last 40 API hits) ====="
 NGX="/var/log/nginx/access.log"
@@ -82,6 +82,6 @@ docker compose -f "$COMPOSE" --env-file "$ENVF" exec -T db \
 
 echo "===== last 50 PATCH requests in logs (raw) ====="
 docker compose -f "$COMPOSE" --env-file "$ENVF" logs --tail="$LOG_TAIL" web 2>&1 \
-  | grep -iE 'PATCH|images/|media-library' | tail -50 || true
+  | { grep -iE 'PATCH|images/|media-library' | tail -50; true; } || true
 
 echo "===== DONE ====="
