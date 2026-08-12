@@ -44,6 +44,7 @@ import {
 } from "@/lib/media-trace-client";
 import type { MediaIntegrity } from "@/lib/media-integrity-types";
 import { MediaIntegrityNotice } from "./MediaIntegrityNotice";
+import { MediaClipboardPasteButton } from "./MediaClipboardPasteButton";
 import { waitForMediaRebake } from "@/lib/wait-for-media-rebake";
 
 type Props = {
