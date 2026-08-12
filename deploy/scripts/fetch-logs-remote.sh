@@ -23,6 +23,7 @@ ls -la "$MEDIA" 2>/dev/null | head -5 || true
 echo "===== write check as uid 1001 ====="
 docker compose -f "$COMPOSE" --env-file "$ENVF" exec -T -u 1001 web \
   sh -c 'mkdir -p /data/media/_permcheck && rmdir /data/media/_permcheck && echo write_ok' \
+  < /dev/null \
   || echo "WRITE_CHECK_FAILED"
 
 echo "===== version ====="
@@ -39,10 +40,24 @@ docker compose -f "$COMPOSE" --env-file "$ENVF" logs --tail="$LOG_TAIL" web 2>&1
 
 echo "===== nginx access (last 40 API hits) ====="
 NGX="/var/log/nginx/access.log"
+NGX_READABLE=0
 if [[ -r "$NGX" ]]; then
   grep -E 'PATCH|POST|/api/' "$NGX" 2>/dev/null | tail -40 || true
-else
-  echo "SKIP: $NGX not readable (add deploy to adm: sudo usermod -aG adm deploy)"
+  NGX_READABLE=1
+fi
+if [[ "$NGX_READABLE" -eq 0 ]]; then
+  for vol in mini580-nginx-logs mini580_nginx_logs; do
+    if docker volume inspect "$vol" >/dev/null 2>&1; then
+      docker run --rm -v "${vol}:/logs:ro" alpine:3.20 \
+        sh -c "grep -E 'PATCH|POST|/api/' /logs/access.log 2>/dev/null | tail -40" \
+        || true
+      NGX_READABLE=1
+      break
+    fi
+  done
+fi
+if [[ "$NGX_READABLE" -eq 0 ]]; then
+  echo "SKIP: nginx access.log not readable (add deploy to adm: sudo usermod -aG adm deploy)"
 fi
 
 echo "===== media file count ====="
@@ -53,6 +68,7 @@ echo "===== recent media layout + variant mtimes ====="
 docker compose -f "$COMPOSE" --env-file "$ENVF" exec -T db \
   psql -U mini580 -d "$POSTGRES_DB" -t -A -F'|' -c \
   "SELECT id, \"scaleX\", \"scaleY\", \"rotation\", \"offsetX\", \"offsetY\", LEFT(\"urlMoyenne\",80), \"updatedAt\"::text FROM \"Media\" WHERE kind='IMAGE' ORDER BY \"updatedAt\" DESC LIMIT 5;" 2>/dev/null \
+  < /dev/null \
   | while IFS='|' read -r mid sx sy rot ox oy moy updated; do
       echo "MEDIA $mid updated=$updated scale=$sx rot=$rot offset=$ox,$oy"
       echo "  urlMoyenne=$moy"
@@ -65,6 +81,7 @@ docker compose -f "$COMPOSE" --env-file "$ENVF" exec -T db \
 docker compose -f "$COMPOSE" --env-file "$ENVF" exec -T db \
   psql -U mini580 -d "$POSTGRES_DB" -t -A -F'|' -c \
   "SELECT id, \"urlOrigin\", \"urlMoyenne\", \"updatedAt\"::text FROM \"Media\" WHERE kind='IMAGE' ORDER BY \"updatedAt\" DESC LIMIT 10;" 2>/dev/null \
+  < /dev/null \
   | while IFS='|' read -r mid origin moyenne updated; do
       key=$(echo "$origin" | sed 's|^/media/||')
       if [ -n "$key" ] && [ -f "$MEDIA/$key" ]; then

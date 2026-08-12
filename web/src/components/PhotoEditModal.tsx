@@ -548,8 +548,8 @@ export function PhotoEditModal({
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(patchBody),
-          keepalive: true,
-        }
+        },
+        { retries: 4, baseDelayMs: 600 }
       );
       if (!res.ok) {
         const errBody = await readApiErrorBody(res);
