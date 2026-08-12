@@ -12,7 +12,7 @@ const bodySchema = z.object({
   level: z
     .enum(["trace", "debug", "info", "warn", "error"])
     .default("info"),
-  data: z.record(z.unknown()).optional(),
+  data: z.record(z.string(), z.unknown()).optional(),
 });
 
 /** Ingest client-side editor traces so mobile save failures appear in prod logs. */
