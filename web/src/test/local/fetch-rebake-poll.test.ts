@@ -18,8 +18,10 @@ describe("isNetworkFetchError", () => {
     ).toBe(true);
   });
 
-  it("ignores HTTP errors", () => {
-    expect(isNetworkFetchError(new Error("Save failed"))).toBe(false);
+  it("detects UploadNetworkError", () => {
+    const err = new TypeError("Failed to fetch");
+    err.name = "UploadNetworkError";
+    expect(isNetworkFetchError(err)).toBe(true);
   });
 });
 

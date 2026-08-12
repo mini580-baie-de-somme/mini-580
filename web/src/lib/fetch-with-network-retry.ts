@@ -1,12 +1,14 @@
 /** Detect browser/network fetch failures (not HTTP 4xx/5xx). */
 export function isNetworkFetchError(err: unknown): boolean {
-  if (!(err instanceof TypeError)) return false;
-  const msg = err.message;
-  return (
-    msg === "Failed to fetch" ||
-    msg === "NetworkError when attempting to fetch resource." ||
-    msg === "Load failed"
-  );
+  if (err instanceof TypeError) {
+    const msg = err.message;
+    return (
+      msg === "Failed to fetch" ||
+      msg === "NetworkError when attempting to fetch resource." ||
+      msg === "Load failed"
+    );
+  }
+  return err instanceof Error && err.name === "UploadNetworkError";
 }
 
 /** Retry transient client-side fetch failures (mobile radio blips, proxy resets). */

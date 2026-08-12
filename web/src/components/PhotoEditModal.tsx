@@ -49,6 +49,8 @@ import {
   fetchWithNetworkRetry,
   isNetworkFetchError,
 } from "@/lib/fetch-with-network-retry";
+import { prepareImageForUpload } from "@/lib/prepare-upload-image";
+import { uploadFormData } from "@/lib/upload-form-data";
 import { waitForMediaRebake } from "@/lib/wait-for-media-rebake";
 
 type Props = {
@@ -444,6 +446,7 @@ export function PhotoEditModal({
     setBusy(true);
     setError(null);
     const trace = { traceId: newPhotoEditorTraceId(), postId, mediaId: draft?.id };
+    let savePhase: "upload" | "patch" = "patch";
     photoEditorTrace(trace, "save.start", {
       mode,
       isImage,
@@ -454,8 +457,14 @@ export function PhotoEditModal({
       let current = draft ? { ...draft } : emptyDraft(effectiveKind);
 
       if (pendingFile) {
+        savePhase = "upload";
+        const uploadFile =
+          effectiveKind === "IMAGE"
+            ? await prepareImageForUpload(pendingFile)
+            : pendingFile;
+
         const body = new FormData();
-        body.append("file", pendingFile);
+        body.append("file", uploadFile);
         body.append("titleFr", current.titleFr);
         body.append("titleEn", current.titleEn);
         body.append("descriptionFr", current.descriptionFr);
@@ -469,10 +478,13 @@ export function PhotoEditModal({
         }
 
         if (current.id) {
-          photoEditorTrace(trace, "save.replace.start", { mediaId: current.id }, "debug");
-          const rep = await fetchWithNetworkRetry(
+          photoEditorTrace(trace, "save.replace.start", {
+            mediaId: current.id,
+            bytes: uploadFile.size,
+          }, "info");
+          const rep = await uploadFormData(
             `/api/media-library/${current.id}/replace`,
-            { method: "POST", body }
+            body
           );
           if (!rep.ok) {
             const errBody = await readApiErrorBody(rep);
@@ -490,18 +502,25 @@ export function PhotoEditModal({
           assertLocalOriginResponse(current.urlOrigin, lang);
           photoEditorTrace(trace, "save.replace.done", { mediaId: current.id }, "info");
         } else {
-          photoEditorTrace(trace, "save.upload.start", { postId }, "debug");
-          const res = await fetchWithNetworkRetry(`/api/posts/${postId}/media`, {
-            method: "POST",
-            body,
-          });
+          photoEditorTrace(trace, "save.upload.start", {
+            postId,
+            bytes: uploadFile.size,
+            mime: uploadFile.type,
+          }, "info");
+          const res = await uploadFormData(`/api/posts/${postId}/media`, body);
           if (!res.ok) {
             const errBody = await readApiErrorBody(res);
             photoEditorTrace(trace, "save.upload.failed", {
               status: res.status,
               ...errBody,
             }, "error");
-            throw new Error("upload failed");
+            throw new Error(
+              typeof errBody.error === "string"
+                ? errBody.error
+                : typeof errBody.detail === "string"
+                  ? errBody.detail
+                  : "upload failed"
+            );
           }
           current = toEditorImage(await res.json());
           assertLocalOriginResponse(current.urlOrigin, lang);
@@ -538,6 +557,7 @@ export function PhotoEditModal({
         Object.assign(patchBody, layout);
       }
 
+      savePhase = "patch";
       photoEditorTrace(trace, "save.patch.start", {
         mediaId: current.id,
         patchBody,
@@ -650,9 +670,13 @@ export function PhotoEditModal({
     } catch (err) {
       const raw = err instanceof Error ? err.message : "Save failed";
       const message = isNetworkFetchError(err)
-        ? lang === "fr"
-          ? "Connexion interrompue — vérifie le réseau et réessaie."
-          : "Connection lost — check your network and try again."
+        ? savePhase === "upload"
+          ? lang === "fr"
+            ? "Envoi du fichier interrompu — réessaie (Wi‑Fi conseillé pour les grosses photos)."
+            : "File upload interrupted — try again (Wi‑Fi recommended for large photos)."
+          : lang === "fr"
+            ? "Enregistrement interrompu — réessaie dans quelques secondes."
+            : "Save interrupted — try again in a few seconds."
         : raw;
       photoEditorTrace(trace, "save.error", { message: raw }, "error");
       setError(

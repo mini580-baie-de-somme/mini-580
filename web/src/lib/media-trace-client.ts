@@ -22,12 +22,33 @@ export function photoEditorTrace(
   data?: Record<string, unknown>,
   level: LogLevel = "debug"
 ) {
-  appLog("photo-editor-trace", level, step, {
+  const payload = {
     traceId: ctx.traceId,
     ...(ctx.postId ? { postId: ctx.postId } : {}),
     ...(ctx.mediaId ? { mediaId: ctx.mediaId } : {}),
     ...(data ?? {}),
-  });
+  };
+  appLog("photo-editor-trace", level, step, payload);
+
+  if (
+    typeof window !== "undefined" &&
+    (level === "info" || level === "warn" || level === "error")
+  ) {
+    void fetch("/api/client-trace", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        channel: "photo-editor-trace",
+        step,
+        level,
+        traceId: ctx.traceId,
+        postId: ctx.postId,
+        mediaId: ctx.mediaId,
+        data: payload,
+      }),
+      keepalive: true,
+    }).catch(() => {});
+  }
 }
 
 export async function readApiErrorBody(

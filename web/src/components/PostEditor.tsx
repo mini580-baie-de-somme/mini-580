@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { HullId } from "@/lib/types";
 import { ArticleBodyEditor } from "./ArticleBodyEditor";
@@ -13,6 +13,7 @@ import {
   fromDatetimeLocalValue,
   toDatetimeLocalValue,
 } from "@/lib/utils";
+import { parsePhotoModalState } from "@/lib/virtual-url";
 
 type Tag = { id: string; name: string; labelFr: string; labelEn: string };
 type Theme = { id: string; slug: string; labelFr: string; labelEn: string };
@@ -62,6 +63,9 @@ export function PostEditor({
   onProd,
 }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const photoModalOpen =
+    parsePhotoModalState(searchParams).kind !== "closed";
   const { locale, t } = useLocale();
   const [lang, setLang] = useState<"fr" | "en">("fr");
   const [form, setForm] = useState({
@@ -167,6 +171,7 @@ export function PostEditor({
       skipInitialAutosave.current = false;
       return;
     }
+    if (photoModalOpen) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       void save();
@@ -174,7 +179,7 @@ export function PostEditor({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [form, save]);
+  }, [form, save, photoModalOpen]);
 
   async function publish() {
     await save();
