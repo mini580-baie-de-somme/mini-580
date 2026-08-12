@@ -44,7 +44,7 @@ import {
 } from "@/lib/media-trace-client";
 import type { MediaIntegrity } from "@/lib/media-integrity-types";
 import { MediaIntegrityNotice } from "./MediaIntegrityNotice";
-import { MediaClipboardPasteButton } from "./MediaClipboardPasteButton";
+import { waitForMediaRebake } from "@/lib/wait-for-media-rebake";
 
 type Props = {
   postId: string;
@@ -562,16 +562,43 @@ export function PhotoEditModal({
             : `patch failed (${serverTrace})`
         );
       }
-      const updated = toEditorImage(await res.json());
+      const updated = toEditorImage(await res.json()) as GalleryEditorImage & {
+        rebakePending?: boolean;
+      };
       photoEditorTrace(trace, "save.patch.done", {
         mediaId: current.id,
         scaleX: updated.scaleX,
         scaleY: updated.scaleY,
         rotation: updated.rotation,
+        rebakePending: Boolean(updated.rebakePending),
       }, "info");
+
+      let fresh = updated;
+      if (updated.rebakePending) {
+        photoEditorTrace(trace, "save.rebake.poll.start", { mediaId: current.id }, "info");
+        const rebaked = await waitForMediaRebake<GalleryEditorImage>(
+          current.id,
+          {
+            urlMoyenne: current.urlMoyenne,
+            urlGrande: current.urlGrande,
+            urlPicto: current.urlPicto,
+          }
+        );
+        if (rebaked) {
+          fresh = toEditorImage(rebaked);
+          photoEditorTrace(trace, "save.rebake.poll.done", {
+            mediaId: current.id,
+            urlMoyenne: fresh.urlMoyenne,
+          }, "info");
+        } else {
+          photoEditorTrace(trace, "save.rebake.poll.timeout", {
+            mediaId: current.id,
+          }, "warn");
+        }
+      }
       const saved: GalleryEditorImage = isImage
         ? {
-            ...updated,
+            ...fresh,
             offsetX: layout.offsetX,
             offsetY: layout.offsetY,
             scaleX: layout.scaleX,
@@ -587,15 +614,21 @@ export function PhotoEditModal({
               ? layout.scaleX
               : Math.max(layout.scaleX, layout.scaleY),
           }
-        : updated;
+        : fresh;
       setPendingFile(null);
       setDirty(false);
       onSaved(saved);
       onClose();
       photoEditorTrace(trace, "save.done", { mediaId: saved.id }, "info");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Save failed";
-      photoEditorTrace(trace, "save.error", { message }, "error");
+      const raw = err instanceof Error ? err.message : "Save failed";
+      const message =
+        raw === "Failed to fetch"
+          ? lang === "fr"
+            ? "Connexion interrompue — vérifie le réseau et réessaie."
+            : "Connection lost — check your network and try again."
+          : raw;
+      photoEditorTrace(trace, "save.error", { message: raw }, "error");
       setError(
         lang === "fr"
           ? message.startsWith("Échec")

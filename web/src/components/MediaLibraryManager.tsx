@@ -22,7 +22,7 @@ import { MediaPreview } from "./MediaPreview";
 import { MediaKindThumb } from "./MediaKindThumb";
 import { DatetimeLocalInput } from "./DatetimeLocalInput";
 import { EditorSheetPanel } from "./EditorSheetPanel";
-import { PhotoCanvasEditor } from "./PhotoCanvasEditor";
+import { waitForMediaRebake } from "@/lib/wait-for-media-rebake";
 import { FullscreenEditorModal } from "./FullscreenEditorModal";
 import {
   MEDIA_ACCEPT,
@@ -459,6 +459,20 @@ export function MediaLibraryManager() {
         });
         const data = await readApiJson(res);
         if (!res.ok) throw new Error(data.error ?? t("media.saveError"));
+        if (data.rebakePending && editingId !== "new") {
+          const rebaked = await waitForMediaRebake<MediaItem>(editingId, {
+            urlMoyenne: editingMedia?.urlMoyenne,
+            urlGrande: editingMedia?.urlGrande,
+            urlPicto: editingMedia?.urlPicto,
+          });
+          if (!rebaked) {
+            setLocalError(
+              locale === "fr"
+                ? "Cadrage enregistré — génération des vignettes encore en cours. Recharge la page dans quelques secondes."
+                : "Layout saved — thumbnails still generating. Refresh the page in a few seconds."
+            );
+          }
+        }
       }
       cancelEdit();
       await reload();

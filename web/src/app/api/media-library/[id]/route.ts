@@ -4,21 +4,11 @@ import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
 import { deleteMediaUrls } from "@/lib/media-variants";
 import { layoutFromLegacy, legacyFieldsFromLayout, mergeLayoutPatch } from "@/lib/image-layout";
-import {
-  deleteMediaById,
-  mediaInclude,
-  collectPreviousDisplayUrls,
-  rebakeMediaVariants,
-  syncCoverImageUrlsAfterRebake,
-} from "@/lib/media-library";
+import { deleteMediaById, mediaInclude } from "@/lib/media-library";
+import { runLayoutRebake } from "@/lib/layout-rebake-schedule";
 import { MediaKind } from "@/generated/prisma/client";
 import { optionalNullableDateTime } from "@/lib/date-schema";
-import {
-  MediaRebakeError,
-  mediaTrace,
-  newMediaTraceId,
-  rebakeErrorDetail,
-} from "@/lib/media-trace";
+import { mediaTrace, newMediaTraceId } from "@/lib/media-trace";
 import { enrichMediaWithIntegrity } from "@/lib/media-integrity";
 import { canRepairOriginFromLocalVariant } from "@/lib/media-origin-repair";
 
@@ -173,53 +163,23 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     });
 
     if (transformChanged && updated.kind === MediaKind.IMAGE) {
-      const previousDisplayUrls = collectPreviousDisplayUrls(existing);
       const previousVariantUrls = [
         existing.urlPicto,
         existing.urlPetite,
         existing.urlMoyenne,
         existing.urlGrande,
       ];
-      try {
-        const variants = await rebakeMediaVariants(
-          updated,
-          {},
-          previousVariantUrls,
-          trace
-        );
-        const rebaked = await prisma.media.update({
-          where: { id },
-          data: variants,
-          include: mediaInclude,
-        });
-        await syncCoverImageUrlsAfterRebake(id, variants, previousDisplayUrls);
-        mediaTrace(trace, "patchMediaLibrary.rebake.done", {
-          urlMoyenne: rebaked.urlMoyenne,
-        }, "warn");
-        return NextResponse.json(await enrichMediaWithIntegrity(rebaked));
-      } catch (err) {
-        const detail = rebakeErrorDetail(err);
-        const step = err instanceof MediaRebakeError ? err.step : "rebake";
-        console.error("layout rebake failed (meta already saved)", {
-          traceId,
-          mediaId: id,
-          step,
-          detail,
-          err,
-        });
-        return NextResponse.json(
-          {
-            error:
-              err instanceof Error && err.name === "MediaIntegrityError"
-                ? detail
-                : "Variant rebake failed — layout saved but display sizes were not regenerated",
-            traceId,
-            detail,
-            step,
-          },
-          { status: err instanceof Error && err.name === "MediaIntegrityError" ? 422 : 500 }
-        );
-      }
+      const rebake = await runLayoutRebake(updated, trace, previousVariantUrls);
+      const fresh = rebake.rebakePending
+        ? updated
+        : await prisma.media.findUniqueOrThrow({
+            where: { id },
+            include: mediaInclude,
+          });
+      return NextResponse.json({
+        ...(await enrichMediaWithIntegrity(fresh)),
+        rebakePending: rebake.rebakePending,
+      });
     }
 
     return NextResponse.json(await enrichMediaWithIntegrity(updated));

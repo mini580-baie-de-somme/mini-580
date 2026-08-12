@@ -4,20 +4,13 @@ import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
 import { legacyFieldsFromLayout, mergeLayoutPatch } from "@/lib/image-layout";
 import {
-  collectPreviousDisplayUrls,
   detachMediaFromPost,
   deleteMediaById,
   mediaAsPostImage,
-  rebakeMediaVariants,
-  syncCoverImageUrlsAfterRebake,
 } from "@/lib/media-library";
+import { runLayoutRebake } from "@/lib/layout-rebake-schedule";
 import { optionalNullableDateTime } from "@/lib/date-schema";
-import {
-  MediaRebakeError,
-  mediaTrace,
-  newMediaTraceId,
-  rebakeErrorDetail,
-} from "@/lib/media-trace";
+import { mediaTrace, newMediaTraceId } from "@/lib/media-trace";
 
 type RouteContext = { params: Promise<{ id: string; imageId: string }> };
 
@@ -169,8 +162,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       (Object.keys(layoutPatch).length > 0 || transformChanged);
     let finalMedia = media;
 
+    let rebakePending = false;
     if (shouldRebakeLayout) {
-      const previousDisplayUrls = collectPreviousDisplayUrls(link.media);
       const previousVariantUrls = [
         link.media.urlPicto,
         link.media.urlPetite,
@@ -182,50 +175,17 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         scaleX: media.scaleX,
         scaleY: media.scaleY,
         rotation: media.rotation,
-      }, "debug");
-      try {
-        const bakedUrls = await rebakeMediaVariants(
-          media,
-          {},
-          previousVariantUrls,
-          trace
-        );
-        finalMedia = await prisma.media.update({
+      }, "info");
+      const rebake = await runLayoutRebake(media, trace, previousVariantUrls);
+      rebakePending = rebake.rebakePending;
+      if (!rebakePending) {
+        finalMedia = await prisma.media.findUniqueOrThrow({
           where: { id: imageId },
-          data: bakedUrls,
         });
-        await syncCoverImageUrlsAfterRebake(
-          imageId,
-          bakedUrls,
-          previousDisplayUrls
-        );
         mediaTrace(trace, "patchImage.rebake.done", {
           urlOrigin: finalMedia.urlOrigin,
           urlMoyenne: finalMedia.urlMoyenne,
         }, "warn");
-      } catch (err) {
-        const detail = rebakeErrorDetail(err);
-        const step = err instanceof MediaRebakeError ? err.step : "rebake";
-        console.error("image layout rebake failed (meta already saved)", {
-          traceId,
-          postId,
-          imageId,
-          step,
-          detail,
-          err,
-        });
-        return NextResponse.json(
-          {
-            error:
-              err instanceof Error && err.name === "MediaIntegrityError"
-                ? detail
-                : "Variant rebake failed — layout saved but display sizes were not regenerated",
-            traceId,
-            detail,
-            step,
-          },
-          { status: err instanceof Error && err.name === "MediaIntegrityError" ? 422 : 500 }
-        );
       }
     }
 
@@ -240,9 +200,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       where: { postId_mediaId: { postId, mediaId: imageId } },
     });
 
-    return NextResponse.json(
-      mediaAsPostImage(finalMedia, { ...updatedLink, postId })
-    );
+    return NextResponse.json({
+      ...mediaAsPostImage(finalMedia, { ...updatedLink, postId }),
+      rebakePending,
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.flatten() }, { status: 400 });
