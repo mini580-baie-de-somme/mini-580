@@ -459,7 +459,7 @@ export function MediaLibraryManager() {
         });
         const data = await readApiJson(res);
         if (!res.ok) throw new Error(data.error ?? t("media.saveError"));
-        if (data.rebakePending && editingId !== "new") {
+        if (data.rebakePending && editingId && editingId !== "new") {
           const rebaked = await waitForMediaRebake<MediaItem>(editingId, {
             urlMoyenne: editingMedia?.urlMoyenne,
             urlGrande: editingMedia?.urlGrande,
