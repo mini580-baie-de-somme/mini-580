@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
   type ReactNode,
-  type TouchEvent,
+  type TouchEvent as ReactTouchEvent,
 } from "react";
 import { resolveThumbKind } from "@/lib/media-file-client";
 import {
@@ -135,7 +135,7 @@ export function MediaSlideshow({
   }, []);
 
   const onTouchStart = useCallback(
-    (e: TouchEvent<HTMLDivElement>) => {
+    (e: ReactTouchEvent<HTMLDivElement>) => {
       if (items.length < 2) return;
       if (snapTimerRef.current) return;
       const touch = e.changedTouches[0] ?? e.touches[0];
@@ -147,7 +147,7 @@ export function MediaSlideshow({
   );
 
   const onTouchEnd = useCallback(
-    (e: TouchEvent<HTMLDivElement>) => {
+    (e: ReactTouchEvent<HTMLDivElement>) => {
       const start = touchStartRef.current;
       touchStartRef.current = null;
       if (items.length < 2 || !start) return;
