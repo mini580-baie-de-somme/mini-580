@@ -124,12 +124,12 @@ describe("gallery-editor cover helpers", () => {
           urlOrigin: "/origin.jpg",
         })
       )
-    ).toBe("/p.webp");
+    ).toBe("/p.webp?v=0-1.0000-0.00-p.webp");
     expect(
       galleryThumbSrc(
         img({ id: "u", urlMoyenne: "/m.webp", urlOrigin: "/origin.jpg" })
       )
-    ).toBe("/m.webp");
+    ).toBe("/m.webp?v=0-1.0000-0.00-m.webp");
     expect(galleryThumbSrc(img({ id: "v", urlOrigin: "/origin.jpg" }))).toBeNull();
   });
 
@@ -152,7 +152,7 @@ describe("gallery-editor cover helpers", () => {
     });
   });
 
-  it("editorCanvasSrc uses local preview or origin only — never baked variants", () => {
+  it("editorCanvasSrc uses local preview or cache-busted origin only", () => {
     expect(editorCanvasSrc(img({ id: "a" }), "/blob/preview")).toBe(
       "/blob/preview"
     );
@@ -161,11 +161,12 @@ describe("gallery-editor cover helpers", () => {
         img({
           id: "b",
           urlOrigin: "/media/b/origin.jpg",
+          updatedAt: "2026-08-13T00:00:00.000Z",
           urlMoyenne: "/media/b/moyenne.webp",
           urlGrande: "/media/b/grande.webp",
         })
       )
-    ).toBe("/media/b/origin.jpg");
+    ).toBe("/media/b/origin.jpg?v=2026-08-13T00%3A00%3A00.000Z");
     expect(
       editorCanvasSrc(
         img({

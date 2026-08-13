@@ -56,7 +56,8 @@ import { prepareImageForUpload } from "@/lib/prepare-upload-image";
 import { uploadFormDataWithRetry } from "@/lib/upload-form-data";
 import {
   fetchMediaAfterRebakeTimeout,
-  waitForMediaRebake,
+  mediaVariantsChanged,
+  waitForMediaRebakeAfterPatch,
 } from "@/lib/wait-for-media-rebake";
 
 type Props = {
@@ -464,8 +465,8 @@ export function PhotoEditModal({
     setBusy(true);
     setError(null);
     const trace = { traceId: newPhotoEditorTraceId(), postId, mediaId: draft?.id };
-    const variantBeforeSave = mediaVariantSnapshot(draft);
     let savePhase: "upload" | "patch" = "patch";
+    const layoutWillPatch = isImage && canEditImageLayout;
     photoEditorTrace(trace, "save.start", {
       mode,
       isImage,
@@ -631,12 +632,14 @@ export function PhotoEditModal({
       const updated = toEditorImage(await res.json()) as GalleryEditorImage & {
         rebakePending?: boolean;
       };
+      const patchVariantBaseline = mediaVariantSnapshot(updated);
       photoEditorTrace(trace, "save.patch.done", {
         mediaId: current.id,
         scaleX: updated.scaleX,
         scaleY: updated.scaleY,
         rotation: updated.rotation,
         rebakePending: Boolean(updated.rebakePending),
+        urlPicto: updated.urlPicto,
       }, "info");
 
       const saved: GalleryEditorImage = isImage
@@ -648,16 +651,29 @@ export function PhotoEditModal({
       onClose();
       photoEditorTrace(trace, "save.done", { mediaId: saved.id }, "info");
 
-      if (updated.rebakePending) {
-        photoEditorTrace(trace, "save.rebake.poll.start", { mediaId: current.id }, "info");
+      if (layoutWillPatch) {
+        photoEditorTrace(trace, "save.rebake.poll.start", {
+          mediaId: current.id,
+          baseline: patchVariantBaseline,
+          rebakePending: Boolean(updated.rebakePending),
+        }, "info");
         void (async () => {
           const rebaked =
-            (await waitForMediaRebake<GalleryEditorImage>(current.id, variantBeforeSave)) ??
+            (await waitForMediaRebakeAfterPatch<GalleryEditorImage>(
+              current.id,
+              patchVariantBaseline,
+              { maxMs: 20_000 }
+            )) ??
             (await fetchMediaAfterRebakeTimeout<GalleryEditorImage>(current.id));
-          if (!rebaked) {
-            photoEditorTrace(trace, "save.rebake.poll.timeout", {
-              mediaId: current.id,
-            }, "warn");
+          if (
+            !rebaked ||
+            !mediaVariantsChanged(patchVariantBaseline, rebaked)
+          ) {
+            if (!rebaked) {
+              photoEditorTrace(trace, "save.rebake.poll.timeout", {
+                mediaId: current.id,
+              }, "warn");
+            }
             return;
           }
           photoEditorTrace(trace, "save.rebake.poll.done", {
@@ -934,7 +950,7 @@ export function PhotoEditModal({
                   {lang === "fr" ? "Mise en page" : "Layout"}
                 </p>
                 <PhotoCanvasEditor
-                  imageSrc={previewSrc}
+                  imageSrc={canvasSrc!}
                   value={layout}
                   onChange={(next) => {
                     setLayout(next);

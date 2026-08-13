@@ -4,6 +4,7 @@ export type GalleryEditorImage = {
   id: string;
   kind?: "IMAGE" | "DOCUMENT" | "VIDEO" | string;
   mimeType?: string | null;
+  updatedAt?: string | null;
   urlOrigin: string;
   urlPicto: string | null;
   urlPetite: string | null;
@@ -38,6 +39,9 @@ export function toEditorImage(raw: Record<string, unknown>): GalleryEditorImage 
     id: String(raw.id),
     kind: raw.kind ? String(raw.kind) : "IMAGE",
     mimeType: raw.mimeType != null ? String(raw.mimeType) : null,
+    updatedAt: raw.updatedAt
+      ? new Date(String(raw.updatedAt)).toISOString()
+      : null,
     urlOrigin: String(raw.urlOrigin ?? raw.url ?? ""),
     urlPicto: (raw.urlPicto as string | null) ?? null,
     urlPetite: (raw.urlPetite as string | null) ?? null,
@@ -75,26 +79,47 @@ export function toEditorImage(raw: Record<string, unknown>): GalleryEditorImage 
  * Never use baked variants: they are already cropped and low-res, which breaks WYSIWYG
  * and makes move/rotate/crop feel like working on a degraded image.
  */
+function withCacheBust(url: string, bust?: string | null): string {
+  if (!bust) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}v=${encodeURIComponent(bust)}`;
+}
+
+/** Cache-bust param for thumbs after layout/variant changes. */
+export function galleryThumbCacheBust(
+  image: Pick<
+    GalleryEditorImage,
+    "scaleX" | "rotation" | "offsetX" | "offsetY" | "urlPicto" | "urlPetite" | "updatedAt"
+  >,
+  displayUrl?: string | null
+): string {
+  const path = (displayUrl || image.urlPicto || image.urlPetite || "")
+    .split("?")[0]!;
+  const stamp = image.updatedAt ? new Date(image.updatedAt).getTime() : 0;
+  const leaf = path.split("/").pop();
+  return `${stamp}-${image.scaleX.toFixed(4)}-${image.rotation.toFixed(2)}-${leaf || "none"}`;
+}
+
 export function editorCanvasSrc(
-  image: Pick<GalleryEditorImage, "urlOrigin"> | null | undefined,
+  image: Pick<GalleryEditorImage, "urlOrigin" | "updatedAt"> | null | undefined,
   localPreviewUrl?: string | null
 ): string | null {
   if (localPreviewUrl) return localPreviewUrl;
   const origin = image?.urlOrigin?.trim();
-  return origin || null;
+  if (!origin) return null;
+  return withCacheBust(origin, image?.updatedAt ?? null);
 }
 
 /** Small square thumb in post editor gallery strip (baked variant, never origin). */
 export function galleryThumbSrc(image: GalleryEditorImage): string | null {
+  let base: string | null;
   if ((image.kind || "IMAGE") !== "IMAGE") {
-    return image.urlPicto || image.urlPetite || null;
+    base = image.urlPicto || image.urlPetite || null;
+  } else {
+    base = image.urlPicto || image.urlPetite || image.urlMoyenne || null;
   }
-  return (
-    image.urlPicto ||
-    image.urlPetite ||
-    image.urlMoyenne ||
-    null
-  );
+  if (!base) return null;
+  return withCacheBust(base, galleryThumbCacheBust(image, base));
 }
 
 export type MediaVariantSnapshot = {

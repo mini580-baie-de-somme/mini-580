@@ -10,7 +10,7 @@ import {
   normalizeContentType,
 } from "@/lib/media-bucket";
 import { deleteMediaUrls } from "@/lib/media-variants";
-import { mediaAsPostImage, rebakeMediaVariants, syncCoverImageUrlsAfterRebake, collectPreviousDisplayUrls } from "@/lib/media-library";
+import { mediaAsPostImage, collectPreviousDisplayUrls } from "@/lib/media-library";
 
 type RouteContext = { params: Promise<{ id: string; imageId: string }> };
 
@@ -60,15 +60,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const base = `${yyyy}/${mm}/${uploadId}`;
     const originKey = `${base}/origin.${ext}`;
     const origin = await bucket.putObject(originKey, buffer, ct);
-    const variants = await rebakeMediaVariants(
-      {
-        ...existing,
-        urlOrigin: origin.url,
-      },
-      {},
-      previousVariantUrls
-    );
-
+    // Variants rebaked on the following PATCH with the current layout.
     await deleteMediaUrls([
       existing.urlOrigin,
       ...previousVariantUrls,
@@ -78,16 +70,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
       where: { id: imageId },
       data: {
         urlOrigin: origin.url,
-        urlPicto: variants.urlPicto,
-        urlPetite: variants.urlPetite,
-        urlMoyenne: variants.urlMoyenne,
-        urlGrande: variants.urlGrande,
+        urlPicto: null,
+        urlPetite: null,
+        urlMoyenne: null,
+        urlGrande: null,
         mimeType: ct,
         byteSize: buffer.byteLength,
       },
     });
-
-    await syncCoverImageUrlsAfterRebake(imageId, variants, previousDisplayUrls);
 
     return NextResponse.json(mediaAsPostImage(media, { ...link, postId }));
   } catch (err) {

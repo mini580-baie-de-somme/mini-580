@@ -125,6 +125,7 @@ export function mediaAsPostImage(
     cropY: number;
     cropW: number;
     cropH: number;
+    updatedAt?: Date;
   },
   link: { sortOrder: number; isCover?: boolean; postId?: string }
 ) {
@@ -164,6 +165,10 @@ export function mediaAsPostImage(
     cropW: media.cropW,
     cropH: media.cropH,
     isCover: link.isCover ?? false,
+    updatedAt:
+      "updatedAt" in media && media.updatedAt
+        ? media.updatedAt.toISOString()
+        : undefined,
   };
 }
 

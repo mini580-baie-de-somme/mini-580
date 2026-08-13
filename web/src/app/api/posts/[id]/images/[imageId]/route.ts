@@ -8,7 +8,7 @@ import {
   deleteMediaById,
   mediaAsPostImage,
 } from "@/lib/media-library";
-import { runLayoutRebake } from "@/lib/layout-rebake-schedule";
+import { runLayoutRebake, rebakeAsyncAfterResponse } from "@/lib/layout-rebake-schedule";
 import { optionalNullableDateTime } from "@/lib/date-schema";
 import { mediaTrace, newMediaTraceId } from "@/lib/media-trace";
 
@@ -177,7 +177,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         rotation: media.rotation,
       }, "info");
       const rebake = await runLayoutRebake(media, trace, previousVariantUrls);
-      rebakePending = rebake.rebakePending;
+      rebakePending =
+        rebake.rebakePending || rebakeAsyncAfterResponse();
       if (!rebakePending) {
         finalMedia = await prisma.media.findUniqueOrThrow({
           where: { id: imageId },

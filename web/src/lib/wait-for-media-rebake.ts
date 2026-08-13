@@ -8,6 +8,7 @@ export type RebakePollMedia = {
   urlPetite?: string | null;
   urlMoyenne?: string | null;
   urlGrande?: string | null;
+  updatedAt?: string | null;
 };
 
 function variantUrls(
@@ -28,6 +29,22 @@ function variantsRotated(
   const prev = variantUrls(before);
   const next = variantUrls(after);
   return next.length > 0 && (prev.length === 0 || next.some((url) => !prev.includes(url)));
+}
+
+export function mediaVariantsChanged(
+  before: MediaVariantSnapshot,
+  after: RebakePollMedia
+): boolean {
+  return variantsRotated(before, after);
+}
+
+/** Poll until rebake rotates variants relative to the PATCH response (not pre-save draft). */
+export async function waitForMediaRebakeAfterPatch<T extends RebakePollMedia>(
+  mediaId: string,
+  patchResponseVariants: MediaVariantSnapshot,
+  opts?: { maxMs?: number; intervalMs?: number }
+): Promise<T | null> {
+  return waitForMediaRebake<T>(mediaId, patchResponseVariants, opts);
 }
 
 export async function waitForMediaRebake<T extends RebakePollMedia>(

@@ -12,7 +12,7 @@ import {
 } from "@/lib/media-bucket";
 import { MediaKind } from "@/generated/prisma/client";
 import { deleteMediaUrls } from "@/lib/media-variants";
-import { mediaInclude, rebakeMediaVariants, syncCoverImageUrlsAfterRebake, collectPreviousDisplayUrls } from "@/lib/media-library";
+import { mediaInclude, collectPreviousDisplayUrls } from "@/lib/media-library";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -46,9 +46,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     const previousDisplayUrls = collectPreviousDisplayUrls(existing);
-    const previousVariantUrls = previousDisplayUrls.filter(
-      (url) => url !== existing.urlOrigin
-    );
 
     const kindHint = kindFromContentType(contentType);
     if (!kindHint) {
@@ -74,14 +71,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
       const base = `${yyyy}/${mm}/${uploadId}`;
       const originKey = `${base}/origin.${ext}`;
       const origin = await bucket.putObject(originKey, buffer, ct);
-      const variants = await rebakeMediaVariants(
-        { ...existing, urlOrigin: origin.url },
-        {},
-        previousVariantUrls
-      );
+      // Variants are rebaked on the following PATCH with the current layout.
       urls = {
         urlOrigin: origin.url,
-        ...variants,
+        urlPicto: null,
+        urlPetite: null,
+        urlMoyenne: null,
+        urlGrande: null,
       };
     } else {
       const bucket = getMediaBucket();
@@ -115,9 +111,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
 
     if (kindHint === "IMAGE") {
-      await syncCoverImageUrlsAfterRebake(id, urls, previousDisplayUrls);
+      await deleteMediaUrls(previousDisplayUrls);
     }
-    await deleteMediaUrls(previousDisplayUrls);
     return NextResponse.json(updated);
   } catch (err) {
     console.error("media replace failed", err);

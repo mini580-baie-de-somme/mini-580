@@ -25,7 +25,7 @@ import { EditorSheetPanel } from "./EditorSheetPanel";
 import { PhotoCanvasEditor } from "./PhotoCanvasEditor";
 import { editorCanvasSrc, mediaVariantSnapshot } from "@/lib/gallery-editor";
 import { prepareImageForUpload } from "@/lib/prepare-upload-image";
-import { waitForMediaRebake } from "@/lib/wait-for-media-rebake";
+import { waitForMediaRebakeAfterPatch } from "@/lib/wait-for-media-rebake";
 import { FullscreenEditorModal } from "./FullscreenEditorModal";
 import {
   MEDIA_ACCEPT,
@@ -475,10 +475,15 @@ export function MediaLibraryManager() {
         });
         const data = await readApiJson(res);
         if (!res.ok) throw new Error(data.error ?? t("media.saveError"));
-        if (data.rebakePending && editingId && editingId !== "new") {
-          const rebaked = await waitForMediaRebake<MediaItem>(
+        const layoutPatched =
+          effectiveKind === "IMAGE" &&
+          (file || originEditable) &&
+          editingId &&
+          editingId !== "new";
+        if (layoutPatched) {
+          const rebaked = await waitForMediaRebakeAfterPatch<MediaItem>(
             editingId,
-            mediaVariantSnapshot(editingMedia)
+            mediaVariantSnapshot(data)
           );
           if (!rebaked) {
             setLocalError(
