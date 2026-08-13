@@ -9,6 +9,7 @@ type MediaKind = "IMAGE" | "DOCUMENT" | "VIDEO";
 export type MediaLibraryMobileCardProps = {
   id: string;
   kind: MediaKind;
+  kindLabel: string;
   mimeType: string;
   title: string;
   thumbSrc: string | null;
@@ -28,8 +29,15 @@ export type MediaLibraryMobileCardProps = {
   onGroupClick: (groupId: string) => void;
 };
 
+function shortMime(mimeType: string): string {
+  const sub = mimeType.split("/")[1];
+  if (!sub) return mimeType;
+  return sub.replace(/^x-/, "").toUpperCase();
+}
+
 export function MediaLibraryMobileCard({
   kind,
+  kindLabel,
   mimeType,
   title,
   thumbSrc,
@@ -45,20 +53,21 @@ export function MediaLibraryMobileCard({
   onGroupClick,
 }: MediaLibraryMobileCardProps) {
   return (
-    <article className="flex w-full max-w-full flex-col overflow-hidden rounded-xl border border-[#d4dde6] bg-white shadow-sm">
+    <article className="flex w-full max-w-full items-stretch gap-2.5 overflow-hidden rounded-xl border border-[#d4dde6] bg-white p-2.5 shadow-sm">
       <button
         type="button"
         disabled={busy}
         onClick={onEdit}
-        className="group block w-full text-left disabled:opacity-50"
+        className="group shrink-0 disabled:opacity-50"
+        aria-label={labels.edit}
       >
-        <div className="relative aspect-[5/3] w-full overflow-hidden bg-[#eef3f7]">
+        <div className="relative h-[4.5rem] w-[4.5rem] overflow-hidden rounded-lg bg-[#eef3f7] ring-1 ring-[#d4dde6]/60">
           {kind === "IMAGE" && thumbSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={thumbSrc}
               alt=""
-              className="h-full w-full object-cover transition duration-200 group-active:scale-[1.02]"
+              className="h-full w-full object-cover transition duration-200 group-active:scale-[1.03]"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center">
@@ -66,27 +75,37 @@ export function MediaLibraryMobileCard({
                 kind={kind}
                 mimeType={mimeType}
                 src={null}
-                size="md"
-                className="h-16 w-16 bg-transparent"
+                size="sm"
+                className="h-10 w-10 bg-transparent"
               />
             </div>
           )}
         </div>
+      </button>
 
-        <div className="space-y-2 px-3 py-3">
-          <p className="line-clamp-2 text-sm font-semibold leading-snug text-[#0D131A]">
-            {title}
-          </p>
-          <p className="truncate text-[11px] text-[#495867]">{mimeType}</p>
-          <div className="flex flex-wrap items-center gap-1.5">
-            {visibilityBadge}
-            {integrityBadge}
-          </div>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={onEdit}
+        className="flex min-w-0 flex-1 flex-col justify-center gap-1 text-left disabled:opacity-50"
+      >
+        <p className="line-clamp-2 text-[13px] font-semibold leading-snug text-[#0D131A]">
+          {title}
+        </p>
+        <p className="truncate text-[11px] text-[#6b7a8a]">
+          {kindLabel}
+          <span className="mx-1 text-[#c5ced8]">·</span>
+          {shortMime(mimeType)}
+        </p>
+        <div className="flex flex-wrap items-center gap-1">
+          {visibilityBadge}
+          {integrityBadge}
           {groups.length > 0 ? (
             <MediaGroupChips
               groups={groups}
               locale={locale}
-              maxVisible={3}
+              maxVisible={2}
+              compact
               onGroupClick={onGroupClick}
             />
           ) : null}
@@ -94,38 +113,67 @@ export function MediaLibraryMobileCard({
       </button>
 
       <div
-        className="grid grid-cols-3 border-t border-[#eef3f7] bg-[#fafbfc]"
+        className="flex shrink-0 flex-col items-center justify-center gap-0.5 border-l border-[#eef3f7] pl-2"
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          type="button"
+        <IconAction
+          title={labels.edit}
           disabled={busy}
           onClick={onEdit}
-          className="inline-flex min-h-[48px] flex-col items-center justify-center gap-0.5 px-1 text-[11px] font-medium text-[#495867] active:bg-[#eef3f7] disabled:opacity-50"
-        >
-          <EditIcon className="h-4 w-4" />
-          <span>{labels.edit}</span>
-        </button>
-        <a
+          icon={<EditIcon className="h-3.5 w-3.5" />}
+        />
+        <IconAction
+          title={labels.open}
           href={openUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex min-h-[48px] flex-col items-center justify-center gap-0.5 px-1 text-[11px] font-medium text-[#495867] active:bg-[#eef3f7]"
-        >
-          <OpenIcon className="h-4 w-4" />
-          <span>{labels.open}</span>
-        </a>
-        <button
-          type="button"
+          icon={<OpenIcon className="h-3.5 w-3.5" />}
+        />
+        <IconAction
+          title={labels.delete}
           disabled={busy}
           onClick={onDelete}
-          className="inline-flex min-h-[48px] flex-col items-center justify-center gap-0.5 px-1 text-[11px] font-medium text-red-700 active:bg-red-50 disabled:opacity-50"
-        >
-          <DeleteIcon className="h-4 w-4" />
-          <span>{labels.delete}</span>
-        </button>
+          destructive
+          icon={<DeleteIcon className="h-3.5 w-3.5" />}
+        />
       </div>
     </article>
+  );
+}
+
+function IconAction({
+  title,
+  icon,
+  onClick,
+  href,
+  disabled,
+  destructive,
+}: {
+  title: string;
+  icon: ReactNode;
+  onClick?: () => void;
+  href?: string;
+  disabled?: boolean;
+  destructive?: boolean;
+}) {
+  const cls = [
+    "inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+    destructive
+      ? "text-red-600 hover:bg-red-50 active:bg-red-100"
+      : "text-[#495867] hover:bg-[#eef3f7] active:bg-[#e2e9ef]",
+    disabled ? "pointer-events-none opacity-40" : "",
+  ].join(" ");
+
+  if (href) {
+    return (
+      <a href={href} target="_blank" rel="noreferrer" title={title} className={cls}>
+        {icon}
+      </a>
+    );
+  }
+
+  return (
+    <button type="button" title={title} disabled={disabled} onClick={onClick} className={cls}>
+      {icon}
+    </button>
   );
 }
 

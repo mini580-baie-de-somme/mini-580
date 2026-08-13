@@ -1150,7 +1150,7 @@ export function MediaLibraryManager() {
       ) : (
         <>
           {/* Mobile — card list */}
-          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:hidden">
+          <ul className="flex flex-col gap-2 md:hidden">
             {items.map((m) => {
               const title =
                 (locale === "fr" ? m.titleFr : m.titleEn) || m.id.slice(0, 8);
@@ -1159,6 +1159,7 @@ export function MediaLibraryManager() {
                   <MediaLibraryMobileCard
                     id={m.id}
                     kind={m.kind}
+                    kindLabel={kindLabel(m.kind)}
                     mimeType={m.mimeType}
                     title={title}
                     thumbSrc={thumbSrc(m)}
