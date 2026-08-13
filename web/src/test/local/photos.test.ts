@@ -242,6 +242,7 @@ describe("API integration — Photos CRUD + transforms + 4 sizes", () => {
         `http://localhost/api/posts/${postId}/images/${imageId}`,
         {
           method: "PATCH",
+          headers: bearerHeaders(),
           body: JSON.stringify({ scaleX: 1.1, scaleY: 1.1 }),
         }
       ),
