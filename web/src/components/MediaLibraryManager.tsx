@@ -51,6 +51,11 @@ import {
   type ImageLayoutParams,
 } from "@/lib/image-layout";
 import {
+  fetchWithNetworkRetry,
+  isNetworkFetchError,
+} from "@/lib/fetch-with-network-retry";
+import { uploadFormDataWithRetry } from "@/lib/upload-form-data";
+import {
   fromDatetimeLocalValue,
   toDatetimeLocalValue,
 } from "@/lib/utils";
@@ -172,6 +177,24 @@ function withSizeLimits(template: string): string {
   return template
     .replace("{photoMax}", String(formatMaxMb(MEDIA_MAX_BYTES)))
     .replace("{videoMax}", String(formatMaxMb(MEDIA_VIDEO_MAX_BYTES)));
+}
+
+function formatMediaSaveError(
+  err: unknown,
+  locale: "fr" | "en",
+  phase: "upload" | "patch"
+): string {
+  if (isNetworkFetchError(err)) {
+    if (phase === "upload") {
+      return locale === "fr"
+        ? "Envoi du fichier interrompu — réessaie (photo plus légère si ça persiste)."
+        : "File upload interrupted — try again (use a smaller photo if it persists).";
+    }
+    return locale === "fr"
+      ? "Enregistrement interrompu — réessaie dans quelques secondes."
+      : "Save interrupted — try again in a few seconds.";
+  }
+  return err instanceof Error ? err.message : "Save failed";
 }
 
 async function readApiJson(
@@ -403,7 +426,7 @@ export function MediaLibraryManager() {
         setForm(formFromMedia(listRow));
         setFile(null);
         setLocalError(null);
-        setOriginEditable(listRow.integrity?.editable ?? true);
+        setOriginEditable(listRow.integrity?.editable ?? false);
         setEditingIntegrity(listRow.integrity ?? null);
       }
       setBusy(true);
@@ -463,24 +486,32 @@ export function MediaLibraryManager() {
     setBusy(true);
     setError(null);
     setLocalError(null);
+    let savePhase: "upload" | "patch" = "patch";
     try {
       if (editingId === "new") {
         if (!file) throw new Error(t("media.fileRequired"));
+        savePhase = "upload";
         const uploadFile =
           effectiveKind === "IMAGE"
             ? await prepareImageForUpload(file)
             : file;
-        const fd = new FormData();
-        fd.set("file", uploadFile);
-        fd.set("titleFr", form.titleFr);
-        fd.set("titleEn", form.titleEn);
-        fd.set("descriptionFr", form.descriptionFr);
-        fd.set("descriptionEn", form.descriptionEn);
-        if (form.takenAt) {
-          const iso = fromDatetimeLocalValue(form.takenAt);
-          if (iso) fd.set("takenAt", iso);
-        }
-        const res = await fetch("/api/media-library", { method: "POST", body: fd });
+        const buildCreateBody = () => {
+          const fd = new FormData();
+          fd.set("file", uploadFile);
+          fd.set("titleFr", form.titleFr);
+          fd.set("titleEn", form.titleEn);
+          fd.set("descriptionFr", form.descriptionFr);
+          fd.set("descriptionEn", form.descriptionEn);
+          if (form.takenAt) {
+            const iso = fromDatetimeLocalValue(form.takenAt);
+            if (iso) fd.set("takenAt", iso);
+          }
+          return fd;
+        };
+        const res = await uploadFormDataWithRetry(
+          "/api/media-library",
+          buildCreateBody
+        );
         const data = await readApiJson(res);
         if (!res.ok) {
           throw new Error(
@@ -496,14 +527,26 @@ export function MediaLibraryManager() {
           throw new Error(t("media.localStorageRequired"));
         }
         if (data.kind === "IMAGE" && data.id) {
-          const layoutRes = await fetch(`/api/media-library/${data.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(form.layout),
-          });
+          savePhase = "patch";
+          const layoutRes = await fetchWithNetworkRetry(
+            `/api/media-library/${data.id}`,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(form.layout),
+            },
+            { retries: 4, baseDelayMs: 600 }
+          );
           if (!layoutRes.ok) throw new Error(t("media.saveError"));
         }
       } else {
+        if (!editingId || editingId === "new") {
+          throw new Error(t("media.saveError"));
+        }
+        const mediaId = editingId;
+        const layoutChanged =
+          Boolean(editingMedia) &&
+          layoutParamsDiffer(form.layout, layoutFromLegacy(editingMedia!));
         const patchBody: Record<string, unknown> = {
           titleFr: form.titleFr,
           titleEn: form.titleEn,
@@ -515,19 +558,24 @@ export function MediaLibraryManager() {
           ? kindFromFile(file)
           : editingMedia?.kind ?? null;
         if (effectiveKind === "IMAGE" && (file || originEditable)) {
-          Object.assign(patchBody, form.layout);
+          if (file || layoutChanged) {
+            Object.assign(patchBody, form.layout);
+          }
         }
         if (file) {
+          savePhase = "upload";
           const uploadFile =
             effectiveKind === "IMAGE"
               ? await prepareImageForUpload(file)
               : file;
-          const fd = new FormData();
-          fd.set("file", uploadFile);
-          const rep = await fetch(`/api/media-library/${editingId}/replace`, {
-            method: "POST",
-            body: fd,
-          });
+          const rep = await uploadFormDataWithRetry(
+            `/api/media-library/${mediaId}/replace`,
+            () => {
+              const fd = new FormData();
+              fd.set("file", uploadFile);
+              return fd;
+            }
+          );
           if (!rep.ok) {
             const repData = await readApiJson(rep);
             throw new Error(
@@ -546,41 +594,62 @@ export function MediaLibraryManager() {
           setOriginEditable(true);
           setLocalError(null);
         }
-        const res = await fetch(`/api/media-library/${editingId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(patchBody),
-        });
+        savePhase = "patch";
+        const res = await fetchWithNetworkRetry(
+          `/api/media-library/${mediaId}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(patchBody),
+          },
+          { retries: 4, baseDelayMs: 600 }
+        );
         const data = await readApiJson(res);
         if (!res.ok) throw new Error(data.error ?? t("media.saveError"));
         const layoutPatched =
           effectiveKind === "IMAGE" &&
           (file || originEditable) &&
-          editingId &&
-          editingId !== "new";
-        if (layoutPatched) {
-          const rebaked = await waitForMediaRebakeAfterPatch<MediaItem>(
-            editingId,
-            mediaVariantSnapshot({
+          (Boolean(file) || layoutChanged);
+        const patchVariantBaseline = layoutPatched
+          ? mediaVariantSnapshot({
               urlPicto: (data.urlPicto as string | null) ?? null,
               urlPetite: (data.urlPetite as string | null) ?? null,
               urlMoyenne: (data.urlMoyenne as string | null) ?? null,
               urlGrande: (data.urlGrande as string | null) ?? null,
             })
-          );
-          if (!rebaked) {
-            setLocalError(
-              locale === "fr"
-                ? "Cadrage enregistré — génération des vignettes encore en cours. Recharge la page dans quelques secondes."
-                : "Layout saved — thumbnails still generating. Refresh the page in a few seconds."
-            );
-          }
+          : null;
+        cancelEdit();
+        await reload();
+        if (layoutPatched && patchVariantBaseline) {
+          void waitForMediaRebakeAfterPatch<MediaItem>(
+            mediaId,
+            patchVariantBaseline,
+            { maxMs: 20_000 }
+          ).then((rebaked) => {
+            if (!rebaked) {
+              void reload();
+            }
+          });
         }
+        return;
       }
       cancelEdit();
       await reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("media.saveError"));
+      const message = formatMediaSaveError(e, locale, savePhase);
+      setError(
+        locale === "fr"
+          ? message.startsWith("Échec") ||
+            message.includes("interrompu") ||
+            message.includes("Envoi")
+            ? message
+            : `Échec de l'enregistrement — ${message}`
+          : message.startsWith("Save failed") ||
+              message.includes("interrupted") ||
+              message.includes("upload")
+            ? message
+            : `Save failed — ${message}`
+      );
     } finally {
       setBusy(false);
     }

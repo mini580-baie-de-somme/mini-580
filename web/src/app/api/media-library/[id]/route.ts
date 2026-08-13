@@ -9,10 +9,12 @@ import { runLayoutRebake } from "@/lib/layout-rebake-schedule";
 import { MediaKind } from "@/generated/prisma/client";
 import { optionalNullableDateTime } from "@/lib/date-schema";
 import { mediaTrace, newMediaTraceId } from "@/lib/media-trace";
-import { enrichMediaWithIntegrity } from "@/lib/media-integrity";
+import { enrichMediaWithIntegrity, assertEditableImageOrigin } from "@/lib/media-integrity";
 import { canRepairOriginFromLocalVariant } from "@/lib/media-origin-repair";
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+export const runtime = "nodejs";
 
 const patchSchema = z.object({
   titleFr: z.string().optional(),
@@ -163,6 +165,17 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     });
 
     if (transformChanged && updated.kind === MediaKind.IMAGE) {
+      try {
+        await assertEditableImageOrigin(updated);
+      } catch (err) {
+        const detail =
+          err instanceof Error
+            ? err.message
+            : "Original image is not available in local media storage.";
+        mediaTrace(trace, "patchMediaLibrary.originBlocked", { detail }, "error");
+        return NextResponse.json({ error: detail, traceId }, { status: 409 });
+      }
+
       const previousVariantUrls = [
         existing.urlPicto,
         existing.urlPetite,
@@ -177,7 +190,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             include: mediaInclude,
           });
       return NextResponse.json({
-        ...(await enrichMediaWithIntegrity(fresh)),
+        ...(rebake.rebakePending
+          ? fresh
+          : await enrichMediaWithIntegrity(fresh)),
         rebakePending: rebake.rebakePending,
       });
     }

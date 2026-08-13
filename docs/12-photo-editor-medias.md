@@ -289,7 +289,7 @@ Refresh origin à l’ouverture modal edit : `GET /api/media-library/[id]` si be
 | **1.2.58** | Upload mobile abort (`Failed to fetch`) — Chrome + Safari | XHR multipart, retry upload/PATCH, message erreur explicite |
 | **1.2.60** | Vignette article stale après crop | Poll rebake inclut `urlPetite` ; cache-bust thumb ; remount `<img>` |
 | **1.2.61** | Édition sur variant dégradé ; origin mobile 1600 px | `editorCanvasSrc()` origin-only ; upload max 4096 px ; preview WYSIWYG |
-| **1.2.66** | Refresh + résolution toujours KO | Poll baseline = réponse PATCH ; replace sans rebake intermédiaire ; panneau latéral origin |
+| **1.2.68** | Médiathèque save `Failed to fetch` (certaines photos, mobile) | `MediaLibraryManager` : XHR upload + `fetchWithNetworkRetry` PATCH (aligné PhotoEditModal) ; fermeture modal avant poll rebake ; layout PATCH seulement si changé ; origin editable après check intégrité ; API 409 si origin absent |
 
 **Médias legacy :** photos uploadées avant v1.2.61 (origin ~1600 px) ou collage clipboard — **Remplacer le fichier** avec l’original pour regagner la pleine résolution.
 
