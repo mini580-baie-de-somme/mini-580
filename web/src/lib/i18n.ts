@@ -312,6 +312,7 @@ const messages = {
   "tags.search": { fr: "Rechercher un tag…", en: "Search tags…" },
 
   "media.title": { fr: "Galerie — médiathèque", en: "Media library" },
+  "media.titleShort": { fr: "Médiathèque", en: "Media library" },
   "media.subtitle": {
     fr: "Photos, documents PDF et vidéos. Seuls les médias liés à un article publié apparaissent dans la galerie publique.",
     en: "Photos, PDF documents and videos. Only media linked to a published post appear in the public gallery.",

@@ -11,7 +11,7 @@ export default async function EditorGalleryPage() {
   if (!session) redirect("/connexion");
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+    <div className="mx-auto max-w-6xl px-3 py-5 sm:px-6 sm:py-10 lg:py-12">
       <MediaLibraryManager />
     </div>
   );

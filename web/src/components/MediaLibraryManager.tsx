@@ -14,7 +14,7 @@ import {
 import { useLocale } from "./LocaleProvider";
 import { EditorListCount } from "./EditorListCount";
 import { EditorListSearch } from "./EditorListSearch";
-import { EditorPageHeader } from "./EditorPageHeader";
+import { EditorPageHeader, editorHeaderBtnPrimary, editorHeaderBtnSecondary } from "./EditorPageHeader";
 import {
   EditorFilterChip,
   EditorFilterGroup,
@@ -710,23 +710,27 @@ export function MediaLibraryManager() {
   const hasCanvasPreview = Boolean(canvasSrc) && canEditImageLayout;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <EditorPageHeader
-        title={t("media.title")}
-        subtitle={t("media.subtitle")}
-        actions={
+        title={
           <>
-            <Link
-              href="/editeur"
-              className="rounded-md border border-[#d4dde6] px-3 py-2 text-sm text-[#495867]"
-            >
-              ← {t("nav.editor")}
-            </Link>
+            <span className="sm:hidden">{t("media.titleShort")}</span>
+            <span className="hidden sm:inline">{t("media.title")}</span>
+          </>
+        }
+        subtitle={t("media.subtitle")}
+        backLink={
+          <Link href="/editeur" className={editorHeaderBtnSecondary("w-fit text-left")}>
+            ← {t("nav.editor")}
+          </Link>
+        }
+        actions={
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-row sm:flex-wrap sm:gap-2">
             <button
               type="button"
               disabled={busy}
               onClick={() => void startNewGroup()}
-              className="rounded-md border border-[#495867] px-3 py-2 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
+              className={editorHeaderBtnSecondary()}
             >
               {t("mediaGroup.new")}
             </button>
@@ -734,11 +738,11 @@ export function MediaLibraryManager() {
               type="button"
               disabled={busy}
               onClick={startCreate}
-              className="rounded-md bg-[#495867] px-3 py-2 text-sm text-white hover:bg-[#3a4654] disabled:opacity-50"
+              className={editorHeaderBtnPrimary()}
             >
               {t("media.new")}
             </button>
-          </>
+          </div>
         }
       />
 
@@ -1205,7 +1209,84 @@ export function MediaLibraryManager() {
       {loading ? (
         <p className="text-sm text-[#495867]">{t("editor.loading")}</p>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-[#d4dde6] bg-white">
+        <>
+          {/* Mobile — card list */}
+          <ul className="space-y-2 md:hidden">
+            {items.map((m) => {
+              const title =
+                (locale === "fr" ? m.titleFr : m.titleEn) || m.id.slice(0, 8);
+              return (
+                <li key={m.id}>
+                  <article
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => void startEdit(m)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        void startEdit(m);
+                      }
+                    }}
+                    className="flex cursor-pointer gap-3 rounded-lg border border-[#d4dde6] bg-white p-3 active:bg-[#f8fafc]"
+                  >
+                    <div className="shrink-0">{thumb(m)}</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-[#0D131A]">{title}</div>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                        <span className="text-[11px] text-[#495867]">
+                          {kindLabel(m.kind)}
+                        </span>
+                        {visibilityBadge(m)}
+                        {m.integrity && !m.integrity.ok ? integrityBadge(m) : null}
+                      </div>
+                      <MediaGroupChips
+                        groups={groupsFromMedia(m)}
+                        locale={locale}
+                        onGroupClick={openGroupEdit}
+                      />
+                      <div
+                        className="mt-2 flex flex-wrap gap-3"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void startEdit(m)}
+                          className="min-h-[36px] text-xs font-medium text-[#495867]"
+                        >
+                          {t("list.edit")}
+                        </button>
+                        <a
+                          href={m.urlOrigin}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="min-h-[36px] text-xs font-medium text-[#495867]"
+                        >
+                          {t("media.open")}
+                        </a>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void remove(m)}
+                          className="min-h-[36px] text-xs font-medium text-red-700"
+                        >
+                          {t("media.delete")}
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                </li>
+              );
+            })}
+            {items.length === 0 && (
+              <li className="rounded-lg border border-[#d4dde6] bg-white px-4 py-8 text-center text-[#495867]">
+                {t("media.empty")}
+              </li>
+            )}
+          </ul>
+
+          {/* Desktop — table */}
+          <div className="hidden overflow-hidden rounded-lg border border-[#d4dde6] bg-white md:block">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-[#d4dde6] bg-[#f4f7fa]">
               <tr>
@@ -1309,6 +1390,7 @@ export function MediaLibraryManager() {
             <p className="px-4 py-8 text-center text-[#495867]">{t("media.empty")}</p>
           )}
         </div>
+        </>
       )}
 
       <div ref={sentinelRef} className="h-4" aria-hidden />

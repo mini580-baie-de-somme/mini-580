@@ -82,41 +82,43 @@ export function EditorListToolbar({
       <div className="p-3 sm:p-4">
         <form
           onSubmit={handleSubmit}
-          className="flex flex-wrap items-center gap-2"
+          className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center"
         >
-          <button
-            type="submit"
-            className="shrink-0 rounded-md bg-[#495867] px-4 py-2 text-sm text-white hover:bg-[#3a4654]"
-          >
-            {submitLabel}
-          </button>
           <input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={searchPlaceholder}
-            className="min-w-[10rem] flex-1 rounded-md border border-[#d4dde6] px-3 py-2 text-sm"
+            className="order-1 w-full rounded-md border border-[#d4dde6] px-3 py-2.5 text-sm sm:order-2 sm:min-w-[10rem] sm:flex-1"
           />
-          {hasFilters && (
+          <div className="order-2 flex gap-2 sm:order-1 sm:contents">
             <button
-              type="button"
-              onClick={() => setOpen(!open)}
-              aria-expanded={open}
-              className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm ${
-                open || activeFilterCount > 0
-                  ? "border-[#495867] bg-[#f4f7fa] text-[#0D131A]"
-                  : "border-[#d4dde6] bg-white text-[#495867]"
-              }`}
+              type="submit"
+              className="min-h-[44px] flex-1 shrink-0 rounded-md bg-[#495867] px-4 py-2 text-sm text-white hover:bg-[#3a4654] sm:flex-none sm:order-1"
             >
-              <span>{t("editor.filters.toggle")}</span>
-              {activeFilterCount > 0 && (
-                <span className="rounded-full bg-[#495867] px-1.5 py-0.5 text-[10px] font-medium leading-none text-white">
-                  {activeFilterCount}
-                </span>
-              )}
-              <ChevronIcon open={open} />
+              {submitLabel}
             </button>
-          )}
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={() => setOpen(!open)}
+                aria-expanded={open}
+                className={`inline-flex min-h-[44px] flex-1 shrink-0 items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm sm:flex-none sm:order-3 ${
+                  open || activeFilterCount > 0
+                    ? "border-[#495867] bg-[#f4f7fa] text-[#0D131A]"
+                    : "border-[#d4dde6] bg-white text-[#495867]"
+                }`}
+              >
+                <span>{t("editor.filters.toggle")}</span>
+                {activeFilterCount > 0 && (
+                  <span className="rounded-full bg-[#495867] px-1.5 py-0.5 text-[10px] font-medium leading-none text-white">
+                    {activeFilterCount}
+                  </span>
+                )}
+                <ChevronIcon open={open} />
+              </button>
+            )}
+          </div>
         </form>
 
         {activeChips.length > 0 && (
