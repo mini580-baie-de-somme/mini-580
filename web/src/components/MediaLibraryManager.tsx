@@ -369,6 +369,11 @@ export function MediaLibraryManager() {
     }
   }
 
+  const handleGroupSaved = useCallback(() => {
+    void reload();
+    void reloadGroups();
+  }, [reload, reloadGroups]);
+
   function cancelGroupEdit() {
     closeVirtual(MEDIA_GROUP_PARAM_KEYS);
   }
@@ -757,10 +762,7 @@ export function MediaLibraryManager() {
         <MediaGroupEditor
           groupId={editingGroupId}
           onClose={cancelGroupEdit}
-          onSaved={() => {
-            void reload();
-            void reloadGroups();
-          }}
+          onSaved={handleGroupSaved}
         />
       )}
 

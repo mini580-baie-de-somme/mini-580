@@ -90,6 +90,17 @@ function formFromDetail(detail: MediaGroupDetail): FormState {
   };
 }
 
+function formsEqual(a: FormState, b: FormState): boolean {
+  return (
+    a.titleFr === b.titleFr &&
+    a.titleEn === b.titleEn &&
+    a.slug === b.slug &&
+    a.layout === b.layout &&
+    a.mediaIds.length === b.mediaIds.length &&
+    a.mediaIds.every((id, index) => id === b.mediaIds[index])
+  );
+}
+
 export function MediaGroupEditor({ groupId, onClose, onSaved }: Props) {
   const { locale, t } = useLocale();
   const [detail, setDetail] = useState<MediaGroupDetail | null>(null);
@@ -105,9 +116,13 @@ export function MediaGroupEditor({ groupId, onClose, onSaved }: Props) {
   const [pickerLoading, setPickerLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const formRef = useRef<FormState | null>(null);
+  const lastSavedFormRef = useRef<FormState | null>(null);
   const skipInitialAutosave = useRef(true);
   const saveGenRef = useRef(0);
+  const onSavedRef = useRef(onSaved);
+  const saveRef = useRef<() => Promise<void>>(async () => {});
   formRef.current = form;
+  onSavedRef.current = onSaved;
 
   const loadDetail = useCallback(async () => {
     setLoading(true);
@@ -119,9 +134,11 @@ export function MediaGroupEditor({ groupId, onClose, onSaved }: Props) {
       ]);
       if (!detailRes.ok) throw new Error(t("mediaGroup.loadError"));
       const data = (await detailRes.json()) as MediaGroupDetail;
+      const loaded = formFromDetail(data);
       setDetail(data);
       setMembers(data.members);
-      setForm(formFromDetail(data));
+      setForm(loaded);
+      lastSavedFormRef.current = loaded;
       skipInitialAutosave.current = true;
       if (refsRes.ok) {
         const refs = (await refsRes.json()) as { posts: ReferencedPost[] };
@@ -165,17 +182,24 @@ export function MediaGroupEditor({ groupId, onClose, onSaved }: Props) {
         );
       }
       const updated = (await res.json()) as MediaGroupDetail;
+      const synced = formFromDetail(updated);
       setDetail(updated);
       setMembers(updated.members);
-      setForm(formFromDetail(updated));
+      lastSavedFormRef.current = synced;
+      if (current && !formsEqual(current, synced)) {
+        skipInitialAutosave.current = true;
+        setForm(synced);
+      }
       setSaveState("saved");
-      onSaved?.();
+      onSavedRef.current?.();
     } catch (e) {
       if (gen !== saveGenRef.current) return;
       setSaveState("error");
       setLocalError(e instanceof Error ? e.message : t("mediaGroup.saveError"));
     }
-  }, [groupId, onSaved, t]);
+  }, [groupId, t]);
+
+  saveRef.current = save;
 
   useEffect(() => {
     if (!form || loading) return;
@@ -183,14 +207,17 @@ export function MediaGroupEditor({ groupId, onClose, onSaved }: Props) {
       skipInitialAutosave.current = false;
       return;
     }
+    if (lastSavedFormRef.current && formsEqual(form, lastSavedFormRef.current)) {
+      return;
+    }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      void save();
+      void saveRef.current();
     }, 500);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [form, loading, save]);
+  }, [form, loading]);
 
   useEffect(() => {
     function flush() {
