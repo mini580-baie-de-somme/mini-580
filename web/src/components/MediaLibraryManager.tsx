@@ -72,6 +72,7 @@ import { MediaIntegrityNotice } from "./MediaIntegrityNotice";
 import { MediaClipboardPasteButton } from "./MediaClipboardPasteButton";
 import { MediaGroupChips, type MediaGroupSummary } from "./MediaGroupChips";
 import { MediaGroupEditor } from "./MediaGroupEditor";
+import { MediaLibraryMobileCard } from "./MediaLibraryMobileCard";
 
 type MediaKind = MediaKindClient;
 
@@ -1149,75 +1150,35 @@ export function MediaLibraryManager() {
       ) : (
         <>
           {/* Mobile — card list */}
-          <ul className="space-y-3 md:hidden">
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:hidden">
             {items.map((m) => {
               const title =
                 (locale === "fr" ? m.titleFr : m.titleEn) || m.id.slice(0, 8);
               return (
-                <li key={m.id}>
-                  <article className="overflow-hidden rounded-lg border border-[#d4dde6] bg-white shadow-sm">
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => void startEdit(m)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          void startEdit(m);
-                        }
-                      }}
-                      className="flex cursor-pointer gap-3 p-3 active:bg-[#f8fafc]"
-                    >
-                      <div className="shrink-0 self-start">{thumb(m, "md")}</div>
-                      <div className="min-w-0 flex-1">
-                        <p className="line-clamp-2 text-sm font-medium leading-snug text-[#0D131A]">
-                          {title}
-                        </p>
-                        <p className="mt-0.5 truncate text-[11px] text-[#495867]">
-                          {kindLabel(m.kind)}
-                          {m.mimeType ? ` · ${m.mimeType}` : ""}
-                        </p>
-                        <div className="mt-1.5 flex flex-wrap items-center gap-1">
-                          {visibilityBadge(m)}
-                          {m.integrity && !m.integrity.ok ? integrityBadge(m) : null}
-                        </div>
-                        <MediaGroupChips
-                          groups={groupsFromMedia(m)}
-                          locale={locale}
-                          onGroupClick={openGroupEdit}
-                        />
-                      </div>
-                    </div>
-                    <div
-                      className="grid grid-cols-3 divide-x divide-[#eef3f7] border-t border-[#eef3f7] bg-[#fafbfc]"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => void startEdit(m)}
-                        className="inline-flex min-h-[44px] items-center justify-center px-2 text-xs font-medium text-[#495867] hover:bg-[#f4f7fa] disabled:opacity-50"
-                      >
-                        {t("list.edit")}
-                      </button>
-                      <a
-                        href={m.urlOrigin}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex min-h-[44px] items-center justify-center px-2 text-xs font-medium text-[#495867] hover:bg-[#f4f7fa]"
-                      >
-                        {t("media.open")}
-                      </a>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => void remove(m)}
-                        className="inline-flex min-h-[44px] items-center justify-center px-2 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
-                      >
-                        {t("media.delete")}
-                      </button>
-                    </div>
-                  </article>
+                <li key={m.id} className="min-w-0">
+                  <MediaLibraryMobileCard
+                    id={m.id}
+                    kind={m.kind}
+                    mimeType={m.mimeType}
+                    title={title}
+                    thumbSrc={thumbSrc(m)}
+                    visibilityBadge={visibilityBadge(m)}
+                    integrityBadge={
+                      m.integrity && !m.integrity.ok ? integrityBadge(m) : undefined
+                    }
+                    groups={groupsFromMedia(m)}
+                    locale={locale}
+                    busy={busy}
+                    openUrl={m.urlOrigin}
+                    labels={{
+                      edit: t("list.edit"),
+                      open: t("media.open"),
+                      delete: t("media.delete"),
+                    }}
+                    onEdit={() => void startEdit(m)}
+                    onDelete={() => void remove(m)}
+                    onGroupClick={openGroupEdit}
+                  />
                 </li>
               );
             })}

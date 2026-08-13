@@ -27,7 +27,7 @@ export function MediaGroupChips({
 
   return (
     <div
-      className="mt-1 flex flex-wrap gap-1"
+      className="mt-1 flex max-w-full flex-wrap gap-1"
       onClick={(e) => e.stopPropagation()}
     >
       {visible.map((g) => {
