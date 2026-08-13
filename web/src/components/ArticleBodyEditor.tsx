@@ -13,6 +13,7 @@ import {
   cleanMediaGroupTokens,
   mediaGroupPlaceholder,
 } from "@/lib/media-group-token";
+import { shouldApplyParentMarkdownToVisualEditor } from "@/lib/visual-editor-markdown-sync";
 import { useMediaGroupBodyEnrichment } from "@/hooks/useMediaGroupBodyEnrichment";
 import { MediaGroupBlock } from "@/lib/tiptap/media-group-block";
 import { ArticleBody } from "./ArticleBody";
@@ -139,7 +140,11 @@ function VisualEditorPane({
     },
     onUpdate: ({ editor: ed }) => {
       if (syncingRef.current) return;
-      onMarkdownChange(htmlToMarkdown(ed.getHTML()));
+      const md = htmlToMarkdown(ed.getHTML());
+      // Parent re-renders with this markdown; mark it as local so the sync
+      // effect below does not call setContent() and reset the caret.
+      lastExternalRef.current = md;
+      onMarkdownChange(md);
     },
   });
 
@@ -155,7 +160,9 @@ function VisualEditorPane({
 
   useEffect(() => {
     if (!editor) return;
-    if (markdown === lastExternalRef.current) return;
+    if (!shouldApplyParentMarkdownToVisualEditor(lastExternalRef.current, markdown)) {
+      return;
+    }
     lastExternalRef.current = markdown;
     syncingRef.current = true;
     editor.commands.setContent(markdownToHtml(markdown), { emitUpdate: false });
