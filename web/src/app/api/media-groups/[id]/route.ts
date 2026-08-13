@@ -5,8 +5,8 @@ import { getEditorOrService } from "@/lib/service-auth";
 import {
   findPostsReferencingMediaGroup,
   getMediaGroupDetail,
-  mediaGroupInclude,
   replaceMediaGroupMembers,
+  slugBaseFromMediaGroupTitles,
   updateMediaGroupSchema,
   updateMediaGroupSlug,
 } from "@/lib/media-groups";
@@ -43,16 +43,24 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const body = await request.json();
     const data = updateMediaGroupSchema.parse(body);
 
+    const titleFr =
+      data.titleFr !== undefined ? data.titleFr.trim() : existing.titleFr;
+    const titleEn =
+      data.titleEn !== undefined ? data.titleEn.trim() : existing.titleEn;
+
     let slug = existing.slug;
-    if (data.slug !== undefined && data.slug.trim() && data.slug.trim() !== existing.slug) {
-      slug = await updateMediaGroupSlug(id, existing.slug, data.slug.trim());
+    if (data.titleFr !== undefined || data.titleEn !== undefined) {
+      const base = slugBaseFromMediaGroupTitles(titleFr, titleEn);
+      if (titleFr || titleEn) {
+        slug = await updateMediaGroupSlug(id, existing.slug, base);
+      }
     }
 
     await prisma.mediaGroup.update({
       where: { id },
       data: {
-        ...(data.titleFr !== undefined && { titleFr: data.titleFr }),
-        ...(data.titleEn !== undefined && { titleEn: data.titleEn }),
+        ...(data.titleFr !== undefined && { titleFr }),
+        ...(data.titleEn !== undefined && { titleEn }),
         ...(data.layout !== undefined && { layout: data.layout }),
         slug,
       },

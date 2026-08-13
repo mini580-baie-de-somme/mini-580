@@ -39,6 +39,12 @@ export async function uniqueMediaGroupSlug(base: string, excludeId?: string): Pr
   }
 }
 
+/** Slug base from bilingual titles — prefers FR (same as posts). */
+export function slugBaseFromMediaGroupTitles(titleFr: string, titleEn: string): string {
+  const base = titleFr.trim() || titleEn.trim();
+  return base || "media-group";
+}
+
 export async function findPostsReferencingMediaGroup(groupId: string) {
   const token = mediaGroupPlaceholder(groupId);
   return prisma.post.findMany({
@@ -126,13 +132,11 @@ export async function createMediaGroup(input: {
   titleFr?: string;
   titleEn?: string;
   layout?: MediaGroupLayout;
-  slug?: string;
   mediaIds?: string[];
 }) {
   const titleFr = input.titleFr?.trim() ?? "";
   const titleEn = input.titleEn?.trim() ?? "";
-  const slugBase = input.slug ?? (titleEn || titleFr || "media-group");
-  const slug = await uniqueMediaGroupSlug(slugBase);
+  const slug = await uniqueMediaGroupSlug(slugBaseFromMediaGroupTitles(titleFr, titleEn));
   const mediaIds = input.mediaIds ?? [];
 
   const group = await prisma.mediaGroup.create({
@@ -157,7 +161,6 @@ export const createMediaGroupSchema = z.object({
   titleFr: z.string().optional(),
   titleEn: z.string().optional(),
   layout: z.nativeEnum(MediaGroupLayout).optional(),
-  slug: z.string().optional(),
   mediaIds: z.array(z.string()).optional(),
 });
 
@@ -165,6 +168,5 @@ export const updateMediaGroupSchema = z.object({
   titleFr: z.string().optional(),
   titleEn: z.string().optional(),
   layout: z.nativeEnum(MediaGroupLayout).optional(),
-  slug: z.string().optional(),
   mediaIds: z.array(z.string()).optional(),
 });

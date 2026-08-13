@@ -10,6 +10,7 @@ import {
   jsonRequest,
   uniqueSlug,
 } from "../helpers";
+import { slugify } from "@/lib/utils";
 
 vi.mock("next/headers", () => ({
   cookies: async () => ({ get: () => undefined }),
@@ -60,7 +61,6 @@ describe("API integration — Media groups (Phase 1d-b)", () => {
 
   it("CRUD media groups with Bearer", async () => {
     const { POST, GET } = await import("@/app/api/media-groups/route");
-    const slug = uniqueSlug(GROUP_P);
 
     const createRes = await POST(
       jsonRequest("http://localhost/api/media-groups", {
@@ -69,7 +69,6 @@ describe("API integration — Media groups (Phase 1d-b)", () => {
         body: JSON.stringify({
           titleFr: "Montage test",
           titleEn: "Test montage",
-          slug,
           layout: MediaGroupLayout.GRID,
           mediaIds: [mediaAId, mediaBId],
         }),
@@ -78,14 +77,14 @@ describe("API integration — Media groups (Phase 1d-b)", () => {
     expect(createRes.status).toBe(201);
     const created = await createRes.json();
     groupId = created.id;
-    expect(created.slug).toBe(slug);
+    expect(created.slug).toBe("montage-test");
     expect(created.members).toHaveLength(2);
     expect(created.members[0]?.mediaId).toBe(mediaAId);
 
     const listRes = await GET(
       jsonRequest("http://localhost/api/media-groups", {
         headers: bearerHeaders(),
-        searchParams: { q: slug },
+        searchParams: { q: "montage-test" },
       })
     );
     expect(listRes.status).toBe(200);
@@ -120,6 +119,7 @@ describe("API integration — Media groups (Phase 1d-b)", () => {
     expect(patchRes.status).toBe(200);
     const patched = await patchRes.json();
     expect(patched.titleFr).toBe("Montage modifié");
+    expect(patched.slug).toBe("montage-modifie");
     expect(patched.members[0]?.mediaId).toBe(mediaBId);
 
     const delRes = await DELETE(
@@ -133,6 +133,39 @@ describe("API integration — Media groups (Phase 1d-b)", () => {
     groupId = "";
   });
 
+  it("auto-generates slug from title with numeric suffix on collision", async () => {
+    const { POST } = await import("@/app/api/media-groups/route");
+    const title = uniqueSlug(`${GROUP_P}-auto-slug`);
+    const baseSlug = slugify(title);
+
+    const firstRes = await POST(
+      jsonRequest("http://localhost/api/media-groups", {
+        method: "POST",
+        headers: bearerHeaders(),
+        body: JSON.stringify({ titleFr: title, mediaIds: [mediaAId] }),
+      })
+    );
+    expect(firstRes.status).toBe(201);
+    const first = await firstRes.json();
+
+    const secondRes = await POST(
+      jsonRequest("http://localhost/api/media-groups", {
+        method: "POST",
+        headers: bearerHeaders(),
+        body: JSON.stringify({ titleFr: title, mediaIds: [mediaBId] }),
+      })
+    );
+    expect(secondRes.status).toBe(201);
+    const second = await secondRes.json();
+
+    expect(first.slug).toBe(baseSlug);
+    expect(second.slug).toBe(`${baseSlug}-1`);
+
+    await prisma.mediaGroup.deleteMany({
+      where: { id: { in: [first.id, second.id] } },
+    });
+  });
+
   it("DELETE returns 409 when group is referenced in post body", async () => {
     const { POST } = await import("@/app/api/media-groups/route");
     const { POST: createPost } = await import("@/app/api/posts/route");
@@ -142,12 +175,11 @@ describe("API integration — Media groups (Phase 1d-b)", () => {
       "@/app/api/media-groups/[id]/references/route"
     );
 
-    const slug = uniqueSlug(GROUP_P);
     const createGroupRes = await POST(
       jsonRequest("http://localhost/api/media-groups", {
         method: "POST",
         headers: bearerHeaders(),
-        body: JSON.stringify({ titleFr: "Ref test", slug, mediaIds: [mediaAId] }),
+        body: JSON.stringify({ titleFr: "Ref test", mediaIds: [mediaAId] }),
       })
     );
     const group = await createGroupRes.json();
@@ -232,7 +264,6 @@ describe("API integration — Media groups (Phase 1d-b)", () => {
         headers: bearerHeaders(),
         body: JSON.stringify({
           titleFr: "Inline",
-          slug: uniqueSlug(`${GROUP_P}-inline`),
           mediaIds: [mediaAId],
         }),
       })
@@ -333,7 +364,6 @@ describe("API integration — Media groups (Phase 1d-b)", () => {
         headers: bearerHeaders(),
         body: JSON.stringify({
           titleFr: "Filtre",
-          slug: uniqueSlug(`${GROUP_P}-filter`),
           mediaIds: [mediaAId, mediaBId],
         }),
       })
@@ -365,7 +395,6 @@ describe("API integration — Media groups (Phase 1d-b)", () => {
         headers: bearerHeaders(),
         body: JSON.stringify({
           titleFr: "Overlay",
-          slug: uniqueSlug(`${GROUP_P}-overlay`),
           mediaIds: [mediaBId],
         }),
       })
@@ -398,7 +427,6 @@ describe("API integration — Media groups (Phase 1d-b)", () => {
         headers: bearerHeaders(),
         body: JSON.stringify({
           titleFr: "Inline",
-          slug: uniqueSlug(`${GROUP_P}-inline`),
           mediaIds: [mediaAId],
         }),
       })
@@ -449,7 +477,6 @@ describe("API integration — Media groups (Phase 1d-b)", () => {
         headers: bearerHeaders(),
         body: JSON.stringify({
           titleFr: "Members",
-          slug: uniqueSlug(`${GROUP_P}-members`),
           mediaIds: [mediaAId],
         }),
       })

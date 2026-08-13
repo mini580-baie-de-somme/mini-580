@@ -63,7 +63,6 @@ type PickerItem = {
 type FormState = {
   titleFr: string;
   titleEn: string;
-  slug: string;
   layout: MediaGroupLayout;
   mediaIds: string[];
 };
@@ -85,7 +84,6 @@ function formFromDetail(detail: MediaGroupDetail): FormState {
   return {
     titleFr: detail.titleFr,
     titleEn: detail.titleEn,
-    slug: detail.slug,
     layout: detail.layout,
     mediaIds: detail.members.map((m) => m.mediaId),
   };
@@ -95,7 +93,6 @@ function formsEqual(a: FormState, b: FormState): boolean {
   return (
     a.titleFr === b.titleFr &&
     a.titleEn === b.titleEn &&
-    a.slug === b.slug &&
     a.layout === b.layout &&
     a.mediaIds.length === b.mediaIds.length &&
     a.mediaIds.every((id, index) => id === b.mediaIds[index])
@@ -170,7 +167,6 @@ export function MediaGroupEditor({ groupId, onClose, onSaved }: Props) {
         body: JSON.stringify({
           titleFr: current.titleFr,
           titleEn: current.titleEn,
-          slug: current.slug,
           layout: current.layout,
           mediaIds: current.mediaIds,
         }),
@@ -235,7 +231,6 @@ export function MediaGroupEditor({ groupId, onClose, onSaved }: Props) {
         body: JSON.stringify({
           titleFr: current.titleFr,
           titleEn: current.titleEn,
-          slug: current.slug,
           layout: current.layout,
           mediaIds: current.mediaIds,
         }),
@@ -561,10 +556,13 @@ export function MediaGroupEditor({ groupId, onClose, onSaved }: Props) {
                     {t("mediaGroup.slug")}
                   </span>
                   <input
-                    className="mt-0.5 w-full rounded border border-[#d4dde6] px-2 py-1 text-sm font-mono"
-                    value={form.slug}
-                    onChange={(e) => setForm({ ...form, slug: e.target.value })}
+                    readOnly
+                    className="mt-0.5 w-full cursor-default rounded border border-[#d4dde6] bg-[#f4f7fa] px-2 py-1 font-mono text-sm text-[#495867]"
+                    value={detail?.slug ?? ""}
                   />
+                  <span className="mt-1 block text-[11px] text-[#495867]">
+                    {t("mediaGroup.slugHint")}
+                  </span>
                 </label>
 
                 <div>

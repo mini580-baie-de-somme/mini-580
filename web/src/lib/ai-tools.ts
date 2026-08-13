@@ -130,7 +130,7 @@ export const AI_TOOLS: AiToolDef[] = [
   {
     name: "media_groups.create",
     description:
-      "Create media group in library. Body: { titleFr?, titleEn?, layout?: GRID|ROW|SINGLE, mediaIds?: string[] }.",
+      "Create media group in library. Body: { titleFr?, titleEn?, layout?: GRID|ROW|SINGLE, mediaIds?: string[] }. Slug auto-generated from titleFr (or titleEn); client slug ignored.",
     method: "POST",
     path: "/api/media-groups",
     auth: "bearer_or_session",
@@ -139,7 +139,7 @@ export const AI_TOOLS: AiToolDef[] = [
   {
     name: "media_groups.update",
     description:
-      "Patch group meta and/or replace ordered members. Body: { titleFr?, titleEn?, layout?, slug?, mediaIds?: string[] }.",
+      "Patch group meta and/or replace ordered members. Body: { titleFr?, titleEn?, layout?, mediaIds?: string[] }. Slug auto-synced from title when titles change.",
     method: "PATCH",
     path: "/api/media-groups/:id",
     auth: "bearer_or_session",

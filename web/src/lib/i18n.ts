@@ -449,6 +449,10 @@ const messages = {
   },
   "mediaGroup.alreadyInGroup": { fr: "Déjà dans le groupe", en: "Already in group" },
   "mediaGroup.slug": { fr: "Identifiant (slug)", en: "Slug" },
+  "mediaGroup.slugHint": {
+    fr: "Généré automatiquement depuis le titre FR (ou EN). Suffixe numérique si doublon.",
+    en: "Auto-generated from the FR title (or EN). Numeric suffix if not unique.",
+  },
   "mediaGroup.layout": { fr: "Disposition éditeur", en: "Editor layout" },
   "mediaGroup.layoutGrid": { fr: "Grille", en: "Grid" },
   "mediaGroup.layoutRow": { fr: "Ligne", en: "Row" },
