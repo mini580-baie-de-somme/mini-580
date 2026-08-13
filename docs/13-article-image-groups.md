@@ -1,6 +1,6 @@
 # Groupes de médias inline — articles
 
-> Spec **validée** — août 2026 · **Phase 1d** (prête pour implémentation)
+> Spec **validée et livrée** — août 2026 · **Phase 1d** ✅ **v1.2.88** (TEST validé Hammed · PROD promu)
 
 ## Problème actuel
 
@@ -338,6 +338,21 @@ Doc : `docs/09-telegram-publish.md` § tools groupes.
 | **1d-d** | UI médiathèque intégrée — chips groupes, filtre, « Nouveau groupe », `MediaGroupEditor` | ✅ |
 | **1d-e** | TipTap bloc + picker insertion article | ✅ |
 | **1d-f** | URLs virtuelles + `AI_TOOLS` Telegram + tests + deploy | ✅ |
+
+## Implémentation livrée (v1.2.67 → v1.2.88)
+
+| Sujet | Comportement livré |
+|-------|-------------------|
+| Token body | Stockage `{{media-group:<id>}}` ; affichage textarea enrichi `{{media-group:<id>\|Nom\|N}}` (nettoyé à la sauvegarde) |
+| TipTap Visuel | Chip live (nom + count + layout) ; persistance round-trip via zero-width char dans le div |
+| Lightbox inline | Clic mosaïque → **médias du groupe seulement** (ordre `sortOrder`) |
+| Lightbox bandeau | Clic bandeau bas → **manifeste article complet** (couverture + groupes + standalone, dedupe) |
+| Mosaïque publique | Vignettes **carrées** (`aspect-square`, `object-cover`) ; slider = ratio natif `object-contain` |
+| Slug groupe | Auto depuis titre FR (suffixe `-1`, `-2` si collision) ; champ lecture seule |
+| Médiathèque mobile | Cartes horizontales compactes ; filtres sync URL ; toggle désélection groupe |
+| Save média | Module partagé `save-media-flow.ts` (stratégies `post` \| `library`) |
+| Slider mobile | Swipe gauche/droite, animation slide 3 panneaux, scroll body bloqué à l’ouverture |
+| Footer site | « Conçu et Développé par Simohra » / « Designed and Built by Simohra » |
 
 ## Références
 

@@ -65,7 +65,7 @@ cp web/.env.example web/.env
 2. ~~Lancer le squelette du site web~~ → Phase 1a/1b/1c en place (`web/`)
 3. ~~Provisionner VPS Hostinger + domaine + CI/CD~~ → TEST/PROD live, promotion package (`docs/07-deploy-cicd.md`)
 4. ~~Éditeur photo mobile + intégrité media + rebake strict~~ → **v1.2.66** (`docs/12-photo-editor-medias.md`)
-5. **Groupes de médias inline** — Phase 1d spec validée, **prête build** (`docs/13-article-image-groups.md`, `TODO.md`)
+5. ~~Groupes de médias inline~~ → **Phase 1d livrée v1.2.88** (`docs/13-article-image-groups.md`, `TODO.md`)
 6. Migrer médias Blogger non conformes (re-upload originale locale)
 7. Installer OpenClaw sur VM dédiée + bot Telegram Class Mini 5.80 Baie de Somme (Phase 2)
 8. ~~Développer le skill `mini580-ingest`~~ → webhook + FSM review (`docs/09-telegram-publish.md`)

@@ -152,7 +152,7 @@ Voir **[Déploiement & CI/CD](07-deploy-cicd.md)** :
 | **1a** | Site public + DB + seed 3 articles + jalons | ✅ Livré |
 | **1b** | Auth + éditeur + autosave + preview + médiathèque + galerie publique + sync TEST↔PROD | ✅ Livré |
 | **1c** | Éditeur photo mobile, intégrité media, rebake strict, URLs virtuelles, CI/CD promotion package | ✅ Livré (**v1.2.66** — upload mobile, refresh vignettes, origin full-res) |
-| **1d** | Groupes inline + manifeste médias unifié + mosaïque + `MediaSlideshow` partagé (médiathèque M:N, slug history SEO, TipTap assisté, tools Telegram) | ✅ **1d-a → 1d-f** — deploy TEST en attente — voir `docs/13-article-image-groups.md` |
+| **1d** | Groupes inline + manifeste médias unifié + mosaïque carrée + lightbox groupe/article + slug auto + swipe mobile + footer Simohra | ✅ Livré (**v1.2.88** — TEST validé, PROD promu) — voir `docs/13-article-image-groups.md` |
 | **2** | VM OpenClaw Class Mini 5.80 Baie de Somme + Telegram publish (production équipe) | En cours |
 | **3** | Google Drive, newsletter, commentaires | À faire |
 

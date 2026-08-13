@@ -281,8 +281,11 @@ Refresh origin à l’ouverture modal edit : `GET /api/media-library/[id]` si be
 | Schedule rebake async | `web/src/lib/layout-rebake-schedule.ts` |
 | Canvas | `web/src/components/PhotoCanvasEditor.tsx` |
 | Modal save flow | `web/src/components/PhotoEditModal.tsx` |
+| Save orchestration (post + library) | `web/src/lib/save-media-flow.ts` |
+| File queue hook | `web/src/hooks/useMediaFileQueue.ts` |
+| Erreurs save unifiées | `web/src/lib/media-save-errors.ts` |
 
-## Historique correctifs (v1.2.58 → v1.2.66)
+## Historique correctifs (v1.2.58 → v1.2.88)
 
 | Version | Problème | Fix |
 |---------|----------|-----|
@@ -290,6 +293,13 @@ Refresh origin à l’ouverture modal edit : `GET /api/media-library/[id]` si be
 | **1.2.60** | Vignette article stale après crop | Poll rebake inclut `urlPetite` ; cache-bust thumb ; remount `<img>` |
 | **1.2.61** | Édition sur variant dégradé ; origin mobile 1600 px | `editorCanvasSrc()` origin-only ; upload max 4096 px ; preview WYSIWYG |
 | **1.2.68** | Médiathèque save `Failed to fetch` (certaines photos, mobile) | `MediaLibraryManager` : XHR upload + `fetchWithNetworkRetry` PATCH (aligné PhotoEditModal) ; fermeture modal avant poll rebake ; layout PATCH seulement si changé ; origin editable après check intégrité ; API 409 si origin absent |
+| **1.2.72** | Duplication orchestration save article vs médiathèque | Module partagé `save-media-flow.ts` + `useMediaFileQueue` + `media-save-errors.ts` |
+| **1.2.76–78** | Cartes médiathèque mobile illisibles | Refonte mobile-first : header centré, cartes horizontales compactes, actions icônes discrètes |
+| **1.2.74–75** | Filtre groupe désync (état visuel ≠ liste) | Filtres sync URL ; toggle off re-clic ; vidage liste au refetch |
+| **1.2.81–82** | Groupes inline — persistance Visuel + curseur | Zero-width char TipTap ; enrichissement balise textarea ; fix resync curseur |
+| **1.2.83–86** | Slider mobile — swipe + animation | Swipe tactile, piste 3 panneaux, scroll body bloqué, ratio natif en lightbox |
+| **1.2.87** | Slug groupe saisi manuellement | Auto depuis titre FR + suffixe collision |
+| **1.2.88** | Footer crédit Simohra | Ligne FR/EN sous crédit « Les vieux fourneaux » |
 
 **Médias legacy :** photos uploadées avant v1.2.61 (origin ~1600 px) ou collage clipboard — **Remplacer le fichier** avec l’original pour regagner la pleine résolution.
 

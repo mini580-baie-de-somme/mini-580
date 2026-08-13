@@ -44,10 +44,16 @@ Règles UI obligatoires pour **toutes** les listes CRUD de l’espace éditeur :
 
 ### Public / preview — mosaïque inline + galerie unifiée
 
-- **`InlineMediaGroup`** : mini mosaïque selon count (1 full · 2 côte à côte · 3 asymétrique · 4+ grille 2×2 + badge « +N »)
-- Clic mosaïque → **`MediaSlideshow`** existant (pas de second lightbox) à l’index du manifeste global
-- **Bandeau bas d’article + diaporama** : alimentés par le **manifeste unifié** (couverture → groupes inline ordre body → standalone `PostMedia`), pas `PostMedia` seul
+- **`InlineMediaGroup`** : mosaïque **carrée** (`aspect-square`, crop centré) selon count (1 · 2 · 3 · 4+ grille 2×2 + badge « +N »)
+- Clic mosaïque → **`MediaSlideshow`** en mode **groupe** (médias du groupe uniquement, ordre `sortOrder`)
+- Clic bandeau bas / diaporama → **`MediaSlideshow`** en mode **manifeste article** (couverture + inline + standalone, dedupe)
 - Spec algorithmique : `docs/13-article-image-groups.md` § Manifeste médias unifié
+
+### Médiathèque mobile (v1.2.76+)
+
+- Header centré, retour « ← Posts » séparé, CTAs grille 2 colonnes (Nouveau groupe · Ajouter un média)
+- Liste mobile : cartes horizontales compactes (`MediaLibraryMobileCard`) — thumb 72px, meta, badges, actions icônes discrètes
+- Filtres synchronisés URL (`groupId`, `kind`, `visibility`, `q`) — re-clic chip groupe actif = désélection
 
 ## Règles listes (obligatoires)
 
