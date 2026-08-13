@@ -38,9 +38,10 @@ describe("swipe-navigation", () => {
     expect(isVerticalScrollGesture({ deltaX: 30, deltaY: 8 })).toBe(false);
   });
 
-  it("computes snap translate from direction and container width", () => {
-    expect(getSwipeSnapTranslateX(1, 400)).toBe(128);
-    expect(getSwipeSnapTranslateX(-1, 400)).toBe(-128);
-    expect(getSwipeSnapTranslateX(1, 0)).toBe(120);
+  it("computes snap translate in finger direction for full panel exit", () => {
+    expect(getSwipeSnapTranslateX(1, 400)).toBe(-400);
+    expect(getSwipeSnapTranslateX(-1, 400)).toBe(400);
+    expect(getSwipeSnapTranslateX(1, 0)).toBe(-120);
+    expect(getSwipeSnapTranslateX(-1, 0)).toBe(120);
   });
 });

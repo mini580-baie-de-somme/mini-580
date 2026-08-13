@@ -10,7 +10,6 @@ import {
 } from "react";
 import { resolveThumbKind } from "@/lib/media-file-client";
 import {
-  getSwipeSnapTranslateX,
   isHorizontalSwipeGesture,
   isVerticalScrollGesture,
   resolveHorizontalSwipe,
@@ -19,7 +18,7 @@ import { GalleryImage } from "./GalleryImage";
 import { useLocale } from "./LocaleProvider";
 
 const AUTO_MS = 5000;
-const SWIPE_SNAP_MS = 220;
+const SWIPE_SNAP_MS = 280;
 
 export type MediaSlideshowItem = {
   kind?: string | null;
@@ -45,6 +44,8 @@ export type MediaSlideshowItem = {
   cropW?: number;
   cropH?: number;
 };
+
+type SnapTarget = "prev" | "center" | "next";
 
 function lockBodyScroll() {
   const scrollY = window.scrollY;
@@ -75,6 +76,88 @@ function lockBodyScroll() {
   };
 }
 
+function SlidePanel({
+  item,
+  locale,
+  footer,
+  panelIndex,
+  panelWidth,
+}: {
+  item: MediaSlideshowItem;
+  locale: "fr" | "en";
+  footer?: ReactNode;
+  panelIndex: number;
+  panelWidth: number;
+}) {
+  const { t } = useLocale();
+  const kind = resolveThumbKind(
+    item.kind,
+    item.mimeType,
+    item.urlOrigin || item.url
+  );
+
+  return (
+    <div
+      className="flex min-h-0 shrink-0 flex-col items-center justify-center"
+      style={{ width: panelWidth > 0 ? panelWidth : "100%" }}
+      aria-hidden={panelIndex !== 1}
+    >
+      {kind === "VIDEO" ? (
+        <video
+          src={item.urlOrigin || item.url}
+          controls
+          className="mx-auto max-h-[min(calc(100dvh-9rem),90vh)] w-full touch-auto"
+        />
+      ) : kind === "DOCUMENT" ? (
+        <div
+          data-slideshow-pdf-scroll
+          className="max-h-[min(calc(100dvh-9rem),90vh)] w-full touch-pan-y overflow-auto rounded-lg bg-white p-6 text-center text-[#0D131A]"
+        >
+          <p className="mb-3 font-medium">
+            {locale === "fr"
+              ? item.titleFr || t("gallery.kind.document")
+              : item.titleEn || t("gallery.kind.document")}
+          </p>
+          <a
+            href={item.urlOrigin || item.url}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-md bg-[#495867] px-4 py-2 text-sm text-white"
+          >
+            {t("gallery.openPdf")}
+          </a>
+          <iframe
+            title="pdf"
+            src={item.urlOrigin || item.url}
+            className="mt-4 h-[min(50vh,calc(100dvh-14rem))] w-full rounded border border-[#d4dde6]"
+          />
+        </div>
+      ) : (
+        <GalleryImage image={item} locale={locale} mode="slideshow" />
+      )}
+      {footer}
+    </div>
+  );
+}
+
+function getTrackTransform(
+  dragX: number,
+  snapTarget: SnapTarget | null,
+  viewportWidth: number
+): string {
+  const w = viewportWidth > 0 ? viewportWidth : 0;
+  if (snapTarget === "next") {
+    return `translateX(${-2 * w}px)`;
+  }
+  if (snapTarget === "prev") {
+    return "translateX(0px)";
+  }
+  if (snapTarget === "center") {
+    return `translateX(${-w}px)`;
+  }
+  return `translateX(${-w + dragX}px)`;
+}
+
 export function MediaSlideshow({
   items,
   open,
@@ -98,11 +181,14 @@ export function MediaSlideshow({
   const [autoPlay, setAutoPlay] = useState(initialAutoPlay);
   const [dragX, setDragX] = useState(0);
   const [slideTransition, setSlideTransition] = useState(false);
+  const [snapTarget, setSnapTarget] = useState<SnapTarget | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const swipeAreaRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const slideTrackRef = useRef<HTMLDivElement>(null);
-  const snapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isAnimatingRef = useRef(false);
+  const [viewportWidth, setViewportWidth] = useState(0);
 
   useEffect(() => {
     if (!open) return;
@@ -110,7 +196,24 @@ export function MediaSlideshow({
     setAutoPlay(initialAutoPlay);
     setDragX(0);
     setSlideTransition(false);
+    setSnapTarget(null);
+    isAnimatingRef.current = false;
   }, [open, initialIndex, initialAutoPlay]);
+
+  useEffect(() => {
+    if (!open) return;
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const updateWidth = () => {
+      setViewportWidth(viewport.offsetWidth);
+    };
+    updateWidth();
+
+    const ro = new ResizeObserver(updateWidth);
+    ro.observe(viewport);
+    return () => ro.disconnect();
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -126,22 +229,52 @@ export function MediaSlideshow({
   );
 
   const resetDrag = useCallback(() => {
-    if (snapTimerRef.current) {
-      clearTimeout(snapTimerRef.current);
-      snapTimerRef.current = null;
-    }
+    isAnimatingRef.current = false;
     setSlideTransition(false);
+    setSnapTarget(null);
     setDragX(0);
   }, []);
+
+  const finishSnap = useCallback(
+    (target: SnapTarget) => {
+      if (target === "next") {
+        go(1);
+      } else if (target === "prev") {
+        go(-1);
+      }
+      isAnimatingRef.current = false;
+      setSlideTransition(false);
+      setSnapTarget(null);
+      setDragX(0);
+    },
+    [go]
+  );
+
+  const onTrackTransitionEnd = useCallback(
+    (e: React.TransitionEvent<HTMLDivElement>) => {
+      if (e.propertyName !== "transform" || !snapTarget || snapTarget === "center") {
+        if (snapTarget === "center") {
+          isAnimatingRef.current = false;
+          setSlideTransition(false);
+          setSnapTarget(null);
+          setDragX(0);
+        }
+        return;
+      }
+      finishSnap(snapTarget);
+    },
+    [finishSnap, snapTarget]
+  );
 
   const onTouchStart = useCallback(
     (e: ReactTouchEvent<HTMLDivElement>) => {
       if (items.length < 2) return;
-      if (snapTimerRef.current) return;
+      if (isAnimatingRef.current) return;
       const touch = e.changedTouches[0] ?? e.touches[0];
       if (!touch) return;
       touchStartRef.current = { x: touch.clientX, y: touch.clientY };
       setSlideTransition(false);
+      setSnapTarget(null);
     },
     [items.length]
   );
@@ -150,33 +283,29 @@ export function MediaSlideshow({
     (e: ReactTouchEvent<HTMLDivElement>) => {
       const start = touchStartRef.current;
       touchStartRef.current = null;
-      if (items.length < 2 || !start) return;
+      if (items.length < 2 || !start || isAnimatingRef.current) return;
       const touch = e.changedTouches[0];
       if (!touch) return;
 
       const deltaX = touch.clientX - start.x;
       const deltaY = touch.clientY - start.y;
       const direction = resolveHorizontalSwipe({ deltaX, deltaY });
-      const trackWidth = slideTrackRef.current?.offsetWidth ?? 0;
 
       if (direction === 0) {
-        setSlideTransition(true);
+        isAnimatingRef.current = true;
         setDragX(0);
+        setSlideTransition(true);
+        setSnapTarget("center");
         return;
       }
 
       setAutoPlay(false);
+      isAnimatingRef.current = true;
+      setDragX(0);
       setSlideTransition(true);
-      setDragX(getSwipeSnapTranslateX(direction, trackWidth));
-
-      snapTimerRef.current = setTimeout(() => {
-        snapTimerRef.current = null;
-        setSlideTransition(false);
-        setDragX(0);
-        go(direction);
-      }, SWIPE_SNAP_MS);
+      setSnapTarget(direction === 1 ? "next" : "prev");
     },
-    [go, items.length]
+    [items.length]
   );
 
   const onTouchCancel = useCallback(() => {
@@ -190,7 +319,7 @@ export function MediaSlideshow({
     if (!area) return;
 
     const onTouchMove = (e: TouchEvent) => {
-      if (items.length < 2 || snapTimerRef.current) return;
+      if (items.length < 2 || isAnimatingRef.current) return;
       const start = touchStartRef.current;
       if (!start) return;
 
@@ -211,6 +340,7 @@ export function MediaSlideshow({
       if (isHorizontalSwipeGesture({ deltaX, deltaY })) {
         e.preventDefault();
         setSlideTransition(false);
+        setSnapTarget(null);
         setDragX(deltaX);
       }
     };
@@ -218,12 +348,6 @@ export function MediaSlideshow({
     area.addEventListener("touchmove", onTouchMove, { passive: false });
     return () => area.removeEventListener("touchmove", onTouchMove);
   }, [open, items.length]);
-
-  useEffect(() => {
-    return () => {
-      if (snapTimerRef.current) clearTimeout(snapTimerRef.current);
-    };
-  }, []);
 
   useEffect(() => {
     if (!open || !autoPlay || items.length < 2) {
@@ -264,11 +388,9 @@ export function MediaSlideshow({
   const current = items[index] ?? null;
   if (!open || !current) return null;
 
-  const currentKind = resolveThumbKind(
-    current.kind,
-    current.mimeType,
-    current.urlOrigin || current.url
-  );
+  const prevIndex = (index - 1 + items.length) % items.length;
+  const nextIndex = (index + 1) % items.length;
+  const multiSlide = items.length > 1;
 
   return (
     <div
@@ -312,7 +434,7 @@ export function MediaSlideshow({
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchCancel}
       >
-        {items.length > 1 && (
+        {multiSlide && (
           <button
             type="button"
             aria-label={t("gallery.prev")}
@@ -326,52 +448,55 @@ export function MediaSlideshow({
             ‹
           </button>
         )}
-        <div
-          ref={slideTrackRef}
-          className="flex min-h-0 w-full max-w-5xl flex-col items-center justify-center will-change-transform"
-          style={{
-            transform: `translateX(${dragX}px)`,
-            transition: slideTransition
-              ? `transform ${SWIPE_SNAP_MS}ms ease-out`
-              : undefined,
-          }}
-        >
-          {currentKind === "VIDEO" ? (
-            <video
-              src={current.urlOrigin || current.url}
-              controls
-              className="mx-auto max-h-[min(calc(100dvh-9rem),90vh)] w-full touch-auto"
-            />
-          ) : currentKind === "DOCUMENT" ? (
-            <div
-              data-slideshow-pdf-scroll
-              className="max-h-[min(calc(100dvh-9rem),90vh)] w-full touch-pan-y overflow-auto rounded-lg bg-white p-6 text-center text-[#0D131A]"
-            >
-              <p className="mb-3 font-medium">
-                {locale === "fr"
-                  ? current.titleFr || t("gallery.kind.document")
-                  : current.titleEn || t("gallery.kind.document")}
-              </p>
-              <a
-                href={current.urlOrigin || current.url}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-md bg-[#495867] px-4 py-2 text-sm text-white"
-              >
-                {t("gallery.openPdf")}
-              </a>
-              <iframe
-                title="pdf"
-                src={current.urlOrigin || current.url}
-                className="mt-4 h-[min(50vh,calc(100dvh-14rem))] w-full rounded border border-[#d4dde6]"
+        <div ref={viewportRef} className="min-h-0 w-full max-w-5xl overflow-hidden">
+          <div
+            ref={slideTrackRef}
+            className="flex will-change-transform"
+            style={{
+              transform: multiSlide
+                ? getTrackTransform(dragX, snapTarget, viewportWidth)
+                : undefined,
+              transition:
+                slideTransition && multiSlide
+                  ? `transform ${SWIPE_SNAP_MS}ms cubic-bezier(0.25, 0.1, 0.25, 1)`
+                  : undefined,
+            }}
+            onTransitionEnd={onTrackTransitionEnd}
+          >
+            {multiSlide ? (
+              <>
+                <SlidePanel
+                  item={items[prevIndex]!}
+                  locale={locale}
+                  panelIndex={0}
+                  panelWidth={viewportWidth}
+                />
+                <SlidePanel
+                  item={current}
+                  locale={locale}
+                  footer={footer?.(current, index)}
+                  panelIndex={1}
+                  panelWidth={viewportWidth}
+                />
+                <SlidePanel
+                  item={items[nextIndex]!}
+                  locale={locale}
+                  panelIndex={2}
+                  panelWidth={viewportWidth}
+                />
+              </>
+            ) : (
+              <SlidePanel
+                item={current}
+                locale={locale}
+                footer={footer?.(current, index)}
+                panelIndex={0}
+                panelWidth={viewportWidth}
               />
-            </div>
-          ) : (
-            <GalleryImage image={current} locale={locale} mode="slideshow" />
-          )}
-          {footer?.(current, index)}
+            )}
+          </div>
         </div>
-        {items.length > 1 && (
+        {multiSlide && (
           <button
             type="button"
             aria-label={t("gallery.next")}

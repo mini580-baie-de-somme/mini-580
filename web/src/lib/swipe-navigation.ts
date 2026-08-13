@@ -56,14 +56,17 @@ export function isVerticalScrollGesture(
   return absY > absX * minRatio;
 }
 
-/** Target translateX (px) for slide-change confirmation animation. */
+/**
+ * Target translateX offset (px) added to the centered (-100%) track position
+ * so the outgoing slide exits in the same direction as the finger.
+ * Swipe left (next) → negative offset; swipe right (prev) → positive offset.
+ */
 export function getSwipeSnapTranslateX(
   direction: -1 | 1,
-  containerWidth: number,
-  fraction = 0.32
+  containerWidth: number
 ): number {
-  if (containerWidth <= 0) return direction * 120;
-  return direction * containerWidth * fraction;
+  if (containerWidth <= 0) return direction === 1 ? -120 : 120;
+  return direction === 1 ? -containerWidth : containerWidth;
 }
 
 /**
