@@ -10,7 +10,6 @@ import {
   type GalleryEditorImage,
   editorCanvasSrc,
   mergeEditorImageLayout,
-  mediaVariantSnapshot,
   toEditorImage,
 } from "@/lib/gallery-editor";
 import {
@@ -22,20 +21,12 @@ import {
 } from "@/lib/image-layout";
 import {
   MEDIA_ACCEPT,
-  isAllowedMediaFile,
   kindFromFile,
   mediaFileFromDataTransfer,
   resolveFileMime,
   type ClipboardPasteError,
   type MediaKindClient,
 } from "@/lib/media-file-client";
-import { isLocalMediaUrl } from "@/lib/media-integrity-shared";
-import {
-  formatMaxMb,
-  maxBytesForMime,
-  MEDIA_MAX_BYTES,
-  MEDIA_VIDEO_MAX_BYTES,
-} from "@/lib/media-limits";
 import {
   fromDatetimeLocalValue,
   toDatetimeLocalValue,
@@ -49,16 +40,20 @@ import type { MediaIntegrity } from "@/lib/media-integrity-types";
 import { MediaIntegrityNotice } from "./MediaIntegrityNotice";
 import { MediaClipboardPasteButton } from "./MediaClipboardPasteButton";
 import {
-  fetchWithNetworkRetry,
-  isNetworkFetchError,
-} from "@/lib/fetch-with-network-retry";
-import { prepareImageForUpload } from "@/lib/prepare-upload-image";
-import { uploadFormDataWithRetry } from "@/lib/upload-form-data";
+  followUpPostRebakePoll,
+  getSaveFlowErrorPhase,
+  saveMediaFlow,
+} from "@/lib/save-media-flow";
 import {
-  fetchMediaAfterRebakeTimeout,
-  mediaVariantsChanged,
-  waitForMediaRebakeAfterPatch,
-} from "@/lib/wait-for-media-rebake";
+  formatMediaSaveError,
+  wrapMediaSaveErrorMessage,
+} from "@/lib/media-save-errors";
+import { useMediaFileQueue } from "@/hooks/useMediaFileQueue";
+import {
+  formatMaxMb,
+  MEDIA_MAX_BYTES,
+  MEDIA_VIDEO_MAX_BYTES,
+} from "@/lib/media-limits";
 
 type Props = {
   postId: string;
@@ -145,19 +140,6 @@ function pasteClipboardErrorMessage(
   return messages[error][lang];
 }
 
-function assertLocalOriginResponse(
-  urlOrigin: string | null | undefined,
-  lang: "fr" | "en"
-): void {
-  if (!urlOrigin || !isLocalMediaUrl(urlOrigin)) {
-    throw new Error(
-      lang === "fr"
-        ? "Le fichier n’a pas été enregistré dans le stockage local /media."
-        : "File was not saved to local /media storage."
-    );
-  }
-}
-
 export function PhotoEditModal({
   postId,
   lang,
@@ -176,10 +158,8 @@ export function PhotoEditModal({
       ? layoutFromLegacy(image)
       : { ...DEFAULT_IMAGE_LAYOUT }
   );
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [originEditable, setOriginEditable] = useState(
     mode !== "edit" || !draft?.id
@@ -191,15 +171,78 @@ export function PhotoEditModal({
   const dropRef = useRef<HTMLDivElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
-  useEffect(() => {
-    if (!pendingFile) {
-      setLocalPreviewUrl(null);
-      return;
-    }
-    const url = URL.createObjectURL(pendingFile);
-    setLocalPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [pendingFile]);
+  const handleFileAccepted = useCallback(
+    (file: File, kind: MediaKindClient) => {
+      const mime = resolveFileMime(file) ?? file.type;
+      setError(null);
+      setDirty(true);
+      setOriginEditable(true);
+      setMediaIntegrity(null);
+      setLayout({ ...DEFAULT_IMAGE_LAYOUT });
+      const legacy = legacyFieldsFromLayout(DEFAULT_IMAGE_LAYOUT);
+      setDraft((prev) => {
+        const base = prev ?? emptyDraft(kind);
+        return {
+          ...base,
+          kind,
+          mimeType: mime,
+          offsetX: DEFAULT_IMAGE_LAYOUT.offsetX,
+          offsetY: DEFAULT_IMAGE_LAYOUT.offsetY,
+          scaleX: DEFAULT_IMAGE_LAYOUT.scaleX,
+          scaleY: DEFAULT_IMAGE_LAYOUT.scaleY,
+          lockAspect: DEFAULT_IMAGE_LAYOUT.lockAspect,
+          rotation: DEFAULT_IMAGE_LAYOUT.rotation,
+          cropShape: DEFAULT_IMAGE_LAYOUT.cropShape,
+          backgroundColor: DEFAULT_IMAGE_LAYOUT.backgroundColor,
+          cropInset: DEFAULT_IMAGE_LAYOUT.cropInset,
+          focusX: legacy.focusX,
+          focusY: legacy.focusY,
+          zoom: legacy.zoom,
+          cropX: 0,
+          cropY: 0,
+          cropW: 1,
+          cropH: 1,
+        };
+      });
+    },
+    []
+  );
+
+  const fileQueueMessages = useMemo(
+    () => ({
+      coverMustBePhoto:
+        lang === "fr"
+          ? "La couverture doit être une photo."
+          : "Cover must be a photo.",
+      fileInvalid:
+        lang === "fr"
+          ? "Type non supporté. Photo, PDF, MP4 ou WebM uniquement."
+          : "Unsupported type. Photo, PDF, MP4 or WebM only.",
+      fileTooLarge:
+        lang === "fr"
+          ? "Fichier trop volumineux ({size} Mo). Maximum : {max} Mo."
+          : "File too large ({size} MB). Maximum: {max} MB.",
+      fileTooLargeVideo:
+        lang === "fr"
+          ? "Cette vidéo fait {size} Mo. Les vidéos sont limitées à {max} Mo."
+          : "This video is {size} MB. Videos are limited to {max} MB.",
+    }),
+    [lang]
+  );
+
+  const {
+    file: pendingFile,
+    setFile: setPendingFile,
+    previewUrl: localPreviewUrl,
+    acceptFile: queueFile,
+    clearFile: clearPendingFile,
+  } = useMediaFileQueue({
+    imagesOnly,
+    busy,
+    messages: fileQueueMessages,
+    onError: setError,
+    onAccepted: handleFileAccepted,
+  });
 
   useEffect(() => {
     if (mode !== "edit" || !draft?.id || pendingFile) {
@@ -313,109 +356,8 @@ export function PhotoEditModal({
     setDirty(true);
   }
 
-  const queueFile = useCallback(
-    (file: File) => {
-      if (imagesOnly) {
-        if (!file.type.startsWith("image/")) {
-          setError(
-            lang === "fr"
-              ? "La couverture doit être une photo."
-              : "Cover must be a photo."
-          );
-          return;
-        }
-      } else if (!isAllowedMediaFile(file)) {
-        setError(
-          lang === "fr"
-            ? "Type non supporté. Photo, PDF, MP4 ou WebM uniquement."
-            : "Unsupported type. Photo, PDF, MP4 or WebM only."
-        );
-        return;
-      }
-
-      const mime = resolveFileMime(file) ?? file.type;
-      const max = maxBytesForMime(mime);
-      if (file.size > max) {
-        const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
-        const maxMb = formatMaxMb(max);
-        setError(
-          mime.startsWith("video/")
-            ? lang === "fr"
-              ? `Cette vidéo fait ${sizeMb} Mo. Les vidéos sont limitées à ${maxMb} Mo.`
-              : `This video is ${sizeMb} MB. Videos are limited to ${maxMb} MB.`
-            : lang === "fr"
-              ? `Fichier trop volumineux (${sizeMb} Mo). Maximum : ${maxMb} Mo.`
-              : `File too large (${sizeMb} MB). Maximum: ${maxMb} MB.`
-        );
-        return;
-      }
-
-      const kind = kindFromFile(file) ?? "IMAGE";
-      setError(null);
-      setDirty(true);
-      setOriginEditable(true);
-      setMediaIntegrity(null);
-      setLayout({ ...DEFAULT_IMAGE_LAYOUT });
-      const legacy = legacyFieldsFromLayout(DEFAULT_IMAGE_LAYOUT);
-      setDraft((prev) => {
-        const base = prev ?? emptyDraft(kind);
-        return {
-          ...base,
-          kind,
-          mimeType: mime,
-          offsetX: DEFAULT_IMAGE_LAYOUT.offsetX,
-          offsetY: DEFAULT_IMAGE_LAYOUT.offsetY,
-          scaleX: DEFAULT_IMAGE_LAYOUT.scaleX,
-          scaleY: DEFAULT_IMAGE_LAYOUT.scaleY,
-          lockAspect: DEFAULT_IMAGE_LAYOUT.lockAspect,
-          rotation: DEFAULT_IMAGE_LAYOUT.rotation,
-          cropShape: DEFAULT_IMAGE_LAYOUT.cropShape,
-          backgroundColor: DEFAULT_IMAGE_LAYOUT.backgroundColor,
-          cropInset: DEFAULT_IMAGE_LAYOUT.cropInset,
-          focusX: legacy.focusX,
-          focusY: legacy.focusY,
-          zoom: legacy.zoom,
-          cropX: 0,
-          cropY: 0,
-          cropW: 1,
-          cropH: 1,
-        };
-      });
-      void (async () => {
-        const prepared =
-          kind === "IMAGE" ? await prepareImageForUpload(file) : file;
-        setPendingFile(prepared);
-      })();
-    },
-    [imagesOnly, lang]
-  );
-
-  useEffect(() => {
-    function onPaste(e: ClipboardEvent) {
-      if (busy) return;
-      const file = imagesOnly
-        ? (() => {
-            const data = e.clipboardData;
-            if (!data) return null;
-            for (const item of data.items) {
-              if (item.type.startsWith("image/")) {
-                const f = item.getAsFile();
-                if (f) return f;
-              }
-            }
-            return null;
-          })()
-        : mediaFileFromDataTransfer(e.clipboardData);
-      if (!file) return;
-      e.preventDefault();
-      queueFile(file);
-    }
-    window.addEventListener("paste", onPaste);
-    return () => window.removeEventListener("paste", onPaste);
-  }, [busy, imagesOnly, queueFile]);
-
   function discard() {
-    setPendingFile(null);
+    clearPendingFile();
     onClose();
   }
 
@@ -465,8 +407,6 @@ export function PhotoEditModal({
     setBusy(true);
     setError(null);
     const trace = { traceId: newPhotoEditorTraceId(), postId, mediaId: draft?.id };
-    let savePhase: "upload" | "patch" = "patch";
-    const layoutWillPatch = isImage && canEditImageLayout;
     photoEditorTrace(trace, "save.start", {
       mode,
       isImage,
@@ -474,241 +414,46 @@ export function PhotoEditModal({
       layout: isImage ? layout : undefined,
     }, "info");
     try {
-      let current = draft ? { ...draft } : emptyDraft(effectiveKind);
-
-      if (pendingFile) {
-        savePhase = "upload";
-        photoEditorTrace(trace, "save.prepare.start", {
-          bytes: pendingFile.size,
-          mime: pendingFile.type,
-          name: pendingFile.name,
-        }, "info");
-        const prepareStarted = Date.now();
-        const uploadFile =
-          effectiveKind === "IMAGE"
-            ? await prepareImageForUpload(pendingFile)
-            : pendingFile;
-        photoEditorTrace(trace, "save.prepare.done", {
-          bytesIn: pendingFile.size,
-          bytesOut: uploadFile.size,
-          mime: uploadFile.type,
-          ms: Date.now() - prepareStarted,
-        }, "info");
-
-        const buildUploadBody = () => {
-          const body = new FormData();
-          body.append("file", uploadFile);
-          body.append("titleFr", current.titleFr);
-          body.append("titleEn", current.titleEn);
-          body.append("descriptionFr", current.descriptionFr);
-          body.append("descriptionEn", current.descriptionEn);
-          if (current.takenAt) {
-            const iso =
-              typeof current.takenAt === "string"
-                ? current.takenAt
-                : current.takenAt.toISOString();
-            body.append("takenAt", iso);
-          }
-          return body;
-        };
-
-        if (current.id) {
-          photoEditorTrace(trace, "save.replace.start", {
-            mediaId: current.id,
-            bytes: uploadFile.size,
-          }, "info");
-          const rep = await uploadFormDataWithRetry(
-            `/api/media-library/${current.id}/replace`,
-            buildUploadBody
-          );
-          if (!rep.ok) {
-            const errBody = await readApiErrorBody(rep);
-            photoEditorTrace(trace, "save.replace.failed", {
-              status: rep.status,
-              ...errBody,
-            }, "error");
-            throw new Error(
-              typeof errBody.detail === "string"
-                ? errBody.detail
-                : "replace failed"
-            );
-          }
-          current = toEditorImage(await rep.json());
-          assertLocalOriginResponse(current.urlOrigin, lang);
-          photoEditorTrace(trace, "save.replace.done", { mediaId: current.id }, "info");
-        } else {
-          photoEditorTrace(trace, "save.upload.start", {
-            postId,
-            bytes: uploadFile.size,
-            mime: uploadFile.type,
-          }, "info");
-          const res = await uploadFormDataWithRetry(
-            `/api/posts/${postId}/media`,
-            buildUploadBody
-          );
-          if (!res.ok) {
-            const errBody = await readApiErrorBody(res);
-            photoEditorTrace(trace, "save.upload.failed", {
-              status: res.status,
-              ...errBody,
-            }, "error");
-            throw new Error(
-              typeof errBody.error === "string"
-                ? errBody.error
-                : typeof errBody.detail === "string"
-                  ? errBody.detail
-                  : "upload failed"
-            );
-          }
-          current = toEditorImage(await res.json());
-          assertLocalOriginResponse(current.urlOrigin, lang);
-          photoEditorTrace(trace, "save.upload.done", { mediaId: current.id }, "info");
-        }
-
-        if (draft) {
-          current = {
-            ...current,
-            titleFr: draft.titleFr,
-            titleEn: draft.titleEn,
-            descriptionFr: draft.descriptionFr,
-            descriptionEn: draft.descriptionEn,
-            takenAt: draft.takenAt,
-          };
-        }
-      }
-
-      if (!current.id) throw new Error("missing id");
-      trace.mediaId = current.id;
-
-      const patchBody: Record<string, unknown> = {
-        titleFr: current.titleFr,
-        titleEn: current.titleEn,
-        descriptionFr: current.descriptionFr,
-        descriptionEn: current.descriptionEn,
-        takenAt: current.takenAt
-          ? typeof current.takenAt === "string"
-            ? current.takenAt
-            : current.takenAt.toISOString()
-          : null,
+      const metadata = {
+        titleFr: draft?.titleFr ?? "",
+        titleEn: draft?.titleEn ?? "",
+        descriptionFr: draft?.descriptionFr ?? "",
+        descriptionEn: draft?.descriptionEn ?? "",
+        takenAt: draft?.takenAt ?? null,
       };
-      if (isImage && canEditImageLayout) {
-        Object.assign(patchBody, layout);
-      }
-
-      savePhase = "patch";
-      photoEditorTrace(trace, "save.patch.start", {
-        mediaId: current.id,
-        patchBody,
-      }, "debug");
-      const res = await fetchWithNetworkRetry(
-        `/api/posts/${postId}/images/${current.id}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(patchBody),
-        },
-        { retries: 4, baseDelayMs: 600 }
-      );
-      if (!res.ok) {
-        const errBody = await readApiErrorBody(res);
-        photoEditorTrace(trace, "save.patch.failed", {
-          status: res.status,
-          ...errBody,
-        }, "error");
-        const detail =
-          typeof errBody.error === "string"
-            ? errBody.error
-            : typeof errBody.detail === "string"
-              ? errBody.detail
-              : undefined;
-        const serverTrace =
-          typeof errBody.traceId === "string" ? errBody.traceId : trace.traceId;
-        throw new Error(
-          detail
-            ? `${detail} (${serverTrace})`
-            : `patch failed (${serverTrace})`
-        );
-      }
-      const updated = toEditorImage(await res.json()) as GalleryEditorImage & {
-        rebakePending?: boolean;
-      };
-      const patchVariantBaseline = mediaVariantSnapshot(updated);
-      photoEditorTrace(trace, "save.patch.done", {
-        mediaId: current.id,
-        scaleX: updated.scaleX,
-        scaleY: updated.scaleY,
-        rotation: updated.rotation,
-        rebakePending: Boolean(updated.rebakePending),
-        urlPicto: updated.urlPicto,
-      }, "info");
-
-      const saved: GalleryEditorImage = isImage
-        ? mergeEditorImageLayout(updated, layout)
-        : updated;
+      const result = await saveMediaFlow({
+        strategy: "post",
+        postId,
+        draft,
+        pendingFile,
+        effectiveKind,
+        metadata,
+        layout,
+        canEditImageLayout,
+        locale: lang,
+        trace,
+      });
       setPendingFile(null);
       setDirty(false);
-      onSaved(saved);
+      onSaved(result.saved);
       onClose();
-      photoEditorTrace(trace, "save.done", { mediaId: saved.id }, "info");
-
-      if (layoutWillPatch) {
-        photoEditorTrace(trace, "save.rebake.poll.start", {
-          mediaId: current.id,
-          baseline: patchVariantBaseline,
-          rebakePending: Boolean(updated.rebakePending),
-        }, "info");
-        void (async () => {
-          const rebaked =
-            (await waitForMediaRebakeAfterPatch<GalleryEditorImage>(
-              current.id,
-              patchVariantBaseline,
-              { maxMs: 20_000 }
-            )) ??
-            (await fetchMediaAfterRebakeTimeout<GalleryEditorImage>(current.id));
-          if (
-            !rebaked ||
-            !mediaVariantsChanged(patchVariantBaseline, rebaked)
-          ) {
-            if (!rebaked) {
-              photoEditorTrace(trace, "save.rebake.poll.timeout", {
-                mediaId: current.id,
-              }, "warn");
-            }
-            return;
-          }
-          photoEditorTrace(trace, "save.rebake.poll.done", {
-            mediaId: current.id,
-            urlPicto: rebaked.urlPicto,
-            urlPetite: rebaked.urlPetite,
-          }, "info");
-          onSaved(
-            isImage
-              ? mergeEditorImageLayout(toEditorImage(rebaked), layout)
-              : toEditorImage(rebaked)
-          );
-        })();
+      photoEditorTrace(trace, "save.done", { mediaId: result.saved.id }, "info");
+      if (result.layoutPatched && result.patchVariantBaseline) {
+        followUpPostRebakePoll({
+          mediaId: result.saved.id,
+          layout,
+          isImage,
+          patchVariantBaseline: result.patchVariantBaseline,
+          trace,
+          onSaved,
+        });
       }
     } catch (err) {
+      const phase = getSaveFlowErrorPhase(err);
       const raw = err instanceof Error ? err.message : "Save failed";
-      const message = isNetworkFetchError(err)
-        ? savePhase === "upload"
-          ? lang === "fr"
-            ? "Envoi du fichier interrompu — réessaie (photo plus légère si ça persiste)."
-            : "File upload interrupted — try again (use a smaller photo if it persists)."
-          : lang === "fr"
-            ? "Enregistrement interrompu — réessaie dans quelques secondes."
-            : "Save interrupted — try again in a few seconds."
-        : raw;
+      const message = formatMediaSaveError(err, lang, phase);
       photoEditorTrace(trace, "save.error", { message: raw }, "error");
-      setError(
-        lang === "fr"
-          ? message.startsWith("Échec")
-            ? message
-            : `Échec de l'enregistrement — ${message}`
-          : message.startsWith("Save failed")
-            ? message
-            : `Save failed — ${message}`
-      );
+      setError(wrapMediaSaveErrorMessage(message, lang));
     } finally {
       setBusy(false);
     }

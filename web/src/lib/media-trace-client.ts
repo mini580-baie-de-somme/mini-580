@@ -1,6 +1,7 @@
 /** Browser-side trace logs for photo editor save/rebake debugging. */
 
 import { appLog, type LogLevel } from "./app-log";
+import { readMediaApiError } from "./media-save-errors";
 
 export type PhotoEditorTraceContext = {
   traceId: string;
@@ -56,14 +57,5 @@ export function photoEditorTrace(
 export async function readApiErrorBody(
   res: Response
 ): Promise<{ error?: unknown; traceId?: string; detail?: string; step?: string }> {
-  try {
-    return (await res.json()) as {
-      error?: unknown;
-      traceId?: string;
-      detail?: string;
-      step?: string;
-    };
-  } catch {
-    return {};
-  }
+  return readMediaApiError(res);
 }
