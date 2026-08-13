@@ -483,7 +483,12 @@ export function MediaLibraryManager() {
         if (layoutPatched) {
           const rebaked = await waitForMediaRebakeAfterPatch<MediaItem>(
             editingId,
-            mediaVariantSnapshot(data)
+            mediaVariantSnapshot({
+              urlPicto: (data.urlPicto as string | null) ?? null,
+              urlPetite: (data.urlPetite as string | null) ?? null,
+              urlMoyenne: (data.urlMoyenne as string | null) ?? null,
+              urlGrande: (data.urlGrande as string | null) ?? null,
+            })
           );
           if (!rebaked) {
             setLocalError(
