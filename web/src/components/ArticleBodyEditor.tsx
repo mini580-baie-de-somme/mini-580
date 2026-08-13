@@ -9,11 +9,14 @@ import {
   htmlToMarkdown,
   markdownToHtml,
 } from "@/lib/article-markdown";
-import { mediaGroupPlaceholder } from "@/lib/media-group-token";
+import {
+  cleanMediaGroupTokens,
+  mediaGroupPlaceholder,
+} from "@/lib/media-group-token";
+import { useMediaGroupBodyEnrichment } from "@/hooks/useMediaGroupBodyEnrichment";
 import { MediaGroupBlock } from "@/lib/tiptap/media-group-block";
 import { ArticleBody } from "./ArticleBody";
 import { MediaGroupPicker } from "./MediaGroupPicker";
-import { MediaGroupBodyHints } from "./MediaGroupBodyHints";
 
 type BodyEditorMode = "markdown" | "visual";
 
@@ -245,7 +248,21 @@ export function ArticleBodyEditor({
     [insertGroupInMarkdown, mode]
   );
 
+  const handleBodyEnriched = useCallback(
+    (next: string) => {
+      onChange(next);
+    },
+    [onChange]
+  );
+
+  useMediaGroupBodyEnrichment(
+    mode === "markdown" ? value : "",
+    lang,
+    handleBodyEnriched
+  );
+
   const helpItems = ARTICLE_MARKDOWN_HELP[lang];
+  const previewContent = cleanMediaGroupTokens(value);
 
   return (
     <div className="space-y-2">
@@ -317,8 +334,8 @@ export function ArticleBodyEditor({
               ))}
               <li>
                 {lang === "fr"
-                  ? "Groupes de médias — via le bouton « Insérer un groupe » uniquement"
-                  : "Media groups — use “Insert group” button only"}
+                  ? "Groupes — bouton « Insérer un groupe » ; le nom et le nombre de médias s’ajoutent automatiquement dans la balise (seul l’id est enregistré)"
+                  : "Media groups — “Insert group” button; name and count appear in the tag automatically (only the id is saved)"}
               </li>
             </ul>
           </details>
@@ -330,13 +347,12 @@ export function ArticleBodyEditor({
             rows={16}
             className="w-full rounded-md border border-[#d4dde6] px-3 py-2 font-mono text-sm leading-relaxed"
           />
-          <MediaGroupBodyHints body={value} />
-          {showPreview && value.trim() && (
+          {showPreview && previewContent.trim() && (
             <div className="rounded-md border border-dashed border-[#d4dde6] bg-white p-4">
               <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[#495867]/70">
                 {lang === "fr" ? "Aperçu public" : "Public preview"}
               </p>
-              <ArticleBody content={value} locale={lang} />
+              <ArticleBody content={previewContent} locale={lang} />
             </div>
           )}
           <MediaGroupPicker

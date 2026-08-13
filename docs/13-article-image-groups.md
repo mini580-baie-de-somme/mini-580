@@ -161,11 +161,12 @@ Réponse type :
 ### Principe
 
 1. **Stockage** = token machine `{{media-group:<id>}}` (robuste, idempotent)
-2. **Éditeur visuel (TipTap)** = nœud atomique **bloc non éditable** « Groupe médias »
-3. **Affichage opérateur** = chip maritime : `📷 Montage couples · 3 médias` (titre FR + count)
-4. **Clic chip** → ouvre éditeur groupe (modal / overlay URL virtuelle `?group=<id>`)
-5. **Suppression chip** → retire le placeholder du body (le groupe reste en médiathèque)
-6. **Orphan detect** : placeholder sans groupe → bandeau ambre « Groupe introuvable » + bouton retirer
+2. **Mode Markdown (textarea)** = sur-charge éditeur `{{media-group:<id>|<titre live>|<count>}}` injectée à l’affichage ; **nettoyée à la sauvegarde** (seul l’id persiste)
+3. **Éditeur visuel (TipTap)** = nœud atomique **bloc non éditable** « Groupe médias »
+4. **Affichage opérateur** = chip maritime : `📷 Montage couples · 3 médias` (titre FR + count live, jamais figé dans le token stocké)
+5. **Clic chip** → ouvre éditeur groupe (modal / overlay URL virtuelle `?group=<id>`)
+6. **Suppression chip** → retire le placeholder du body (le groupe reste en médiathèque)
+7. **Orphan detect** : placeholder sans groupe → bandeau ambre « Groupe introuvable » + bouton retirer
 
 ### Insertion (article)
 

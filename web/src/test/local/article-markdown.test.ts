@@ -43,6 +43,16 @@ describe("article-markdown", () => {
     expect(back).toContain("**bold**");
   });
 
+  it("round-trips enriched editor sur-charge tokens through HTML", () => {
+    const md =
+      "Intro.\n\n{{media-group:clgroup123abc|Test groupe|4}}\n\nOutro.";
+    const html = markdownToHtml(md);
+    expect(html).toContain('data-media-group-id="clgroup123abc"');
+    const back = htmlToMarkdown(html);
+    expect(back).toContain("{{media-group:clgroup123abc}}");
+    expect(back).not.toContain("|Test groupe|");
+  });
+
   it("converts TipTap renderHTML output for media groups to placeholders", () => {
     const tiptapHtml =
       '<p>Intro</p><div data-media-group-id="clgroup123abc" data-type="media-group-block"></div><p>Outro</p>';
