@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   coverUrlFromImage,
   findCoverImage,
+  galleryThumbSrc,
+  mediaVariantSnapshot,
   toEditorImage,
   type GalleryEditorImage,
 } from "@/lib/gallery-editor";
@@ -108,5 +110,44 @@ describe("gallery-editor cover helpers", () => {
     expect(mapped.kind).toBe("DOCUMENT");
     expect(mapped.mimeType).toBe("application/pdf");
     expect(mapped.descriptionFr).toBe("legacy caption");
+  });
+
+  it("galleryThumbSrc prefers picto/petite/moyenne and never origin", () => {
+    expect(
+      galleryThumbSrc(
+        img({
+          id: "t",
+          urlPicto: "/p.webp",
+          urlPetite: "/pt.webp",
+          urlMoyenne: "/m.webp",
+          urlOrigin: "/origin.jpg",
+        })
+      )
+    ).toBe("/p.webp");
+    expect(
+      galleryThumbSrc(
+        img({ id: "u", urlMoyenne: "/m.webp", urlOrigin: "/origin.jpg" })
+      )
+    ).toBe("/m.webp");
+    expect(galleryThumbSrc(img({ id: "v", urlOrigin: "/origin.jpg" }))).toBeNull();
+  });
+
+  it("mediaVariantSnapshot captures all variant URLs for rebake poll", () => {
+    expect(
+      mediaVariantSnapshot(
+        img({
+          id: "w",
+          urlPicto: "/p.webp",
+          urlPetite: "/pt.webp",
+          urlMoyenne: "/m.webp",
+          urlGrande: "/g.webp",
+        })
+      )
+    ).toEqual({
+      urlPicto: "/p.webp",
+      urlPetite: "/pt.webp",
+      urlMoyenne: "/m.webp",
+      urlGrande: "/g.webp",
+    });
   });
 });

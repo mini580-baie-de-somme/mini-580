@@ -66,14 +66,32 @@ describe("waitForMediaRebake", () => {
       );
     vi.stubGlobal("fetch", fetchMock);
 
-    const promise = waitForMediaRebake(
+    const result = await waitForMediaRebake(
       "m1",
       { urlMoyenne: "/media/old/moyenne.webp" },
       { intervalMs: 100, maxMs: 5000 }
     );
-    await vi.advanceTimersByTimeAsync(100);
-    const result = await promise;
     expect(result?.urlMoyenne).toBe("/media/new/moyenne.webp");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("detects urlPetite rotation", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: "m1",
+          urlPetite: "/media/new/petite.webp",
+        })
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await waitForMediaRebake(
+      "m1",
+      { urlPetite: "/media/old/petite.webp" },
+      { intervalMs: 100, maxMs: 5000 }
+    );
+    expect(result?.urlPetite).toBe("/media/new/petite.webp");
   });
 
   it("skips invalid JSON responses", async () => {

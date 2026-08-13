@@ -1,51 +1,80 @@
 /** Poll until server-side async rebake rotates variant URLs (client-only). */
 
+import type { MediaVariantSnapshot } from "@/lib/gallery-editor";
+
 export type RebakePollMedia = {
   id: string;
+  urlPicto?: string | null;
+  urlPetite?: string | null;
   urlMoyenne?: string | null;
   urlGrande?: string | null;
-  urlPicto?: string | null;
 };
+
+function variantUrls(
+  media: Pick<
+    RebakePollMedia,
+    "urlPicto" | "urlPetite" | "urlMoyenne" | "urlGrande"
+  >
+): string[] {
+  return [media.urlPicto, media.urlPetite, media.urlMoyenne, media.urlGrande]
+    .filter((url): url is string => Boolean(url))
+    .map((url) => url.split("?")[0]!);
+}
+
+function variantsRotated(
+  before: MediaVariantSnapshot,
+  after: RebakePollMedia
+): boolean {
+  const prev = variantUrls(before);
+  const next = variantUrls(after);
+  return next.length > 0 && (prev.length === 0 || next.some((url) => !prev.includes(url)));
+}
 
 export async function waitForMediaRebake<T extends RebakePollMedia>(
   mediaId: string,
-  previous: Pick<RebakePollMedia, "urlMoyenne" | "urlGrande" | "urlPicto">,
+  previous: MediaVariantSnapshot,
   opts?: { maxMs?: number; intervalMs?: number }
 ): Promise<T | null> {
-  const maxMs = opts?.maxMs ?? 45_000;
-  const intervalMs = opts?.intervalMs ?? 1_000;
+  const maxMs = opts?.maxMs ?? 60_000;
+  const intervalMs = opts?.intervalMs ?? 750;
   const deadline = Date.now() + maxMs;
-  const before = [
-    previous.urlMoyenne,
-    previous.urlGrande,
-    previous.urlPicto,
-  ].filter(Boolean);
 
   while (Date.now() < deadline) {
-    await new Promise((r) => setTimeout(r, intervalMs));
     let res: Response;
     try {
       res = await fetch(`/api/media-library/${mediaId}`, {
         cache: "no-store",
       });
     } catch {
+      await new Promise((r) => setTimeout(r, intervalMs));
       continue;
     }
-    if (!res.ok) continue;
+    if (!res.ok) {
+      await new Promise((r) => setTimeout(r, intervalMs));
+      continue;
+    }
     let data: T;
     try {
       data = (await res.json()) as T;
     } catch {
+      await new Promise((r) => setTimeout(r, intervalMs));
       continue;
     }
-    const after = [data.urlMoyenne, data.urlGrande, data.urlPicto].filter(
-      Boolean
-    );
-    const changed =
-      after.length > 0 &&
-      (before.length === 0 ||
-        after.some((url) => !before.includes(url as string)));
-    if (changed) return data;
+    if (variantsRotated(previous, data)) return data;
+    await new Promise((r) => setTimeout(r, intervalMs));
   }
   return null;
+}
+
+/** Last-chance fetch after poll timeout — layout may be saved even if URLs unchanged. */
+export async function fetchMediaAfterRebakeTimeout<T extends RebakePollMedia>(
+  mediaId: string
+): Promise<T | null> {
+  try {
+    const res = await fetch(`/api/media-library/${mediaId}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
 }

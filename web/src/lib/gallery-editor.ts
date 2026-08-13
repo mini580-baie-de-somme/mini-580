@@ -1,3 +1,5 @@
+import type { ImageLayoutParams } from "@/lib/image-layout";
+
 export type GalleryEditorImage = {
   id: string;
   kind?: "IMAGE" | "DOCUMENT" | "VIDEO" | string;
@@ -65,6 +67,64 @@ export function toEditorImage(raw: Record<string, unknown>): GalleryEditorImage 
     cropY: Number(raw.cropY ?? 0),
     cropW: Number(raw.cropW ?? 1),
     cropH: Number(raw.cropH ?? 1),
+  };
+}
+
+/** Small square thumb in post editor gallery strip (baked variant, never origin). */
+export function galleryThumbSrc(image: GalleryEditorImage): string | null {
+  if ((image.kind || "IMAGE") !== "IMAGE") {
+    return image.urlPicto || image.urlPetite || null;
+  }
+  return (
+    image.urlPicto ||
+    image.urlPetite ||
+    image.urlMoyenne ||
+    null
+  );
+}
+
+export type MediaVariantSnapshot = {
+  urlPicto?: string | null;
+  urlPetite?: string | null;
+  urlMoyenne?: string | null;
+  urlGrande?: string | null;
+};
+
+export function mediaVariantSnapshot(
+  image: Pick<
+    GalleryEditorImage,
+    "urlPicto" | "urlPetite" | "urlMoyenne" | "urlGrande"
+  > | null | undefined
+): MediaVariantSnapshot {
+  return {
+    urlPicto: image?.urlPicto ?? null,
+    urlPetite: image?.urlPetite ?? null,
+    urlMoyenne: image?.urlMoyenne ?? null,
+    urlGrande: image?.urlGrande ?? null,
+  };
+}
+
+/** Merge persisted layout fields onto an API image row (post-save / rebake poll). */
+export function mergeEditorImageLayout(
+  image: GalleryEditorImage,
+  layout: ImageLayoutParams
+): GalleryEditorImage {
+  return {
+    ...image,
+    offsetX: layout.offsetX,
+    offsetY: layout.offsetY,
+    scaleX: layout.scaleX,
+    scaleY: layout.scaleY,
+    lockAspect: layout.lockAspect,
+    rotation: layout.rotation,
+    cropShape: layout.cropShape,
+    backgroundColor: layout.backgroundColor,
+    cropInset: layout.cropInset,
+    focusX: 0.5 - layout.offsetX / 2,
+    focusY: 0.5 - layout.offsetY / 2,
+    zoom: layout.lockAspect
+      ? layout.scaleX
+      : Math.max(layout.scaleX, layout.scaleY),
   };
 }
 

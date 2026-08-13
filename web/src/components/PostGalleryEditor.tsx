@@ -11,6 +11,7 @@ import {
   type GalleryEditorImage,
   coverUrlFromImage,
   findCoverImage,
+  galleryThumbSrc,
   toEditorImage,
 } from "@/lib/gallery-editor";
 import { PhotoEditModal } from "./PhotoEditModal";
@@ -334,11 +335,14 @@ export function PostGalleryEditor({
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
+              key={
+                coverImage
+                  ? coverUrlFromImage(coverImage)
+                  : coverImageUrl!
+              }
               src={
                 coverImage
-                  ? coverImage.urlPicto ||
-                    coverImage.urlPetite ||
-                    coverUrlFromImage(coverImage)
+                  ? coverUrlFromImage(coverImage)
                   : coverImageUrl!
               }
               alt=""
@@ -414,6 +418,8 @@ export function PostGalleryEditor({
           <div className="flex flex-wrap gap-2 pb-1">
             {images.map((img, index) => {
               const isCover = coverImage?.id === img.id;
+              const thumbSrc = galleryThumbSrc(img);
+              const thumbKey = `${img.id}:${thumbSrc ?? "none"}:${img.scaleX}:${img.rotation}`;
               return (
                 <div key={img.id} className="relative shrink-0">
                   <button
@@ -429,13 +435,10 @@ export function PostGalleryEditor({
                     }`}
                   >
                     <MediaKindThumb
+                      key={thumbKey}
                       kind={img.kind || "IMAGE"}
                       mimeType={img.mimeType}
-                      src={
-                        (img.kind || "IMAGE") === "IMAGE"
-                          ? img.urlPicto || img.urlPetite || img.urlOrigin
-                          : img.urlPicto || img.urlPetite || null
-                      }
+                      src={thumbSrc}
                       size="md"
                     />
                   </button>

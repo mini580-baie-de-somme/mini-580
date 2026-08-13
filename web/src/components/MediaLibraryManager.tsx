@@ -23,6 +23,7 @@ import { MediaKindThumb } from "./MediaKindThumb";
 import { DatetimeLocalInput } from "./DatetimeLocalInput";
 import { EditorSheetPanel } from "./EditorSheetPanel";
 import { PhotoCanvasEditor } from "./PhotoCanvasEditor";
+import { mediaVariantSnapshot } from "@/lib/gallery-editor";
 import { waitForMediaRebake } from "@/lib/wait-for-media-rebake";
 import { FullscreenEditorModal } from "./FullscreenEditorModal";
 import {
@@ -461,11 +462,10 @@ export function MediaLibraryManager() {
         const data = await readApiJson(res);
         if (!res.ok) throw new Error(data.error ?? t("media.saveError"));
         if (data.rebakePending && editingId && editingId !== "new") {
-          const rebaked = await waitForMediaRebake<MediaItem>(editingId, {
-            urlMoyenne: editingMedia?.urlMoyenne,
-            urlGrande: editingMedia?.urlGrande,
-            urlPicto: editingMedia?.urlPicto,
-          });
+          const rebaked = await waitForMediaRebake<MediaItem>(
+            editingId,
+            mediaVariantSnapshot(editingMedia)
+          );
           if (!rebaked) {
             setLocalError(
               locale === "fr"

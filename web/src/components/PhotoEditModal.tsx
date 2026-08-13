@@ -8,6 +8,8 @@ import { FullscreenEditorModal } from "./FullscreenEditorModal";
 import { MediaPreview } from "./MediaPreview";
 import {
   type GalleryEditorImage,
+  mergeEditorImageLayout,
+  mediaVariantSnapshot,
   toEditorImage,
 } from "@/lib/gallery-editor";
 import {
@@ -51,7 +53,10 @@ import {
 } from "@/lib/fetch-with-network-retry";
 import { prepareImageForUpload } from "@/lib/prepare-upload-image";
 import { uploadFormDataWithRetry } from "@/lib/upload-form-data";
-import { waitForMediaRebake } from "@/lib/wait-for-media-rebake";
+import {
+  fetchMediaAfterRebakeTimeout,
+  waitForMediaRebake,
+} from "@/lib/wait-for-media-rebake";
 
 type Props = {
   postId: string;
@@ -446,6 +451,7 @@ export function PhotoEditModal({
     setBusy(true);
     setError(null);
     const trace = { traceId: newPhotoEditorTraceId(), postId, mediaId: draft?.id };
+    const variantBeforeSave = mediaVariantSnapshot(draft);
     let savePhase: "upload" | "patch" = "patch";
     photoEditorTrace(trace, "save.start", {
       mode,
@@ -621,23 +627,7 @@ export function PhotoEditModal({
       }, "info");
 
       const saved: GalleryEditorImage = isImage
-        ? {
-            ...updated,
-            offsetX: layout.offsetX,
-            offsetY: layout.offsetY,
-            scaleX: layout.scaleX,
-            scaleY: layout.scaleY,
-            lockAspect: layout.lockAspect,
-            rotation: layout.rotation,
-            cropShape: layout.cropShape,
-            backgroundColor: layout.backgroundColor,
-            cropInset: layout.cropInset,
-            focusX: 0.5 - layout.offsetX / 2,
-            focusY: 0.5 - layout.offsetY / 2,
-            zoom: layout.lockAspect
-              ? layout.scaleX
-              : Math.max(layout.scaleX, layout.scaleY),
-          }
+        ? mergeEditorImageLayout(updated, layout)
         : updated;
       setPendingFile(null);
       setDirty(false);
@@ -647,11 +637,10 @@ export function PhotoEditModal({
 
       if (updated.rebakePending) {
         photoEditorTrace(trace, "save.rebake.poll.start", { mediaId: current.id }, "info");
-        void waitForMediaRebake<GalleryEditorImage>(current.id, {
-          urlMoyenne: current.urlMoyenne,
-          urlGrande: current.urlGrande,
-          urlPicto: current.urlPicto,
-        }).then((rebaked) => {
+        void (async () => {
+          const rebaked =
+            (await waitForMediaRebake<GalleryEditorImage>(current.id, variantBeforeSave)) ??
+            (await fetchMediaAfterRebakeTimeout<GalleryEditorImage>(current.id));
           if (!rebaked) {
             photoEditorTrace(trace, "save.rebake.poll.timeout", {
               mediaId: current.id,
@@ -660,30 +649,15 @@ export function PhotoEditModal({
           }
           photoEditorTrace(trace, "save.rebake.poll.done", {
             mediaId: current.id,
-            urlMoyenne: rebaked.urlMoyenne,
+            urlPicto: rebaked.urlPicto,
+            urlPetite: rebaked.urlPetite,
           }, "info");
           onSaved(
             isImage
-              ? {
-                  ...toEditorImage(rebaked),
-                  offsetX: layout.offsetX,
-                  offsetY: layout.offsetY,
-                  scaleX: layout.scaleX,
-                  scaleY: layout.scaleY,
-                  lockAspect: layout.lockAspect,
-                  rotation: layout.rotation,
-                  cropShape: layout.cropShape,
-                  backgroundColor: layout.backgroundColor,
-                  cropInset: layout.cropInset,
-                  focusX: 0.5 - layout.offsetX / 2,
-                  focusY: 0.5 - layout.offsetY / 2,
-                  zoom: layout.lockAspect
-                    ? layout.scaleX
-                    : Math.max(layout.scaleX, layout.scaleY),
-                }
+              ? mergeEditorImageLayout(toEditorImage(rebaked), layout)
               : toEditorImage(rebaked)
           );
-        });
+        })();
       }
     } catch (err) {
       const raw = err instanceof Error ? err.message : "Save failed";
