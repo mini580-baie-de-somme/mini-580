@@ -9,7 +9,10 @@ import {
 import { useEffect, useState } from "react";
 import { useLocale } from "@/components/LocaleProvider";
 
-import { MEDIA_GROUP_HTML_ATTR } from "@/lib/media-group-html";
+import {
+  MEDIA_GROUP_HTML_ATTR,
+  MEDIA_GROUP_HTML_INNER,
+} from "@/lib/media-group-html";
 
 export type MediaGroupBlockMeta = {
   titleFr: string;
@@ -169,6 +172,7 @@ export const MediaGroupBlock = Node.create<MediaGroupBlockOptions>({
     return [
       "div",
       mergeAttributes(HTMLAttributes, { "data-type": "media-group-block" }),
+      MEDIA_GROUP_HTML_INNER,
     ];
   },
 

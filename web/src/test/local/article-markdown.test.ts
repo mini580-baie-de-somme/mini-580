@@ -42,4 +42,20 @@ describe("article-markdown", () => {
     expect(back).toContain("Intro paragraph");
     expect(back).toContain("**bold**");
   });
+
+  it("converts TipTap renderHTML output for media groups to placeholders", () => {
+    const tiptapHtml =
+      '<p>Intro</p><div data-media-group-id="clgroup123abc" data-type="media-group-block"></div><p>Outro</p>';
+    const back = htmlToMarkdown(tiptapHtml);
+    expect(back).toContain("{{media-group:clgroup123abc}}");
+    expect(back).toContain("Intro");
+    expect(back).toContain("Outro");
+  });
+
+  it("converts nested NodeView DOM (without outer attr) via inner data-media-group-id", () => {
+    const nodeViewHtml =
+      '<p>Intro</p><div class="my-3"><div contenteditable="false" data-media-group-id="clgroup123abc">chip</div></div><p>Outro</p>';
+    const back = htmlToMarkdown(nodeViewHtml);
+    expect(back).toContain("{{media-group:clgroup123abc}}");
+  });
 });

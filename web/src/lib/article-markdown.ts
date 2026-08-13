@@ -2,7 +2,11 @@ import { marked } from "marked";
 import TurndownService from "turndown";
 import { parseArticleBodySegments } from "@/lib/article-body-segments";
 import { mediaGroupPlaceholder } from "@/lib/media-group-token";
-import { mediaGroupHtml, MEDIA_GROUP_HTML_ATTR } from "@/lib/media-group-html";
+import {
+  mediaGroupHtml,
+  MEDIA_GROUP_HTML_ATTR,
+  MEDIA_GROUP_HTML_INNER,
+} from "@/lib/media-group-html";
 
 /** Supported Markdown subset for article bodies (FR/EN). */
 export const ARTICLE_MARKDOWN_HELP = {
@@ -81,12 +85,21 @@ export function markdownToHtml(markdown: string): string {
   return parts.join("\n").trim();
 }
 
+/** Ensure empty media-group divs are not treated as blank by Turndown. */
+function normalizeMediaGroupHtml(html: string): string {
+  const emptyDivRe = new RegExp(
+    `(<div\\s+[^>]*${MEDIA_GROUP_HTML_ATTR}="[^"]+"[^>]*>)\\s*</div>`,
+    "gi"
+  );
+  return html.replace(emptyDivRe, `$1${MEDIA_GROUP_HTML_INNER}</div>`);
+}
+
 /** Convert visual editor HTML back to Markdown for storage. */
 export function htmlToMarkdown(html: string): string {
   const source = html.trim();
   if (!source) return "";
   return turndown
-    .turndown(source)
+    .turndown(normalizeMediaGroupHtml(source))
     .replace(/\n{3,}/g, "\n\n")
     .replace(/^(\s*-\s+)\s+/gm, "- ")
     .replace(/^(\d+\.)\s+/gm, "$1 ")
