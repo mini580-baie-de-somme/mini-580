@@ -196,7 +196,7 @@ describe("API integration — Photos CRUD + transforms + 4 sizes", () => {
     expect(await mediaExists(patched.urlGrande)).toBe(true);
   });
 
-  it("replaces file and regenerates 4 sizes", async () => {
+  it("replaces origin and defers variant rebake to layout PATCH", async () => {
     const { GET } = await import("@/app/api/posts/[id]/images/route");
     const listRes = await GET(
       jsonRequest(`http://localhost/api/posts/${postId}/images`),
@@ -204,7 +204,7 @@ describe("API integration — Photos CRUD + transforms + 4 sizes", () => {
     );
     const images = await listRes.json();
     const imageId = images[0].id as string;
-    const before = images[0].urlMoyenne as string;
+    const beforeOrigin = images[0].urlOrigin as string;
 
     const { POST } = await import(
       "@/app/api/posts/[id]/images/[imageId]/replace/route"
@@ -229,11 +229,31 @@ describe("API integration — Photos CRUD + transforms + 4 sizes", () => {
     );
     expect(res.status).toBe(200);
     const replaced = await res.json();
-    expect(replaced.urlMoyenne).not.toBe(before);
-    expect(await mediaExists(replaced.urlPicto)).toBe(true);
-    expect(await mediaExists(replaced.urlPetite)).toBe(true);
-    expect(await mediaExists(replaced.urlMoyenne)).toBe(true);
-    expect(await mediaExists(replaced.urlGrande)).toBe(true);
+    expect(replaced.urlOrigin).not.toBe(beforeOrigin);
+    expect(await mediaExists(replaced.urlOrigin)).toBe(true);
+    expect(replaced.urlPicto).toBeNull();
+    expect(replaced.urlMoyenne).toBeNull();
+
+    const { PATCH } = await import(
+      "@/app/api/posts/[id]/images/[imageId]/route"
+    );
+    const patchRes = await PATCH(
+      jsonRequest(
+        `http://localhost/api/posts/${postId}/images/${imageId}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ scaleX: 1.1, scaleY: 1.1 }),
+        }
+      ),
+      { params: Promise.resolve({ id: postId, imageId }) }
+    );
+    expect(patchRes.status).toBe(200);
+    const patched = await patchRes.json();
+    expect(patched.urlMoyenne).toBeTruthy();
+    expect(await mediaExists(patched.urlMoyenne)).toBe(true);
+    expect(await mediaExists(patched.urlPicto)).toBe(true);
+    expect(await mediaExists(patched.urlPetite)).toBe(true);
+    expect(await mediaExists(patched.urlGrande)).toBe(true);
   });
 
   it("reorders and deletes images", async () => {
