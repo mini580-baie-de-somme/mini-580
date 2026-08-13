@@ -36,6 +36,7 @@ export function useEditorInfiniteList<T>({
       if (reset) {
         setLoading(true);
         setError(null);
+        setItems([]);
         offsetRef.current = 0;
       } else {
         setLoadingMore(true);
@@ -46,7 +47,9 @@ export function useEditorInfiniteList<T>({
       params.set("offset", String(reset ? 0 : offsetRef.current));
 
       try {
-        const res = await fetch(`${endpoint}?${params.toString()}`);
+        const res = await fetch(`${endpoint}?${params.toString()}`, {
+          cache: "no-store",
+        });
         if (!res.ok) throw new Error("fetch failed");
         const data = (await res.json()) as EditorListPage<T>;
         if (gen !== fetchGenRef.current) return;
@@ -75,7 +78,7 @@ export function useEditorInfiniteList<T>({
 
   useEffect(() => {
     void fetchPage(true);
-  }, [fetchPage]);
+  }, [fetchPage, queryString]);
 
   useEffect(() => {
     const el = sentinelRef.current;

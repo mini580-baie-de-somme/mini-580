@@ -126,6 +126,14 @@ describe("buildVirtualUrl", () => {
     );
   });
 
+  it("clears groupId filter while preserving group overlay param", () => {
+    expect(
+      buildVirtualUrl("/editeur/galerie", "group=grp-1&groupId=grp-2&q=boat", {
+        groupId: null,
+      })
+    ).toBe("/editeur/galerie?group=grp-1&q=boat");
+  });
+
   it("preserves unrelated query params when opening photo modal", () => {
     const url = buildVirtualUrl(
       "/editeur/post-1",

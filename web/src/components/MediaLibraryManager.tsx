@@ -202,9 +202,10 @@ export function MediaLibraryManager() {
     useVirtualUrl();
   const editingId = parseMediaEditState(searchParams);
   const editingGroupId = parseMediaGroupEditState(searchParams);
+  const filterParamsKey = searchParams.toString();
   const { q, kind, visibility, groupFilterId } = useMemo(
-    () => mediaLibraryFiltersFromParams(searchParams),
-    [searchParams]
+    () => mediaLibraryFiltersFromParams(new URLSearchParams(filterParamsKey)),
+    [filterParamsKey]
   );
   const [groupOptions, setGroupOptions] = useState<MediaGroupOption[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -245,8 +246,8 @@ export function MediaLibraryManager() {
   });
 
   const queryString = useMemo(
-    () => mediaLibraryListQueryString(searchParams),
-    [searchParams]
+    () => mediaLibraryListQueryString(new URLSearchParams(filterParamsKey)),
+    [filterParamsKey]
   );
 
   const updateFilter = useCallback(
@@ -990,7 +991,7 @@ export function MediaLibraryManager() {
         filtersOpen={filtersOpen}
         onFiltersOpenChange={setFiltersOpen}
         activeFilterCount={countListFilters(
-          searchParams,
+          new URLSearchParams(filterParamsKey),
           [...MEDIA_LIBRARY_FILTER_KEYS]
         )}
         activeChips={((): EditorListActiveChip[] => {
@@ -1127,7 +1128,12 @@ export function MediaLibraryManager() {
         <EditorListCount
           total={total}
           totalAll={totalAll}
-          filtered={countListFilters(searchParams, [...MEDIA_LIBRARY_FILTER_KEYS]) > 0}
+          filtered={
+            countListFilters(
+              new URLSearchParams(filterParamsKey),
+              [...MEDIA_LIBRARY_FILTER_KEYS]
+            ) > 0
+          }
           totalLabel={t("list.count")}
           filteredLabel={t("list.countFiltered")}
         />

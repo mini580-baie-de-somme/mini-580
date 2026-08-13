@@ -14,6 +14,16 @@ describe("mediaLibraryFiltersFromParams", () => {
     });
   });
 
+  it("normalizes blank kind/visibility to ALL", () => {
+    const params = new URLSearchParams("kind=&visibility=&groupId=grp-1");
+    expect(mediaLibraryFiltersFromParams(params)).toEqual({
+      q: "",
+      kind: "ALL",
+      visibility: "ALL",
+      groupFilterId: "grp-1",
+    });
+  });
+
   it("reads list filters and ignores virtual overlay keys", () => {
     const params = new URLSearchParams(
       "q=boat&kind=IMAGE&visibility=orphan&groupId=grp-1&media=m-1&group=grp-2"

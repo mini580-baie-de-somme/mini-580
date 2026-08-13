@@ -334,7 +334,7 @@ describe("API integration — Media groups (Phase 1d-b)", () => {
         body: JSON.stringify({
           titleFr: "Filtre",
           slug: uniqueSlug(`${GROUP_P}-filter`),
-          mediaIds: [mediaBId],
+          mediaIds: [mediaAId, mediaBId],
         }),
       })
     );
@@ -349,7 +349,39 @@ describe("API integration — Media groups (Phase 1d-b)", () => {
     );
     expect(res.status).toBe(200);
     const body = await res.json();
+    expect(body.total).toBe(2);
+    expect(body.items).toHaveLength(2);
+    expect(body.items.some((m: { id: string }) => m.id === mediaAId)).toBe(true);
     expect(body.items.some((m: { id: string }) => m.id === mediaBId)).toBe(true);
+  });
+
+  it("media-library groupId filter ignores virtual group overlay param", async () => {
+    const { POST: createGroup } = await import("@/app/api/media-groups/route");
+    const { GET } = await import("@/app/api/media-library/route");
+
+    const groupRes = await createGroup(
+      jsonRequest("http://localhost/api/media-groups", {
+        method: "POST",
+        headers: bearerHeaders(),
+        body: JSON.stringify({
+          titleFr: "Overlay",
+          slug: uniqueSlug(`${GROUP_P}-overlay`),
+          mediaIds: [mediaBId],
+        }),
+      })
+    );
+    const group = await groupRes.json();
+    groupId = group.id;
+
+    const res = await GET(
+      jsonRequest("http://localhost/api/media-library", {
+        headers: bearerHeaders(),
+        searchParams: { group: "other-group", groupId: group.id },
+      })
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.total).toBe(1);
     expect(body.items.every((m: { id: string }) => m.id === mediaBId)).toBe(true);
   });
 
