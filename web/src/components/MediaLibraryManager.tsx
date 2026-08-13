@@ -23,7 +23,8 @@ import { MediaKindThumb } from "./MediaKindThumb";
 import { DatetimeLocalInput } from "./DatetimeLocalInput";
 import { EditorSheetPanel } from "./EditorSheetPanel";
 import { PhotoCanvasEditor } from "./PhotoCanvasEditor";
-import { mediaVariantSnapshot } from "@/lib/gallery-editor";
+import { editorCanvasSrc, mediaVariantSnapshot } from "@/lib/gallery-editor";
+import { prepareImageForUpload } from "@/lib/prepare-upload-image";
 import { waitForMediaRebake } from "@/lib/wait-for-media-rebake";
 import { FullscreenEditorModal } from "./FullscreenEditorModal";
 import {
@@ -258,11 +259,16 @@ export function MediaLibraryManager() {
         setFile(null);
         return;
       }
-      setFile(next);
       setForm((prev) => ({
         ...prev,
         layout: { ...DEFAULT_IMAGE_LAYOUT },
       }));
+      void (async () => {
+        const kind = kindFromFile(next);
+        const prepared =
+          kind === "IMAGE" ? await prepareImageForUpload(next) : next;
+        setFile(prepared);
+      })();
     },
     [t]
   );
@@ -382,8 +388,12 @@ export function MediaLibraryManager() {
     try {
       if (editingId === "new") {
         if (!file) throw new Error(t("media.fileRequired"));
+        const uploadFile =
+          effectiveKind === "IMAGE"
+            ? await prepareImageForUpload(file)
+            : file;
         const fd = new FormData();
-        fd.set("file", file);
+        fd.set("file", uploadFile);
         fd.set("titleFr", form.titleFr);
         fd.set("titleEn", form.titleEn);
         fd.set("descriptionFr", form.descriptionFr);
@@ -430,8 +440,12 @@ export function MediaLibraryManager() {
           Object.assign(patchBody, form.layout);
         }
         if (file) {
+          const uploadFile =
+            effectiveKind === "IMAGE"
+              ? await prepareImageForUpload(file)
+              : file;
           const fd = new FormData();
-          fd.set("file", file);
+          fd.set("file", uploadFile);
           const rep = await fetch(`/api/media-library/${editingId}/replace`, {
             method: "POST",
             body: fd,
@@ -609,6 +623,8 @@ export function MediaLibraryManager() {
     : editingMedia
       ? previewSrcForMedia(editingMedia)
       : null;
+  const canvasSrc = editorCanvasSrc(editingMedia, filePreviewUrl);
+  const hasCanvasPreview = Boolean(canvasSrc) && canEditImageLayout;
 
   return (
     <div className="space-y-6">
@@ -672,26 +688,16 @@ export function MediaLibraryManager() {
           <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
             <section
               className={`flex min-h-0 flex-1 overflow-hidden bg-[#eef3f7] md:min-h-0 md:flex-1 md:shrink ${
-                canEditImageLayout &&
-                (filePreviewUrl ||
-                  (editingMedia &&
-                    (editingMedia.urlOrigin || editingMedia.urlGrande)))
+                hasCanvasPreview
                   ? "min-h-[24vh] touch-none items-center justify-center p-3 md:h-auto md:max-h-none md:min-h-0"
                   : previewKind && previewSrc
                     ? "min-h-[24vh] items-stretch justify-stretch p-0 md:h-auto md:max-h-none md:min-h-0"
                     : "min-h-[28vh] items-center justify-center p-3 md:min-h-0"
               }`}
             >
-              {canEditImageLayout &&
-              (filePreviewUrl ||
-                (editingMedia &&
-                  (editingMedia.urlOrigin || editingMedia.urlGrande))) ? (
+              {hasCanvasPreview ? (
                 <PhotoCanvasEditor
-                  imageSrc={
-                    filePreviewUrl ||
-                    editingMedia!.urlOrigin ||
-                    editingMedia!.urlGrande!
-                  }
+                  imageSrc={canvasSrc!}
                   value={form.layout}
                   onChange={(layout) => setForm({ ...form, layout })}
                   disabled={busy}

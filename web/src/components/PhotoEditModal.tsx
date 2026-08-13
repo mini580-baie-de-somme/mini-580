@@ -8,6 +8,7 @@ import { FullscreenEditorModal } from "./FullscreenEditorModal";
 import { MediaPreview } from "./MediaPreview";
 import {
   type GalleryEditorImage,
+  editorCanvasSrc,
   mergeEditorImageLayout,
   mediaVariantSnapshot,
   toEditorImage,
@@ -215,6 +216,14 @@ export function PhotoEditModal({
           integrity?: MediaIntegrity;
         };
         if (cancelled) return;
+        setDraft((prev) =>
+          prev
+            ? mergeEditorImageLayout(
+                toEditorImage(full as Record<string, unknown>),
+                layoutFromLegacy(prev)
+              )
+            : prev
+        );
         const editable = full.integrity?.editable ?? false;
         setOriginEditable(editable);
         setRepairOriginAvailable(
@@ -342,7 +351,6 @@ export function PhotoEditModal({
 
       const kind = kindFromFile(file) ?? "IMAGE";
       setError(null);
-      setPendingFile(file);
       setDirty(true);
       setOriginEditable(true);
       setMediaIntegrity(null);
@@ -372,6 +380,11 @@ export function PhotoEditModal({
           cropH: 1,
         };
       });
+      void (async () => {
+        const prepared =
+          kind === "IMAGE" ? await prepareImageForUpload(file) : file;
+        setPendingFile(prepared);
+      })();
     },
     [imagesOnly, lang]
   );
@@ -731,7 +744,9 @@ export function PhotoEditModal({
     draft?.urlMoyenne ||
     draft?.urlGrande ||
     "";
+  const canvasSrc = editorCanvasSrc(draft, localPreviewUrl);
   const hasPreview = Boolean(draft || pendingFile) && Boolean(previewSrc);
+  const hasCanvasPreview = Boolean(canvasSrc) && (Boolean(draft) || Boolean(pendingFile));
   const canSave =
     Boolean(draft?.id || pendingFile) && (dirty || Boolean(pendingFile));
 
@@ -788,9 +803,9 @@ export function PhotoEditModal({
                 : "min-h-[28vh] items-center justify-center md:min-h-0"
           }`}
         >
-          {hasPreview && canEditImageLayout ? (
+          {hasCanvasPreview && canEditImageLayout ? (
             <PhotoCanvasEditor
-              imageSrc={previewSrc}
+              imageSrc={canvasSrc!}
               value={layout}
               onChange={(next) => {
                 setLayout(next);

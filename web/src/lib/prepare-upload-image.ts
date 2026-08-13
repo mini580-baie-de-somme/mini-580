@@ -1,24 +1,10 @@
 /** Client-side downscale before multipart upload — mobile browsers often abort large uploads. */
 
-const MAX_DIMENSION_DESKTOP = 2400;
-const MAX_DIMENSION_MOBILE = 1600;
-const JPEG_QUALITY = 0.88;
+/** Max edge for stored origin — rebake reads this file, so keep resolution high. */
+export const ORIGIN_UPLOAD_MAX_DIMENSION = 4096;
+const JPEG_QUALITY = 0.92;
 /** Skip re-encode when already small enough (non-HEIC). */
-const SKIP_BELOW_BYTES_DESKTOP = 1.5 * 1024 * 1024;
-const SKIP_BELOW_BYTES_MOBILE = 800 * 1024;
-
-function isMobileBrowser(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-}
-
-function maxDimension(): number {
-  return isMobileBrowser() ? MAX_DIMENSION_MOBILE : MAX_DIMENSION_DESKTOP;
-}
-
-function skipBelowBytes(): number {
-  return isMobileBrowser() ? SKIP_BELOW_BYTES_MOBILE : SKIP_BELOW_BYTES_DESKTOP;
-}
+const SKIP_BELOW_BYTES = 2 * 1024 * 1024;
 
 function outputName(original: string): string {
   const base = original.replace(/\.[^.]+$/, "") || "photo";
@@ -67,14 +53,17 @@ export async function prepareImageForUpload(file: File): Promise<File> {
 
   const isHeic =
     /heic|heif/i.test(file.type) || /\.heic$|\.heif$/i.test(file.name);
-  if (!isHeic && file.size <= skipBelowBytes()) return file;
+  if (!isHeic && file.size <= SKIP_BELOW_BYTES) return file;
 
   try {
     const img = await loadImageFromFile(file);
     const { naturalWidth: w, naturalHeight: h } = img;
     if (!w || !h) return file;
 
-    const scale = Math.min(1, maxDimension() / Math.max(w, h));
+    const maxEdge = Math.max(w, h);
+    if (!isHeic && maxEdge <= ORIGIN_UPLOAD_MAX_DIMENSION) return file;
+
+    const scale = Math.min(1, ORIGIN_UPLOAD_MAX_DIMENSION / maxEdge);
     const tw = Math.max(1, Math.round(w * scale));
     const th = Math.max(1, Math.round(h * scale));
 

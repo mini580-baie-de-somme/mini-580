@@ -70,6 +70,20 @@ export function toEditorImage(raw: Record<string, unknown>): GalleryEditorImage 
   };
 }
 
+/**
+ * Canvas source for layout editing — always the full origin (or local pending file).
+ * Never use baked variants: they are already cropped and low-res, which breaks WYSIWYG
+ * and makes move/rotate/crop feel like working on a degraded image.
+ */
+export function editorCanvasSrc(
+  image: Pick<GalleryEditorImage, "urlOrigin"> | null | undefined,
+  localPreviewUrl?: string | null
+): string | null {
+  if (localPreviewUrl) return localPreviewUrl;
+  const origin = image?.urlOrigin?.trim();
+  return origin || null;
+}
+
 /** Small square thumb in post editor gallery strip (baked variant, never origin). */
 export function galleryThumbSrc(image: GalleryEditorImage): string | null {
   if ((image.kind || "IMAGE") !== "IMAGE") {

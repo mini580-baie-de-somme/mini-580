@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   coverUrlFromImage,
+  editorCanvasSrc,
   findCoverImage,
   galleryThumbSrc,
   mediaVariantSnapshot,
@@ -149,5 +150,30 @@ describe("gallery-editor cover helpers", () => {
       urlMoyenne: "/m.webp",
       urlGrande: "/g.webp",
     });
+  });
+
+  it("editorCanvasSrc uses local preview or origin only — never baked variants", () => {
+    expect(editorCanvasSrc(img({ id: "a" }), "/blob/preview")).toBe(
+      "/blob/preview"
+    );
+    expect(
+      editorCanvasSrc(
+        img({
+          id: "b",
+          urlOrigin: "/media/b/origin.jpg",
+          urlMoyenne: "/media/b/moyenne.webp",
+          urlGrande: "/media/b/grande.webp",
+        })
+      )
+    ).toBe("/media/b/origin.jpg");
+    expect(
+      editorCanvasSrc(
+        img({
+          id: "c",
+          urlOrigin: "",
+          urlMoyenne: "/media/c/moyenne.webp",
+        })
+      )
+    ).toBeNull();
   });
 });
