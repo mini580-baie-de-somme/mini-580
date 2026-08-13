@@ -586,16 +586,21 @@ export function MediaLibraryManager() {
     );
   }
 
-  function thumb(m: MediaItem) {
+  function thumbSrc(m: MediaItem): string | null {
+    if (m.kind === "IMAGE" && m.mimeType?.startsWith("image/")) {
+      return m.urlPicto || m.urlMoyenne || m.urlOrigin;
+    }
+    return m.urlPicto || m.urlMoyenne || null;
+  }
+
+  function thumb(m: MediaItem, size: "sm" | "md" = "sm") {
     return (
       <MediaKindThumb
         kind={m.kind}
         mimeType={m.mimeType}
-        src={
-          m.kind === "IMAGE" && m.mimeType?.startsWith("image/")
-            ? m.urlPicto || m.urlMoyenne || m.urlOrigin
-            : m.urlPicto || m.urlMoyenne || null
-        }
+        src={thumbSrc(m)}
+        size={size}
+        className={size === "md" ? "ring-1 ring-[#d4dde6]" : undefined}
       />
     );
   }
@@ -1144,68 +1149,73 @@ export function MediaLibraryManager() {
       ) : (
         <>
           {/* Mobile — card list */}
-          <ul className="space-y-2 md:hidden">
+          <ul className="space-y-3 md:hidden">
             {items.map((m) => {
               const title =
                 (locale === "fr" ? m.titleFr : m.titleEn) || m.id.slice(0, 8);
               return (
                 <li key={m.id}>
-                  <article
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => void startEdit(m)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        void startEdit(m);
-                      }
-                    }}
-                    className="flex cursor-pointer gap-3 rounded-lg border border-[#d4dde6] bg-white p-3 active:bg-[#f8fafc]"
-                  >
-                    <div className="shrink-0">{thumb(m)}</div>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium text-[#0D131A]">{title}</div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                        <span className="text-[11px] text-[#495867]">
+                  <article className="overflow-hidden rounded-lg border border-[#d4dde6] bg-white shadow-sm">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => void startEdit(m)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          void startEdit(m);
+                        }
+                      }}
+                      className="flex cursor-pointer gap-3 p-3 active:bg-[#f8fafc]"
+                    >
+                      <div className="shrink-0 self-start">{thumb(m, "md")}</div>
+                      <div className="min-w-0 flex-1">
+                        <p className="line-clamp-2 text-sm font-medium leading-snug text-[#0D131A]">
+                          {title}
+                        </p>
+                        <p className="mt-0.5 truncate text-[11px] text-[#495867]">
                           {kindLabel(m.kind)}
-                        </span>
-                        {visibilityBadge(m)}
-                        {m.integrity && !m.integrity.ok ? integrityBadge(m) : null}
+                          {m.mimeType ? ` · ${m.mimeType}` : ""}
+                        </p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                          {visibilityBadge(m)}
+                          {m.integrity && !m.integrity.ok ? integrityBadge(m) : null}
+                        </div>
+                        <MediaGroupChips
+                          groups={groupsFromMedia(m)}
+                          locale={locale}
+                          onGroupClick={openGroupEdit}
+                        />
                       </div>
-                      <MediaGroupChips
-                        groups={groupsFromMedia(m)}
-                        locale={locale}
-                        onGroupClick={openGroupEdit}
-                      />
-                      <div
-                        className="mt-2 flex flex-wrap gap-3"
-                        onClick={(e) => e.stopPropagation()}
+                    </div>
+                    <div
+                      className="grid grid-cols-3 divide-x divide-[#eef3f7] border-t border-[#eef3f7] bg-[#fafbfc]"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void startEdit(m)}
+                        className="inline-flex min-h-[44px] items-center justify-center px-2 text-xs font-medium text-[#495867] hover:bg-[#f4f7fa] disabled:opacity-50"
                       >
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => void startEdit(m)}
-                          className="min-h-[36px] text-xs font-medium text-[#495867]"
-                        >
-                          {t("list.edit")}
-                        </button>
-                        <a
-                          href={m.urlOrigin}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="min-h-[36px] text-xs font-medium text-[#495867]"
-                        >
-                          {t("media.open")}
-                        </a>
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => void remove(m)}
-                          className="min-h-[36px] text-xs font-medium text-red-700"
-                        >
-                          {t("media.delete")}
-                        </button>
-                      </div>
+                        {t("list.edit")}
+                      </button>
+                      <a
+                        href={m.urlOrigin}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex min-h-[44px] items-center justify-center px-2 text-xs font-medium text-[#495867] hover:bg-[#f4f7fa]"
+                      >
+                        {t("media.open")}
+                      </a>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void remove(m)}
+                        className="inline-flex min-h-[44px] items-center justify-center px-2 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        {t("media.delete")}
+                      </button>
                     </div>
                   </article>
                 </li>
