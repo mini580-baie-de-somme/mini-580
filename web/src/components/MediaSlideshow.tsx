@@ -9,11 +9,17 @@ import {
   type TouchEvent,
 } from "react";
 import { resolveThumbKind } from "@/lib/media-file-client";
-import { resolveHorizontalSwipe } from "@/lib/swipe-navigation";
+import {
+  getSwipeSnapTranslateX,
+  isHorizontalSwipeGesture,
+  isVerticalScrollGesture,
+  resolveHorizontalSwipe,
+} from "@/lib/swipe-navigation";
 import { GalleryImage } from "./GalleryImage";
 import { useLocale } from "./LocaleProvider";
 
 const AUTO_MS = 5000;
+const SWIPE_SNAP_MS = 220;
 
 export type MediaSlideshowItem = {
   kind?: string | null;
@@ -40,6 +46,35 @@ export type MediaSlideshowItem = {
   cropH?: number;
 };
 
+function lockBodyScroll() {
+  const scrollY = window.scrollY;
+  const prev = {
+    bodyOverflow: document.body.style.overflow,
+    htmlOverflow: document.documentElement.style.overflow,
+    bodyPosition: document.body.style.position,
+    bodyTop: document.body.style.top,
+    bodyWidth: document.body.style.width,
+    bodyTouchAction: document.body.style.touchAction,
+  };
+
+  document.body.style.overflow = "hidden";
+  document.documentElement.style.overflow = "hidden";
+  document.body.style.position = "fixed";
+  document.body.style.top = `-${scrollY}px`;
+  document.body.style.width = "100%";
+  document.body.style.touchAction = "none";
+
+  return () => {
+    document.body.style.overflow = prev.bodyOverflow;
+    document.documentElement.style.overflow = prev.htmlOverflow;
+    document.body.style.position = prev.bodyPosition;
+    document.body.style.top = prev.bodyTop;
+    document.body.style.width = prev.bodyWidth;
+    document.body.style.touchAction = prev.bodyTouchAction;
+    window.scrollTo(0, scrollY);
+  };
+}
+
 export function MediaSlideshow({
   items,
   open,
@@ -61,14 +96,26 @@ export function MediaSlideshow({
   const locale = localeProp ?? localeCtx;
   const [index, setIndex] = useState(initialIndex);
   const [autoPlay, setAutoPlay] = useState(initialAutoPlay);
+  const [dragX, setDragX] = useState(0);
+  const [slideTransition, setSlideTransition] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const swipeAreaRef = useRef<HTMLDivElement>(null);
+  const slideTrackRef = useRef<HTMLDivElement>(null);
+  const snapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setIndex(initialIndex);
     setAutoPlay(initialAutoPlay);
+    setDragX(0);
+    setSlideTransition(false);
   }, [open, initialIndex, initialAutoPlay]);
+
+  useEffect(() => {
+    if (!open) return;
+    return lockBodyScroll();
+  }, [open]);
 
   const go = useCallback(
     (delta: number) => {
@@ -78,12 +125,23 @@ export function MediaSlideshow({
     [items.length]
   );
 
+  const resetDrag = useCallback(() => {
+    if (snapTimerRef.current) {
+      clearTimeout(snapTimerRef.current);
+      snapTimerRef.current = null;
+    }
+    setSlideTransition(false);
+    setDragX(0);
+  }, []);
+
   const onTouchStart = useCallback(
     (e: TouchEvent<HTMLDivElement>) => {
       if (items.length < 2) return;
+      if (snapTimerRef.current) return;
       const touch = e.changedTouches[0] ?? e.touches[0];
       if (!touch) return;
       touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+      setSlideTransition(false);
     },
     [items.length]
   );
@@ -96,20 +154,75 @@ export function MediaSlideshow({
       const touch = e.changedTouches[0];
       if (!touch) return;
 
-      const direction = resolveHorizontalSwipe({
-        deltaX: touch.clientX - start.x,
-        deltaY: touch.clientY - start.y,
-      });
-      if (direction === 0) return;
+      const deltaX = touch.clientX - start.x;
+      const deltaY = touch.clientY - start.y;
+      const direction = resolveHorizontalSwipe({ deltaX, deltaY });
+      const trackWidth = slideTrackRef.current?.offsetWidth ?? 0;
+
+      if (direction === 0) {
+        setSlideTransition(true);
+        setDragX(0);
+        return;
+      }
 
       setAutoPlay(false);
-      go(direction);
+      setSlideTransition(true);
+      setDragX(getSwipeSnapTranslateX(direction, trackWidth));
+
+      snapTimerRef.current = setTimeout(() => {
+        snapTimerRef.current = null;
+        setSlideTransition(false);
+        setDragX(0);
+        go(direction);
+      }, SWIPE_SNAP_MS);
     },
     [go, items.length]
   );
 
   const onTouchCancel = useCallback(() => {
     touchStartRef.current = null;
+    resetDrag();
+  }, [resetDrag]);
+
+  useEffect(() => {
+    if (!open) return;
+    const area = swipeAreaRef.current;
+    if (!area) return;
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (items.length < 2 || snapTimerRef.current) return;
+      const start = touchStartRef.current;
+      if (!start) return;
+
+      const touch = e.touches[0];
+      if (!touch) return;
+
+      const deltaX = touch.clientX - start.x;
+      const deltaY = touch.clientY - start.y;
+      const target = e.target;
+      const inPdfScroll =
+        target instanceof Element &&
+        target.closest("[data-slideshow-pdf-scroll]");
+
+      if (inPdfScroll && isVerticalScrollGesture({ deltaX, deltaY })) {
+        return;
+      }
+
+      if (isHorizontalSwipeGesture({ deltaX, deltaY })) {
+        e.preventDefault();
+        setSlideTransition(false);
+        setDragX(deltaX);
+      }
+    };
+
+    area.addEventListener("touchmove", onTouchMove, { passive: false });
+    return () => area.removeEventListener("touchmove", onTouchMove);
+  }, [open, items.length]);
+
+  useEffect(() => {
+    return () => {
+      if (snapTimerRef.current) clearTimeout(snapTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -159,7 +272,7 @@ export function MediaSlideshow({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex flex-col bg-[#0D131A]/90"
+      className="fixed inset-0 z-[100] flex touch-none flex-col bg-[#0D131A]/90"
       role="dialog"
       aria-modal="true"
       aria-label={t("gallery.slideshow")}
@@ -193,7 +306,8 @@ export function MediaSlideshow({
       </div>
 
       <div
-        className="relative flex min-h-0 flex-1 touch-pan-y items-center justify-center px-4 pb-4 sm:px-12 sm:pb-8"
+        ref={swipeAreaRef}
+        className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden px-4 pb-4 sm:px-12 sm:pb-8"
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchCancel}
@@ -204,6 +318,7 @@ export function MediaSlideshow({
             aria-label={t("gallery.prev")}
             onClick={() => {
               setAutoPlay(false);
+              resetDrag();
               go(-1);
             }}
             className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/15 px-3 py-2 text-xl text-white hover:bg-white/25 sm:left-4"
@@ -211,15 +326,27 @@ export function MediaSlideshow({
             ‹
           </button>
         )}
-        <div className="flex min-h-0 w-full max-w-5xl flex-col items-center justify-center">
+        <div
+          ref={slideTrackRef}
+          className="flex min-h-0 w-full max-w-5xl flex-col items-center justify-center will-change-transform"
+          style={{
+            transform: `translateX(${dragX}px)`,
+            transition: slideTransition
+              ? `transform ${SWIPE_SNAP_MS}ms ease-out`
+              : undefined,
+          }}
+        >
           {currentKind === "VIDEO" ? (
             <video
               src={current.urlOrigin || current.url}
               controls
-              className="mx-auto max-h-[min(calc(100dvh-9rem),90vh)] w-full"
+              className="mx-auto max-h-[min(calc(100dvh-9rem),90vh)] w-full touch-auto"
             />
           ) : currentKind === "DOCUMENT" ? (
-            <div className="max-h-[min(calc(100dvh-9rem),90vh)] w-full overflow-auto rounded-lg bg-white p-6 text-center text-[#0D131A]">
+            <div
+              data-slideshow-pdf-scroll
+              className="max-h-[min(calc(100dvh-9rem),90vh)] w-full touch-pan-y overflow-auto rounded-lg bg-white p-6 text-center text-[#0D131A]"
+            >
               <p className="mb-3 font-medium">
                 {locale === "fr"
                   ? current.titleFr || t("gallery.kind.document")
@@ -250,6 +377,7 @@ export function MediaSlideshow({
             aria-label={t("gallery.next")}
             onClick={() => {
               setAutoPlay(false);
+              resetDrag();
               go(1);
             }}
             className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/15 px-3 py-2 text-xl text-white hover:bg-white/25 sm:right-4"

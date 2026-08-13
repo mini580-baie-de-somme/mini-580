@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { resolveHorizontalSwipe } from "@/lib/swipe-navigation";
+import {
+  getSwipeSnapTranslateX,
+  isHorizontalSwipeGesture,
+  isVerticalScrollGesture,
+  resolveHorizontalSwipe,
+} from "@/lib/swipe-navigation";
 
 describe("swipe-navigation", () => {
   it("returns 0 when horizontal travel is below threshold", () => {
@@ -20,5 +25,22 @@ describe("swipe-navigation", () => {
   it("accepts clearly horizontal swipes with slight vertical drift", () => {
     expect(resolveHorizontalSwipe({ deltaX: -100, deltaY: 20 })).toBe(1);
     expect(resolveHorizontalSwipe({ deltaX: 100, deltaY: -15 })).toBe(-1);
+  });
+
+  it("detects horizontal gesture early during touchmove", () => {
+    expect(isHorizontalSwipeGesture({ deltaX: 20, deltaY: 4 })).toBe(true);
+    expect(isHorizontalSwipeGesture({ deltaX: -18, deltaY: 6 })).toBe(true);
+    expect(isHorizontalSwipeGesture({ deltaX: 8, deltaY: 30 })).toBe(false);
+  });
+
+  it("detects vertical scroll intent for nested scroll areas", () => {
+    expect(isVerticalScrollGesture({ deltaX: 4, deltaY: 40 })).toBe(true);
+    expect(isVerticalScrollGesture({ deltaX: 30, deltaY: 8 })).toBe(false);
+  });
+
+  it("computes snap translate from direction and container width", () => {
+    expect(getSwipeSnapTranslateX(1, 400)).toBe(128);
+    expect(getSwipeSnapTranslateX(-1, 400)).toBe(-128);
+    expect(getSwipeSnapTranslateX(1, 0)).toBe(120);
   });
 });

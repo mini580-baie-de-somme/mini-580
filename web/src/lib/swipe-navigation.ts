@@ -9,6 +9,63 @@ export type SwipeOptions = {
   minRatio?: number;
 };
 
+const DEFAULT_MIN_DISTANCE = 48;
+const DEFAULT_MIN_RATIO = 1.25;
+
+function swipeMetrics(
+  { deltaX, deltaY }: SwipeDelta,
+  options: SwipeOptions = {}
+) {
+  const minDistance = options.minDistance ?? DEFAULT_MIN_DISTANCE;
+  const minRatio = options.minRatio ?? DEFAULT_MIN_RATIO;
+  return {
+    minDistance,
+    minRatio,
+    absX: Math.abs(deltaX),
+    absY: Math.abs(deltaY),
+  };
+}
+
+/**
+ * True when finger movement is clearly horizontal (used during touchmove to
+ * block background scroll without waiting for release threshold).
+ */
+export function isHorizontalSwipeGesture(
+  delta: SwipeDelta,
+  options: SwipeOptions & { moveThreshold?: number } = {}
+): boolean {
+  const moveThreshold = options.moveThreshold ?? 12;
+  const { minRatio, absX, absY } = swipeMetrics(delta, options);
+
+  if (absX < moveThreshold && absY < moveThreshold) return false;
+  if (absY > absX * minRatio) return false;
+  return absX >= moveThreshold;
+}
+
+/**
+ * True when vertical movement should win inside a scrollable region (e.g. PDF).
+ */
+export function isVerticalScrollGesture(
+  delta: SwipeDelta,
+  options: SwipeOptions & { moveThreshold?: number } = {}
+): boolean {
+  const moveThreshold = options.moveThreshold ?? 12;
+  const { minRatio, absX, absY } = swipeMetrics(delta, options);
+
+  if (absX < moveThreshold && absY < moveThreshold) return false;
+  return absY > absX * minRatio;
+}
+
+/** Target translateX (px) for slide-change confirmation animation. */
+export function getSwipeSnapTranslateX(
+  direction: -1 | 1,
+  containerWidth: number,
+  fraction = 0.32
+): number {
+  if (containerWidth <= 0) return direction * 120;
+  return direction * containerWidth * fraction;
+}
+
 /**
  * Resolve a horizontal swipe into navigation direction.
  * - Swipe left (finger moves left, negative deltaX) → next (+1)
@@ -16,17 +73,13 @@ export type SwipeOptions = {
  * - Ambiguous / too short → 0
  */
 export function resolveHorizontalSwipe(
-  { deltaX, deltaY }: SwipeDelta,
+  delta: SwipeDelta,
   options: SwipeOptions = {}
 ): -1 | 0 | 1 {
-  const minDistance = options.minDistance ?? 48;
-  const minRatio = options.minRatio ?? 1.25;
-
-  const absX = Math.abs(deltaX);
-  const absY = Math.abs(deltaY);
+  const { minDistance, minRatio, absX, absY } = swipeMetrics(delta, options);
 
   if (absX < minDistance) return 0;
   if (absY > 0 && absX < absY * minRatio) return 0;
 
-  return deltaX < 0 ? 1 : -1;
+  return delta.deltaX < 0 ? 1 : -1;
 }
