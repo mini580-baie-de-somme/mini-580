@@ -358,7 +358,7 @@ export function MediaLibraryManager() {
       if (listRow) {
         setEditingMedia(listRow);
         setForm(formFromMedia(listRow));
-        setFile(null);
+        clearFile();
         setLocalError(null);
         setOriginEditable(listRow.integrity?.editable ?? false);
         setEditingIntegrity(listRow.integrity ?? null);
