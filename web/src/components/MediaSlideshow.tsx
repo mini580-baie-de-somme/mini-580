@@ -1,7 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type TouchEvent,
+} from "react";
 import { resolveThumbKind } from "@/lib/media-file-client";
+import { resolveHorizontalSwipe } from "@/lib/swipe-navigation";
 import { GalleryImage } from "./GalleryImage";
 import { useLocale } from "./LocaleProvider";
 
@@ -54,6 +62,7 @@ export function MediaSlideshow({
   const [index, setIndex] = useState(initialIndex);
   const [autoPlay, setAutoPlay] = useState(initialAutoPlay);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -68,6 +77,40 @@ export function MediaSlideshow({
     },
     [items.length]
   );
+
+  const onTouchStart = useCallback(
+    (e: TouchEvent<HTMLDivElement>) => {
+      if (items.length < 2) return;
+      const touch = e.changedTouches[0] ?? e.touches[0];
+      if (!touch) return;
+      touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+    },
+    [items.length]
+  );
+
+  const onTouchEnd = useCallback(
+    (e: TouchEvent<HTMLDivElement>) => {
+      const start = touchStartRef.current;
+      touchStartRef.current = null;
+      if (items.length < 2 || !start) return;
+      const touch = e.changedTouches[0];
+      if (!touch) return;
+
+      const direction = resolveHorizontalSwipe({
+        deltaX: touch.clientX - start.x,
+        deltaY: touch.clientY - start.y,
+      });
+      if (direction === 0) return;
+
+      setAutoPlay(false);
+      go(direction);
+    },
+    [go, items.length]
+  );
+
+  const onTouchCancel = useCallback(() => {
+    touchStartRef.current = null;
+  }, []);
 
   useEffect(() => {
     if (!open || !autoPlay || items.length < 2) {
@@ -149,7 +192,12 @@ export function MediaSlideshow({
         </div>
       </div>
 
-      <div className="relative flex min-h-0 flex-1 items-center justify-center px-4 pb-4 sm:px-12 sm:pb-8">
+      <div
+        className="relative flex min-h-0 flex-1 touch-pan-y items-center justify-center px-4 pb-4 sm:px-12 sm:pb-8"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchCancel}
+      >
         {items.length > 1 && (
           <button
             type="button"
