@@ -20,6 +20,13 @@ import {
   EditorFilterGroup,
   type EditorListActiveChip,
 } from "./EditorListToolbar";
+import {
+  MEDIA_LIBRARY_FILTER_KEYS,
+  mediaLibraryFiltersFromParams,
+  mediaLibraryListQueryString,
+  type MediaLibraryVisibilityFilter,
+} from "@/lib/media-library-filters";
+import { countListFilters } from "@/lib/editor-list";
 import { useEditorInfiniteList } from "./useEditorInfiniteList";
 import { MediaPreview } from "./MediaPreview";
 import { MediaKindThumb } from "./MediaKindThumb";
@@ -112,7 +119,7 @@ type MediaItem = {
   integrity?: MediaIntegrity;
 };
 
-type VisibilityFilter = "ALL" | "public" | "draft" | "orphan";
+type VisibilityFilter = MediaLibraryVisibilityFilter;
 
 type MediaGroupOption = MediaGroupSummary & { memberCount?: number };
 
@@ -191,14 +198,14 @@ async function readApiJson(
 
 export function MediaLibraryManager() {
   const { locale, t } = useLocale();
-  const { searchParams, pushVirtual, closeVirtual, markOpenedViaPush } =
+  const { searchParams, pushVirtual, replaceVirtual, closeVirtual, markOpenedViaPush } =
     useVirtualUrl();
   const editingId = parseMediaEditState(searchParams);
   const editingGroupId = parseMediaGroupEditState(searchParams);
-  const [q, setQ] = useState("");
-  const [kind, setKind] = useState<"ALL" | MediaKind>("ALL");
-  const [visibility, setVisibility] = useState<VisibilityFilter>("ALL");
-  const [groupFilterId, setGroupFilterId] = useState<string>("ALL");
+  const { q, kind, visibility, groupFilterId } = useMemo(
+    () => mediaLibraryFiltersFromParams(searchParams),
+    [searchParams]
+  );
   const [groupOptions, setGroupOptions] = useState<MediaGroupOption[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [editingMedia, setEditingMedia] = useState<MediaItem | null>(null);
@@ -237,14 +244,19 @@ export function MediaLibraryManager() {
     },
   });
 
-  const queryString = useMemo(() => {
-    const params = new URLSearchParams();
-    if (q) params.set("q", q);
-    if (kind !== "ALL") params.set("kind", kind);
-    if (visibility !== "ALL") params.set("visibility", visibility);
-    if (groupFilterId !== "ALL") params.set("groupId", groupFilterId);
-    return params.toString();
-  }, [q, kind, visibility, groupFilterId]);
+  const queryString = useMemo(
+    () => mediaLibraryListQueryString(searchParams),
+    [searchParams]
+  );
+
+  const updateFilter = useCallback(
+    (key: (typeof MEDIA_LIBRARY_FILTER_KEYS)[number], value: string) => {
+      replaceVirtual({
+        [key]: value && value !== "ALL" ? value : null,
+      });
+    },
+    [replaceVirtual]
+  );
 
   const reloadGroups = useCallback(async () => {
     try {
@@ -502,7 +514,10 @@ export function MediaLibraryManager() {
     }
   }
 
-  const onSearch = useCallback((next: string) => setQ(next), []);
+  const onSearch = useCallback(
+    (next: string) => updateFilter("q", next.trim()),
+    [updateFilter]
+  );
 
   function kindLabel(k: MediaKind | "ALL") {
     if (k === "ALL") return t("media.kind.all");
@@ -974,12 +989,10 @@ export function MediaLibraryManager() {
         onSubmit={onSearch}
         filtersOpen={filtersOpen}
         onFiltersOpenChange={setFiltersOpen}
-        activeFilterCount={
-          (q ? 1 : 0) +
-          (kind !== "ALL" ? 1 : 0) +
-          (visibility !== "ALL" ? 1 : 0) +
-          (groupFilterId !== "ALL" ? 1 : 0)
-        }
+        activeFilterCount={countListFilters(
+          searchParams,
+          [...MEDIA_LIBRARY_FILTER_KEYS]
+        )}
         activeChips={((): EditorListActiveChip[] => {
           const chips: EditorListActiveChip[] = [];
           if (q) {
@@ -1003,10 +1016,10 @@ export function MediaLibraryManager() {
               label: visibilityLabel(visibility),
             });
           }
-          if (groupFilterId !== "ALL") {
+          if (groupFilterId) {
             const g = groupOptions.find((o) => o.id === groupFilterId);
             chips.push({
-              key: "group",
+              key: "groupId",
               prefix: t("mediaGroup.filter"),
               label: g
                 ? (locale === "fr" ? g.titleFr : g.titleEn) || g.slug || g.id.slice(0, 8)
@@ -1016,16 +1029,26 @@ export function MediaLibraryManager() {
           return chips;
         })()}
         onRemoveChip={(key) => {
-          if (key === "q") setQ("");
-          if (key === "kind") setKind("ALL");
-          if (key === "visibility") setVisibility("ALL");
-          if (key === "group") setGroupFilterId("ALL");
+          if (
+            key === "q" ||
+            key === "kind" ||
+            key === "visibility" ||
+            key === "groupId" ||
+            key === "group"
+          ) {
+            updateFilter(
+              key === "group" ? "groupId" : (key as (typeof MEDIA_LIBRARY_FILTER_KEYS)[number]),
+              ""
+            );
+          }
         }}
         onClearAll={() => {
-          setQ("");
-          setKind("ALL");
-          setVisibility("ALL");
-          setGroupFilterId("ALL");
+          replaceVirtual({
+            q: null,
+            kind: null,
+            visibility: null,
+            groupId: null,
+          });
         }}
         filterPanel={
           <>
@@ -1033,8 +1056,16 @@ export function MediaLibraryManager() {
               {KIND_FILTERS.map((k) => (
                 <EditorFilterChip
                   key={k}
-                  active={kind === k}
-                  onClick={() => setKind(k)}
+                  active={
+                    (k === "ALL" && kind === "ALL") ||
+                    (k !== "ALL" && kind === k)
+                  }
+                  onClick={() =>
+                    updateFilter(
+                      "kind",
+                      k === "ALL" ? "" : kind === k ? "" : k
+                    )
+                  }
                 >
                   {kindLabel(k)}
                 </EditorFilterChip>
@@ -1044,8 +1075,16 @@ export function MediaLibraryManager() {
               {VISIBILITY_FILTERS.map((v) => (
                 <EditorFilterChip
                   key={v}
-                  active={visibility === v}
-                  onClick={() => setVisibility(v)}
+                  active={
+                    (v === "ALL" && visibility === "ALL") ||
+                    (v !== "ALL" && visibility === v)
+                  }
+                  onClick={() =>
+                    updateFilter(
+                      "visibility",
+                      v === "ALL" ? "" : visibility === v ? "" : v
+                    )
+                  }
                 >
                   {visibilityLabel(v)}
                 </EditorFilterChip>
@@ -1053,8 +1092,8 @@ export function MediaLibraryManager() {
             </EditorFilterGroup>
             <EditorFilterGroup label={t("mediaGroup.filter")}>
               <EditorFilterChip
-                active={groupFilterId === "ALL"}
-                onClick={() => setGroupFilterId("ALL")}
+                active={!groupFilterId}
+                onClick={() => updateFilter("groupId", "")}
               >
                 {t("mediaGroup.filterAll")}
               </EditorFilterChip>
@@ -1067,7 +1106,12 @@ export function MediaLibraryManager() {
                   <EditorFilterChip
                     key={g.id}
                     active={groupFilterId === g.id}
-                    onClick={() => setGroupFilterId(g.id)}
+                    onClick={() =>
+                      updateFilter(
+                        "groupId",
+                        groupFilterId === g.id ? "" : g.id
+                      )
+                    }
                   >
                     {label}
                     {typeof g.memberCount === "number" ? ` (${g.memberCount})` : ""}
@@ -1083,12 +1127,7 @@ export function MediaLibraryManager() {
         <EditorListCount
           total={total}
           totalAll={totalAll}
-          filtered={
-            Boolean(q) ||
-            kind !== "ALL" ||
-            visibility !== "ALL" ||
-            groupFilterId !== "ALL"
-          }
+          filtered={countListFilters(searchParams, [...MEDIA_LIBRARY_FILTER_KEYS]) > 0}
           totalLabel={t("list.count")}
           filteredLabel={t("list.countFiltered")}
         />
