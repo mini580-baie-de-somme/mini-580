@@ -4,8 +4,6 @@ import type { ReactNode } from "react";
 import { resolveThumbKind } from "@/lib/media-file-client";
 import type { ArticleManifestMedia, PublicMediaGroup } from "@/lib/article-media-types";
 import { MediaKindThumb } from "./MediaKindThumb";
-import { IMAGE_ASPECT } from "@/lib/image-layout";
-
 type MosaicMedia = ArticleManifestMedia;
 
 function thumbSrc(img: MosaicMedia): string {
@@ -35,10 +33,16 @@ function MosaicTile({
     (locale === "fr" ? media.titleFr : media.titleEn) || "";
 
   return (
-    <div className={`relative overflow-hidden bg-[#eef3f7] ${className}`}>
+    <div
+      className={`relative aspect-square overflow-hidden bg-[#eef3f7] ${className}`}
+    >
       {kind === "IMAGE" && src ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt={label} className="h-full w-full object-cover" />
+        <img
+          src={src}
+          alt={label}
+          className="h-full w-full object-cover object-center"
+        />
       ) : (
         <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-[#495867]">
           <MediaKindThumb
@@ -108,40 +112,34 @@ export function InlineMediaGroup({
         aria-label={ariaLabel}
         className="group w-full overflow-hidden rounded-lg border border-[#d4dde6] shadow-sm transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#495867] focus-visible:ring-offset-2 disabled:cursor-default disabled:opacity-100"
       >
-        <div
-          className="w-full max-h-[min(85vh,720px)] overflow-hidden"
-          style={{ aspectRatio: String(IMAGE_ASPECT) }}
-        >
+        <div className="w-full overflow-hidden">
           {count === 1 && (
-            <MosaicTile media={members[0]!} locale={locale} className="h-full w-full" />
+            <MosaicTile media={members[0]!} locale={locale} className="w-full" />
           )}
 
           {count === 2 && (
-            <div className="grid h-full grid-cols-2 gap-0.5">
-              <MosaicTile media={members[0]!} locale={locale} className="h-full" />
-              <MosaicTile media={members[1]!} locale={locale} className="h-full" />
+            <div className="grid grid-cols-2 gap-0.5">
+              <MosaicTile media={members[0]!} locale={locale} />
+              <MosaicTile media={members[1]!} locale={locale} />
             </div>
           )}
 
           {count === 3 && (
-            <div className="grid h-full grid-cols-[3fr_2fr] gap-0.5">
-              <MosaicTile media={members[0]!} locale={locale} className="h-full" />
-              <div className="grid grid-rows-2 gap-0.5">
-                <MosaicTile media={members[1]!} locale={locale} className="h-full" />
-                <MosaicTile media={members[2]!} locale={locale} className="h-full" />
-              </div>
+            <div className="grid grid-cols-3 gap-0.5">
+              <MosaicTile media={members[0]!} locale={locale} />
+              <MosaicTile media={members[1]!} locale={locale} />
+              <MosaicTile media={members[2]!} locale={locale} />
             </div>
           )}
 
           {count >= 4 && (
-            <div className="grid h-full grid-cols-2 grid-rows-2 gap-0.5">
-              <MosaicTile media={members[0]!} locale={locale} className="h-full" />
-              <MosaicTile media={members[1]!} locale={locale} className="h-full" />
-              <MosaicTile media={members[2]!} locale={locale} className="h-full" />
+            <div className="grid grid-cols-2 gap-0.5">
+              <MosaicTile media={members[0]!} locale={locale} />
+              <MosaicTile media={members[1]!} locale={locale} />
+              <MosaicTile media={members[2]!} locale={locale} />
               <MosaicTile
                 media={members[3]!}
                 locale={locale}
-                className="h-full"
                 overlay={
                   count > 4 ? (
                     <div className="absolute inset-0 flex items-center justify-center bg-[#0D131A]/55 text-lg font-semibold text-white">

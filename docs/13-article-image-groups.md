@@ -207,14 +207,14 @@ Refactor **`ArticleView`** / **`PreviewArticle`** :
 
 ## Mosaïque inline — layouts
 
-Rendu **`InlineMediaGroup`** selon `memberCount` (médias du groupe, ordre `sortOrder`). Container : ratio ~16/10, `rounded-lg`, bordure maritime, clic zone entière.
+Rendu **`InlineMediaGroup`** selon `memberCount` (médias du groupe, ordre `sortOrder`). Container : `rounded-lg`, bordure maritime, clic zone entière. **Tuiles toujours carrées** (`aspect-square`, `object-cover object-center`).
 
 | Count | Layout | Description |
 |-------|--------|-------------|
-| **1** | Full tile | Une tuile pleine largeur, `object-cover` |
-| **2** | Side by side | Grille `1fr 1fr`, gap 2px, hauteur égale |
-| **3** | 1 large + 2 small | Colonne gauche ~60 % (1er média), droite empilée (2e + 3e) — variante acceptable : 2+1 horizontal |
-| **4+** | 2×2 + overflow | Quatre premières tuiles en grille 2×2 ; si count > 4, badge **« +N »** sur la 4e tuile (N = count − 3 visibles en entier derrière le badge, ou count − 4 selon implémentation — **afficher au minimum 3 vignettes + badge**) |
+| **1** | Full tile | Une tuile carrée pleine largeur |
+| **2** | Side by side | Grille `1fr 1fr`, gap 2px, tuiles carrées |
+| **3** | Row of 3 | Trois tuiles carrées côte à côte |
+| **4+** | 2×2 + overflow | Grille 2×2 carrée ; badge **« +N »** sur la 4e si count > 4 |
 
 Règles :
 

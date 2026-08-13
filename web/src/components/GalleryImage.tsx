@@ -34,6 +34,18 @@ function displaySrc(image: GalleryImageData): string {
   );
 }
 
+/** Lightbox: prefer largest baked variant, then origin — full crop visible. */
+function slideshowSrc(image: GalleryImageData): string {
+  return (
+    image.urlGrande ||
+    image.urlMoyenne ||
+    image.urlPetite ||
+    image.urlOrigin ||
+    image.url ||
+    ""
+  );
+}
+
 /**
  * Public display: baked WebP variants (crop/zoom/rotate already applied on save).
  * Edit preview: origin + CSS transforms for live editor feedback.
@@ -109,20 +121,18 @@ export function GalleryImage({
   const src = displaySrc(image);
 
   if (mode === "slideshow") {
+    const lightboxSrc = slideshowSrc(image);
+    const maxSlideHeight = "min(calc(100dvh - 9rem), 90vh)";
+
     return (
-      <figure className="mx-auto flex max-h-[min(calc(100dvh-9rem),90vh)] w-full max-w-5xl flex-col items-center justify-center">
-        <div
-          className="relative flex w-full max-w-full items-center justify-center overflow-hidden rounded-lg bg-[#0D131A]/20"
-          style={{
-            aspectRatio: String(IMAGE_ASPECT),
-            maxHeight: "min(calc(100dvh - 9rem), 90vh)",
-          }}
-        >
+      <figure className="mx-auto flex w-full max-w-5xl flex-col items-center justify-center px-2">
+        <div className="relative flex w-full max-w-full items-center justify-center rounded-lg bg-[#0D131A]/20">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={src}
+            src={lightboxSrc}
             alt={label}
-            className="max-h-[min(calc(100dvh-9rem),90vh)] w-full max-w-full object-contain"
+            className="max-h-[min(calc(100dvh-9rem),90vh)] w-auto max-w-full object-contain"
+            style={{ maxHeight: maxSlideHeight }}
           />
         </div>
         {!hideCaption && (title || description) ? (
