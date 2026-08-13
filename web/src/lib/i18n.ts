@@ -41,6 +41,10 @@ const messages = {
     fr: "Les vieux fourneaux — documentation bilingue FR/EN",
     en: "Les vieux fourneaux — bilingual FR/EN documentation",
   },
+  "footer.simohraPrefix": {
+    fr: "Conçu et Développé par ",
+    en: "Designed and Built by ",
+  },
 
   "home.heroLabel": { fr: "Class Mini 5.80 Baie de Somme", en: "Class Mini 5.80 Baie de Somme" },
   "home.heroTitle": {

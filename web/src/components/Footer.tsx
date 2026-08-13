@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CLASS_GLOBE_LINKS } from "@/lib/constants";
+import { CLASS_GLOBE_LINKS, SIMOHRA_URL } from "@/lib/constants";
 import { FE_VERSION } from "@/lib/versions";
 import { useLocale } from "./LocaleProvider";
 
@@ -79,6 +79,17 @@ export function Footer() {
           </div>
         </div>
         <p className="mt-8 text-center text-xs text-[#495867]">{t("footer.credit")}</p>
+        <p className="mt-2 text-center text-xs text-[#495867]">
+          {t("footer.simohraPrefix")}
+          <a
+            href={SIMOHRA_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-[#0D131A] hover:underline"
+          >
+            Simohra
+          </a>
+        </p>
         <p className="mt-2 text-center font-mono text-[11px] text-[#7a8794]">{versionLabel}</p>
       </div>
     </footer>

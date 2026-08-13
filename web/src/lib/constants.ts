@@ -14,6 +14,8 @@ export const EDITOR_LIST_PAGE_SIZE = 20;
 /** @deprecated Use EDITOR_LIST_PAGE_SIZE */
 export const EDITOR_POSTS_PAGE_SIZE = EDITOR_LIST_PAGE_SIZE;
 
+export const SIMOHRA_URL = "https://simohra.fr/";
+
 export const CLASS_GLOBE_LINKS = {
   website: "https://classglobe580.com/",
   plans: "https://classglobe580.com/buy-plans/",
