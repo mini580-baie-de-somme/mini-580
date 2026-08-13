@@ -1,3 +1,5 @@
+import { IMAGE_ASPECT } from "@/lib/image-layout";
+
 type GalleryImageData = {
   urlOrigin?: string;
   url?: string;
@@ -41,11 +43,14 @@ export function GalleryImage({
   locale,
   alt,
   mode = "display",
+  hideCaption = false,
 }: {
   image: GalleryImageData;
   locale: "fr" | "en";
   alt?: string;
-  mode?: "display" | "edit";
+  mode?: "display" | "edit" | "slideshow";
+  /** Hide figcaption (e.g. lightbox uses footer instead). */
+  hideCaption?: boolean;
 }) {
   const title = locale === "fr" ? image.titleFr : image.titleEn;
   const description =
@@ -102,6 +107,36 @@ export function GalleryImage({
   }
 
   const src = displaySrc(image);
+
+  if (mode === "slideshow") {
+    return (
+      <figure className="mx-auto flex max-h-[min(calc(100dvh-9rem),90vh)] w-full max-w-5xl flex-col items-center justify-center">
+        <div
+          className="relative flex w-full max-w-full items-center justify-center overflow-hidden rounded-lg bg-[#0D131A]/20"
+          style={{
+            aspectRatio: String(IMAGE_ASPECT),
+            maxHeight: "min(calc(100dvh - 9rem), 90vh)",
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={src}
+            alt={label}
+            className="max-h-[min(calc(100dvh-9rem),90vh)] w-full max-w-full object-contain"
+          />
+        </div>
+        {!hideCaption && (title || description) ? (
+          <figcaption className="mt-3 max-w-3xl px-2 text-center text-sm text-white/90">
+            {title && <div className="font-medium text-white">{title}</div>}
+            {description && (
+              <div className={title ? "mt-1 text-white/80" : ""}>{description}</div>
+            )}
+          </figcaption>
+        ) : null}
+      </figure>
+    );
+  }
+
   return (
     <figure className="overflow-hidden rounded-lg border border-[#d4dde6] bg-white">
       <div className="relative w-full overflow-hidden bg-[#eef3f7] aspect-[3/4]">
@@ -112,7 +147,7 @@ export function GalleryImage({
           className="h-full w-full object-cover"
         />
       </div>
-      {(title || description) && (
+      {!hideCaption && (title || description) && (
         <figcaption className="px-4 py-3 text-sm text-[#495867]">
           {title && <div className="font-medium text-[#0D131A]">{title}</div>}
           {description && <div className={title ? "mt-1" : ""}>{description}</div>}

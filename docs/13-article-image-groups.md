@@ -228,8 +228,8 @@ Règles :
 
 | Option | Comportement | Choix |
 |--------|--------------|-------|
-| A — Manifeste global | Clic mosaïque → index = position du 1er média du groupe dans le manifeste ; prev/next = **tout l’article** | **✅ Retenu** |
-| B — Sous-séquence groupe | Lightbox limitée aux médias du groupe seulement | Non retenu (fragmente l’expérience) |
+| A — Manifeste global | Clic bandeau bas / diaporama article → prev/next = **tout l’article** (couverture + groupes inline + standalone, dédoublonné) | **✅ Retenu (bandeau)** |
+| B — Sous-séquence groupe | Clic mosaïque inline → lightbox **limitée aux médias du groupe** (ordre `sortOrder`) | **✅ Retenu (inline)** — décision Hammed 2026-08-13 |
 
 **Implémentation**
 

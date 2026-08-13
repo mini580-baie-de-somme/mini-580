@@ -52,14 +52,12 @@ export function ArticleBody({
         }
 
         const group = mediaGroups[segment.groupId] ?? null;
-        const manifestIndex = manifestIndexByGroupId[segment.groupId];
 
         return (
           <InlineMediaGroup
             key={`group-${segment.groupId}-${index}`}
             group={group}
             locale={locale}
-            manifestIndex={manifestIndex}
             onOpen={() => onOpenMediaGroup?.(segment.groupId)}
           />
         );

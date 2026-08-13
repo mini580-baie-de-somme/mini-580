@@ -486,6 +486,10 @@ const messages = {
     fr: "Retirer du corps de l’article",
     en: "Remove from article body",
   },
+  "mediaGroup.bodyHintsTitle": {
+    fr: "Groupes référencés dans ce corps",
+    en: "Groups referenced in this body",
+  },
   "media.pickFromLibrary": {
     fr: "Depuis la médiathèque",
     en: "From media library",

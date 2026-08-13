@@ -149,7 +149,7 @@ export function MediaSlideshow({
         </div>
       </div>
 
-      <div className="relative flex flex-1 items-center justify-center px-12 pb-8">
+      <div className="relative flex min-h-0 flex-1 items-center justify-center px-4 pb-4 sm:px-12 sm:pb-8">
         {items.length > 1 && (
           <button
             type="button"
@@ -163,15 +163,15 @@ export function MediaSlideshow({
             ‹
           </button>
         )}
-        <div className="max-h-full w-full max-w-4xl">
+        <div className="flex min-h-0 w-full max-w-5xl flex-col items-center justify-center">
           {currentKind === "VIDEO" ? (
             <video
               src={current.urlOrigin || current.url}
               controls
-              className="mx-auto max-h-[70vh] w-full"
+              className="mx-auto max-h-[min(calc(100dvh-9rem),90vh)] w-full"
             />
           ) : currentKind === "DOCUMENT" ? (
-            <div className="rounded-lg bg-white p-6 text-center text-[#0D131A]">
+            <div className="max-h-[min(calc(100dvh-9rem),90vh)] w-full overflow-auto rounded-lg bg-white p-6 text-center text-[#0D131A]">
               <p className="mb-3 font-medium">
                 {locale === "fr"
                   ? current.titleFr || t("gallery.kind.document")
@@ -188,11 +188,11 @@ export function MediaSlideshow({
               <iframe
                 title="pdf"
                 src={current.urlOrigin || current.url}
-                className="mt-4 h-[50vh] w-full rounded border border-[#d4dde6]"
+                className="mt-4 h-[min(50vh,calc(100dvh-14rem))] w-full rounded border border-[#d4dde6]"
               />
             </div>
           ) : (
-            <GalleryImage image={current} locale={locale} />
+            <GalleryImage image={current} locale={locale} mode="slideshow" />
           )}
           {footer?.(current, index)}
         </div>

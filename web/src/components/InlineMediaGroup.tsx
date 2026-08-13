@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { resolveThumbKind } from "@/lib/media-file-client";
 import type { ArticleManifestMedia, PublicMediaGroup } from "@/lib/article-media-types";
 import { MediaKindThumb } from "./MediaKindThumb";
+import { IMAGE_ASPECT } from "@/lib/image-layout";
 
 type MosaicMedia = ArticleManifestMedia;
 
@@ -60,7 +61,6 @@ function MosaicTile({
 export function InlineMediaGroup({
   group,
   locale,
-  manifestIndex,
   onOpen,
 }: {
   group: PublicMediaGroup | null;
@@ -97,7 +97,7 @@ export function InlineMediaGroup({
     );
   }
 
-  const canOpen = manifestIndex !== undefined;
+  const canOpen = count > 0;
 
   return (
     <figure className="my-8">
@@ -108,7 +108,10 @@ export function InlineMediaGroup({
         aria-label={ariaLabel}
         className="group w-full overflow-hidden rounded-lg border border-[#d4dde6] shadow-sm transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#495867] focus-visible:ring-offset-2 disabled:cursor-default disabled:opacity-100"
       >
-        <div className="aspect-[16/10] w-full">
+        <div
+          className="w-full max-h-[min(85vh,720px)] overflow-hidden"
+          style={{ aspectRatio: String(IMAGE_ASPECT) }}
+        >
           {count === 1 && (
             <MosaicTile media={members[0]!} locale={locale} className="h-full w-full" />
           )}

@@ -6,9 +6,14 @@ import {
   ReactNodeViewRenderer,
   type NodeViewProps,
 } from "@tiptap/react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocale } from "@/components/LocaleProvider";
 
+import {
+  MEDIA_GROUP_UPDATED_EVENT,
+  mediaGroupIdHint,
+  resolveMediaGroupDisplayName,
+} from "@/lib/media-group-display";
 import {
   MEDIA_GROUP_HTML_ATTR,
   MEDIA_GROUP_HTML_INNER,
@@ -17,6 +22,7 @@ import {
 export type MediaGroupBlockMeta = {
   titleFr: string;
   titleEn: string;
+  slug: string;
   memberCount: number;
   layout: "GRID" | "ROW" | "SINGLE";
 };
@@ -53,41 +59,45 @@ function MediaGroupBlockView({ node, deleteNode, selected, extension }: NodeView
   const [missing, setMissing] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadMeta = useCallback(async () => {
     setLoading(true);
     setMissing(false);
-    void (async () => {
-      try {
-        const res = await fetch(`/api/media-groups/${groupId}`);
-        if (cancelled) return;
-        if (res.status === 404) {
-          setMissing(true);
-          setMeta(null);
-          return;
-        }
-        if (!res.ok) {
-          setMissing(true);
-          return;
-        }
-        const data = (await res.json()) as MediaGroupBlockMeta;
-        setMeta(data);
-      } catch {
-        if (!cancelled) setMissing(true);
-      } finally {
-        if (!cancelled) setLoading(false);
+    try {
+      const res = await fetch(`/api/media-groups/${groupId}`);
+      if (res.status === 404) {
+        setMissing(true);
+        setMeta(null);
+        return;
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
+      if (!res.ok) {
+        setMissing(true);
+        return;
+      }
+      const data = (await res.json()) as MediaGroupBlockMeta;
+      setMeta(data);
+    } catch {
+      setMissing(true);
+    } finally {
+      setLoading(false);
+    }
   }, [groupId]);
 
-  const title =
-    meta &&
-    ((locale === "fr" ? meta.titleFr : meta.titleEn) ||
-      (locale === "fr" ? meta.titleEn : meta.titleFr) ||
-      groupId.slice(0, 8));
+  useEffect(() => {
+    void loadMeta();
+  }, [loadMeta]);
+
+  useEffect(() => {
+    const onUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ groupId?: string }>).detail;
+      if (detail?.groupId === groupId) void loadMeta();
+    };
+    window.addEventListener(MEDIA_GROUP_UPDATED_EVENT, onUpdated);
+    return () => window.removeEventListener(MEDIA_GROUP_UPDATED_EVENT, onUpdated);
+  }, [groupId, loadMeta]);
+
+  const displayName =
+    meta && resolveMediaGroupDisplayName(meta, locale, groupId);
+  const idHint = mediaGroupIdHint(groupId);
 
   const countLabel =
     meta &&
@@ -119,10 +129,13 @@ function MediaGroupBlockView({ node, deleteNode, selected, extension }: NodeView
           ) : missing ? (
             <span className="truncate">{t("mediaGroup.missingChip")}</span>
           ) : (
-            <span className="truncate">
-              {title}
-              {countLabel ? ` · ${countLabel}` : null}
-              {meta ? ` · ${layoutLabel(meta.layout, locale)}` : null}
+            <span className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-1">
+              <span className="truncate font-medium">{displayName}</span>
+              <span className="truncate text-[11px] opacity-80 sm:text-xs">
+                {countLabel ? `${countLabel}` : null}
+                {meta ? ` · ${layoutLabel(meta.layout, locale)}` : null}
+                <span className="font-mono"> · #{idHint}</span>
+              </span>
             </span>
           )}
         </button>

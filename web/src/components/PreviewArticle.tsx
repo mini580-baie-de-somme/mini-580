@@ -94,10 +94,10 @@ export function PreviewArticle({
         content={body}
         locale={lang}
         mediaGroups={mediaPage?.mediaGroups}
-        manifestIndexByGroupId={manifestIndexByGroupId}
-        onOpenMediaGroup={(groupId) =>
-          slideshow.openAtGroup(groupId, manifestIndexByGroupId)
-        }
+        onOpenMediaGroup={(groupId) => {
+          const groups = mediaPage?.mediaGroups ?? {};
+          slideshow.openAtGroup(groupId, groups, manifestIndexByGroupId);
+        }}
       />
 
       {manifest.length > 0 && (
@@ -160,7 +160,7 @@ export function PreviewArticle({
       )}
 
       <MediaSlideshow
-        items={manifest}
+        items={slideshow.scopeItems ?? manifest}
         open={slideshow.open}
         initialIndex={slideshow.initialIndex}
         initialAutoPlay={slideshow.initialAutoPlay}

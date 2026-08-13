@@ -7,6 +7,7 @@ import { EditorSheetPanel } from "./EditorSheetPanel";
 import { MediaKindThumb } from "./MediaKindThumb";
 import { useLocale } from "./LocaleProvider";
 import type { MediaKindClient } from "@/lib/media-file-client";
+import { dispatchMediaGroupUpdated } from "@/lib/media-group-display";
 
 type MediaGroupLayout = "GRID" | "ROW" | "SINGLE";
 
@@ -191,6 +192,7 @@ export function MediaGroupEditor({ groupId, onClose, onSaved }: Props) {
         setForm(synced);
       }
       setSaveState("saved");
+      dispatchMediaGroupUpdated(groupId);
       onSavedRef.current?.();
     } catch (e) {
       if (gen !== saveGenRef.current) return;
