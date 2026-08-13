@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { prepareArticleMediaPageData } from "@/lib/article-media-page";
 import { postInclude, withLegacyImages } from "@/lib/posts";
 import { PreviewArticle } from "@/components/PreviewArticle";
 
@@ -23,6 +24,13 @@ export default async function ApercuPage({ params }: PageProps) {
   if (!post) notFound();
 
   const legacy = withLegacyImages(post);
+  const mediaPage = await prepareArticleMediaPageData({
+    id: post.id,
+    coverImageUrl: post.coverImageUrl,
+    bodyFr: post.bodyFr,
+    bodyEn: post.bodyEn,
+    mediaLinks: post.mediaLinks,
+  });
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
@@ -31,6 +39,7 @@ export default async function ApercuPage({ params }: PageProps) {
           ...legacy,
           publishedAt: legacy.publishedAt?.toISOString() ?? null,
         }}
+        mediaPage={mediaPage}
       />
     </div>
   );

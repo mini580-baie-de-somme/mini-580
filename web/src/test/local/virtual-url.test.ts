@@ -4,11 +4,14 @@ import {
   closeVirtualUrl,
   parseGalleryViewState,
   parseMediaEditState,
+  parseMediaGroupEditState,
   parsePhotoModalState,
   serializeGalleryViewState,
   serializeMediaEditState,
+  serializeMediaGroupEditState,
   serializePhotoModalState,
   VIRTUAL_PARAM_COVER,
+  VIRTUAL_PARAM_GROUP,
   VIRTUAL_PARAM_LIBRARY,
   VIRTUAL_PARAM_MEDIA,
   VIRTUAL_PARAM_PHOTO,
@@ -70,6 +73,18 @@ describe("parseMediaEditState / serializeMediaEditState", () => {
     expect(parseMediaEditState(`${VIRTUAL_PARAM_MEDIA}=m-42`)).toBe("m-42");
     expect(serializeMediaEditState("new")).toEqual({ media: "new" });
     expect(serializeMediaEditState(null)).toEqual({ media: null });
+  });
+});
+
+describe("parseMediaGroupEditState / serializeMediaGroupEditState", () => {
+  it("returns null when group param absent", () => {
+    expect(parseMediaGroupEditState("")).toBeNull();
+  });
+
+  it("round-trips group id", () => {
+    expect(parseMediaGroupEditState(`${VIRTUAL_PARAM_GROUP}=grp-1`)).toBe("grp-1");
+    expect(serializeMediaGroupEditState("grp-1")).toEqual({ group: "grp-1" });
+    expect(serializeMediaGroupEditState(null)).toEqual({ group: null });
   });
 });
 

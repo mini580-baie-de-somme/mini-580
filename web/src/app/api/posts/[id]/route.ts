@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
 import { validatePlatformAuthorId } from "@/lib/editors";
 import { postInclude, uniqueSlug, syncPostRelations, serializePostForApi } from "@/lib/posts";
+import { recordSlugChange } from "@/lib/slug-history";
 import { optionalNullableDateTime } from "@/lib/date-schema";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -67,6 +68,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       data.titleFr.trim()
     ) {
       slug = await uniqueSlug(data.titleFr, id);
+    }
+
+    if (slug !== existing.slug && existing.slug) {
+      await recordSlugChange("post", id, existing.slug, slug);
     }
 
     let authorId: string | undefined;

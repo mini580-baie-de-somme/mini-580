@@ -1,0 +1,53 @@
+import { describe, expect, it } from "vitest";
+import { parseArticleBodySegments } from "@/lib/article-body-segments";
+import { mediaGroupPlaceholder } from "@/lib/media-group-token";
+
+describe("parseArticleBodySegments", () => {
+  it("returns single text segment when no placeholders", () => {
+    expect(parseArticleBodySegments("Hello **world**")).toEqual([
+      { type: "text", content: "Hello **world**" },
+    ]);
+  });
+
+  it("splits text and media-group placeholders in document order", () => {
+    const groupA = "clgroupaaa111";
+    const groupB = "clgroupbbb222";
+    const body = [
+      "Intro paragraph.",
+      "",
+      mediaGroupPlaceholder(groupA),
+      "",
+      "Middle text.",
+      "",
+      mediaGroupPlaceholder(groupB),
+      "",
+      "Outro.",
+    ].join("\n");
+
+    const segments = parseArticleBodySegments(body);
+    expect(segments).toEqual([
+      { type: "text", content: "Intro paragraph.\n\n" },
+      { type: "media-group", groupId: groupA },
+      { type: "text", content: "\n\nMiddle text.\n\n" },
+      { type: "media-group", groupId: groupB },
+      { type: "text", content: "\n\nOutro." },
+    ]);
+  });
+
+  it("handles FR and EN bodies with different group positions", () => {
+    const g1 = "grp001";
+    const g2 = "grp002";
+    const bodyFr = `Fr intro\n${mediaGroupPlaceholder(g1)}\nFr outro`;
+    const bodyEn = `${mediaGroupPlaceholder(g2)}\nEn intro`;
+
+    expect(parseArticleBodySegments(bodyFr).map((s) => s.type)).toEqual([
+      "text",
+      "media-group",
+      "text",
+    ]);
+    expect(parseArticleBodySegments(bodyEn).map((s) => s.type)).toEqual([
+      "media-group",
+      "text",
+    ]);
+  });
+});

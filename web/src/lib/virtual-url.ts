@@ -4,6 +4,7 @@ export const VIRTUAL_PARAM_PHOTO = "photo";
 export const VIRTUAL_PARAM_COVER = "cover";
 export const VIRTUAL_PARAM_LIBRARY = "library";
 export const VIRTUAL_PARAM_MEDIA = "media";
+export const VIRTUAL_PARAM_GROUP = "group";
 export const VIRTUAL_PARAM_VIEW = "view";
 
 export const PHOTO_MODAL_PARAM_KEYS = [
@@ -13,6 +14,8 @@ export const PHOTO_MODAL_PARAM_KEYS = [
 ] as const;
 
 export const MEDIA_EDIT_PARAM_KEYS = [VIRTUAL_PARAM_MEDIA] as const;
+
+export const MEDIA_GROUP_PARAM_KEYS = [VIRTUAL_PARAM_GROUP] as const;
 
 export const GALLERY_VIEW_PARAM_KEYS = [VIRTUAL_PARAM_VIEW] as const;
 
@@ -111,6 +114,17 @@ export function serializeMediaEditState(
   editingId: string | null
 ): Record<string, string | null> {
   return { [VIRTUAL_PARAM_MEDIA]: editingId };
+}
+
+/** Parse media-group editor overlay (`group=<id>`). */
+export function parseMediaGroupEditState(input: SearchParamsInput): string | null {
+  return toSearchParams(input).get(VIRTUAL_PARAM_GROUP);
+}
+
+export function serializeMediaGroupEditState(
+  editingId: string | null
+): Record<string, string | null> {
+  return { [VIRTUAL_PARAM_GROUP]: editingId };
 }
 
 /** Parse public gallery slideshow (`view=<photoId>`). */

@@ -3,13 +3,16 @@
 import type { Editor } from "@tiptap/react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
 import {
   ARTICLE_MARKDOWN_HELP,
   htmlToMarkdown,
   markdownToHtml,
 } from "@/lib/article-markdown";
+import { mediaGroupPlaceholder } from "@/lib/media-group-token";
+import { MediaGroupBlock } from "@/lib/tiptap/media-group-block";
 import { ArticleBody } from "./ArticleBody";
+import { MediaGroupPicker } from "./MediaGroupPicker";
 
 type BodyEditorMode = "markdown" | "visual";
 
@@ -18,14 +21,17 @@ type Props = {
   onChange: (value: string) => void;
   placeholder: string;
   lang: "fr" | "en";
+  onEditGroup?: (groupId: string) => void;
 };
 
 function VisualToolbar({
   editor,
   lang,
+  onInsertGroup,
 }: {
   editor: Editor | null;
   lang: "fr" | "en";
+  onInsertGroup: () => void;
 }) {
   if (!editor) return null;
 
@@ -77,6 +83,15 @@ function VisualToolbar({
       >
         1.
       </button>
+      <span className="mx-1 w-px self-stretch bg-[#d4dde6]" aria-hidden />
+      <button
+        type="button"
+        className="rounded border border-[#495867] bg-white px-2 py-1 text-xs text-[#495867] hover:bg-[#495867] hover:text-white"
+        onClick={onInsertGroup}
+        title={lang === "fr" ? "Insérer un groupe" : "Insert group"}
+      >
+        📷 {lang === "fr" ? "Groupe" : "Group"}
+      </button>
     </div>
   );
 }
@@ -85,10 +100,18 @@ function VisualEditorPane({
   markdown,
   onMarkdownChange,
   lang,
+  onEditGroup,
+  pickerOpen,
+  onPickerOpenChange,
+  pendingInsertRef,
 }: {
   markdown: string;
   onMarkdownChange: (md: string) => void;
   lang: "fr" | "en";
+  onEditGroup?: (groupId: string) => void;
+  pickerOpen: boolean;
+  onPickerOpenChange: (open: boolean) => void;
+  pendingInsertRef: MutableRefObject<((groupId: string) => void) | null>;
 }) {
   const syncingRef = useRef(false);
   const lastExternalRef = useRef(markdown);
@@ -97,6 +120,9 @@ function VisualEditorPane({
     extensions: [
       StarterKit.configure({
         heading: { levels: [2, 3] },
+      }),
+      MediaGroupBlock.configure({
+        onEditGroup,
       }),
     ],
     content: markdownToHtml(markdown),
@@ -115,6 +141,16 @@ function VisualEditorPane({
 
   useEffect(() => {
     if (!editor) return;
+    pendingInsertRef.current = (groupId: string) => {
+      editor.chain().focus().insertMediaGroup(groupId).run();
+    };
+    return () => {
+      pendingInsertRef.current = null;
+    };
+  }, [editor, pendingInsertRef]);
+
+  useEffect(() => {
+    if (!editor) return;
     if (markdown === lastExternalRef.current) return;
     lastExternalRef.current = markdown;
     syncingRef.current = true;
@@ -123,17 +159,37 @@ function VisualEditorPane({
   }, [editor, markdown]);
 
   return (
-    <div className="overflow-hidden rounded-md border border-[#d4dde6] bg-white">
-      <VisualToolbar editor={editor} lang={lang} />
-      <EditorContent editor={editor} />
-    </div>
+    <>
+      <div className="overflow-hidden rounded-md border border-[#d4dde6] bg-white">
+        <VisualToolbar
+          editor={editor}
+          lang={lang}
+          onInsertGroup={() => onPickerOpenChange(true)}
+        />
+        <EditorContent editor={editor} />
+      </div>
+      <MediaGroupPicker
+        open={pickerOpen}
+        onClose={() => onPickerOpenChange(false)}
+        onSelect={(groupId) => pendingInsertRef.current?.(groupId)}
+      />
+    </>
   );
 }
 
-export function ArticleBodyEditor({ value, onChange, placeholder, lang }: Props) {
+export function ArticleBodyEditor({
+  value,
+  onChange,
+  placeholder,
+  lang,
+  onEditGroup,
+}: Props) {
   const [mode, setMode] = useState<BodyEditorMode>("markdown");
   const [showPreview, setShowPreview] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const visualSnapshotRef = useRef(value);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const pendingInsertRef = useRef<((groupId: string) => void) | null>(null);
 
   const switchMode = useCallback(
     (next: BodyEditorMode) => {
@@ -154,6 +210,38 @@ export function ArticleBodyEditor({ value, onChange, placeholder, lang }: Props)
       onChange(md);
     },
     [onChange]
+  );
+
+  const insertGroupInMarkdown = useCallback(
+    (groupId: string) => {
+      const token = `\n\n${mediaGroupPlaceholder(groupId)}\n\n`;
+      const el = textareaRef.current;
+      if (!el) {
+        onChange(`${value.trim()}${token}`.trim());
+        return;
+      }
+      const start = el.selectionStart ?? value.length;
+      const end = el.selectionEnd ?? value.length;
+      const next = `${value.slice(0, start)}${token}${value.slice(end)}`;
+      onChange(next);
+      requestAnimationFrame(() => {
+        const pos = start + token.length;
+        el.focus();
+        el.setSelectionRange(pos, pos);
+      });
+    },
+    [onChange, value]
+  );
+
+  const handlePickerSelect = useCallback(
+    (groupId: string) => {
+      if (mode === "visual") {
+        pendingInsertRef.current?.(groupId);
+      } else {
+        insertGroupInMarkdown(groupId);
+      }
+    },
+    [insertGroupInMarkdown, mode]
   );
 
   const helpItems = ARTICLE_MARKDOWN_HELP[lang];
@@ -185,21 +273,30 @@ export function ArticleBodyEditor({ value, onChange, placeholder, lang }: Props)
             {lang === "fr" ? "Visuel" : "Visual"}
           </button>
         </div>
-        {mode === "markdown" && (
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => setShowPreview((v) => !v)}
-            className="text-xs text-[#495867] underline hover:no-underline"
+            onClick={() => setPickerOpen(true)}
+            className="rounded border border-[#495867] bg-white px-2 py-1 text-xs text-[#495867] hover:bg-[#495867] hover:text-white"
           >
-            {showPreview
-              ? lang === "fr"
-                ? "Masquer l’aperçu"
-                : "Hide preview"
-              : lang === "fr"
-                ? "Aperçu rendu"
-                : "Rendered preview"}
+            📷 {lang === "fr" ? "Insérer un groupe" : "Insert group"}
           </button>
-        )}
+          {mode === "markdown" && (
+            <button
+              type="button"
+              onClick={() => setShowPreview((v) => !v)}
+              className="text-xs text-[#495867] underline hover:no-underline"
+            >
+              {showPreview
+                ? lang === "fr"
+                  ? "Masquer l’aperçu"
+                  : "Hide preview"
+                : lang === "fr"
+                  ? "Aperçu rendu"
+                  : "Rendered preview"}
+            </button>
+          )}
+        </div>
       </div>
 
       {mode === "markdown" ? (
@@ -217,9 +314,15 @@ export function ArticleBodyEditor({ value, onChange, placeholder, lang }: Props)
                   {line.includes(" — ") ? ` — ${line.split(" — ").slice(1).join(" — ")}` : null}
                 </li>
               ))}
+              <li>
+                {lang === "fr"
+                  ? "Groupes de médias — via le bouton « Insérer un groupe » uniquement"
+                  : "Media groups — use “Insert group” button only"}
+              </li>
             </ul>
           </details>
           <textarea
+            ref={textareaRef}
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}
@@ -231,15 +334,24 @@ export function ArticleBodyEditor({ value, onChange, placeholder, lang }: Props)
               <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[#495867]/70">
                 {lang === "fr" ? "Aperçu public" : "Public preview"}
               </p>
-              <ArticleBody content={value} />
+              <ArticleBody content={value} locale={lang} />
             </div>
           )}
+          <MediaGroupPicker
+            open={pickerOpen}
+            onClose={() => setPickerOpen(false)}
+            onSelect={handlePickerSelect}
+          />
         </>
       ) : (
         <VisualEditorPane
           markdown={value}
           onMarkdownChange={handleVisualChange}
           lang={lang}
+          onEditGroup={onEditGroup}
+          pickerOpen={pickerOpen}
+          onPickerOpenChange={setPickerOpen}
+          pendingInsertRef={pendingInsertRef}
         />
       )}
     </div>

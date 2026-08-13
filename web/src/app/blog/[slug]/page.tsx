@@ -1,7 +1,9 @@
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { findRelatedPosts, postInclude, withLegacyImages } from "@/lib/posts";
+import { prepareArticleMediaPageData } from "@/lib/article-media-page";
 import { ArticleView } from "@/components/ArticleView";
+import { resolveSlugRedirect } from "@/lib/slug-history";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -9,8 +11,10 @@ type PageProps = {
 
 export async function generateMetadata({ params }: PageProps) {
   const { slug } = await params;
+  const resolved = await resolveSlugRedirect("post", slug);
+  const canonicalSlug = resolved?.canonicalSlug ?? slug;
   const post = await prisma.post.findFirst({
-    where: { slug, status: "PUBLISHED" },
+    where: { slug: canonicalSlug, status: "PUBLISHED" },
   });
   if (!post) return { title: "Article" };
   return {
@@ -21,20 +25,35 @@ export async function generateMetadata({ params }: PageProps) {
 
 export default async function BlogPostPage({ params }: PageProps) {
   const { slug } = await params;
+  const resolved = await resolveSlugRedirect("post", slug);
+  if (!resolved) notFound();
+
+  if (resolved.redirectPath) {
+    permanentRedirect(resolved.redirectPath);
+  }
+
   const post = await prisma.post.findFirst({
-    where: { slug, status: "PUBLISHED" },
+    where: { slug: resolved.canonicalSlug, status: "PUBLISHED" },
     include: postInclude,
   });
 
   if (!post) notFound();
 
   const relatedPosts = await findRelatedPosts(post, 3);
+  const mediaPage = await prepareArticleMediaPageData({
+    id: post.id,
+    coverImageUrl: post.coverImageUrl,
+    bodyFr: post.bodyFr,
+    bodyEn: post.bodyEn,
+    mediaLinks: post.mediaLinks,
+  });
 
   return (
     <div className="px-4 py-12 sm:px-6">
       <ArticleView
         post={withLegacyImages(post)}
         relatedPosts={relatedPosts}
+        mediaPage={mediaPage}
       />
     </div>
   );

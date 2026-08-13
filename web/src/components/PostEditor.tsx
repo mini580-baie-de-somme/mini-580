@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { HullId } from "@/lib/types";
 import { ArticleBodyEditor } from "./ArticleBodyEditor";
 import { LangToggle } from "./LangToggle";
+import { MediaGroupEditor } from "./MediaGroupEditor";
 import { PostGalleryEditor } from "./PostGalleryEditor";
 import { useLocale } from "./LocaleProvider";
 import type { GalleryEditorImage } from "@/lib/gallery-editor";
@@ -13,7 +14,14 @@ import {
   fromDatetimeLocalValue,
   toDatetimeLocalValue,
 } from "@/lib/utils";
-import { parsePhotoModalState } from "@/lib/virtual-url";
+import { useVirtualUrl } from "@/hooks/useVirtualUrl";
+import {
+  MEDIA_EDIT_PARAM_KEYS,
+  MEDIA_GROUP_PARAM_KEYS,
+  parseMediaGroupEditState,
+  parsePhotoModalState,
+  serializeMediaGroupEditState,
+} from "@/lib/virtual-url";
 
 type Tag = { id: string; name: string; labelFr: string; labelEn: string };
 type Theme = { id: string; slug: string; labelFr: string; labelEn: string };
@@ -64,9 +72,26 @@ export function PostEditor({
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { pushVirtual, closeVirtual, markOpenedViaPush } = useVirtualUrl();
   const photoModalOpen =
     parsePhotoModalState(searchParams).kind !== "closed";
+  const editingGroupId = parseMediaGroupEditState(searchParams);
   const { locale, t } = useLocale();
+
+  const openGroupEdit = useCallback(
+    (groupId: string) => {
+      pushVirtual(
+        serializeMediaGroupEditState(groupId),
+        [...MEDIA_GROUP_PARAM_KEYS, ...MEDIA_EDIT_PARAM_KEYS]
+      );
+      markOpenedViaPush();
+    },
+    [markOpenedViaPush, pushVirtual]
+  );
+
+  const cancelGroupEdit = useCallback(() => {
+    closeVirtual(MEDIA_GROUP_PARAM_KEYS);
+  }, [closeVirtual]);
   const [lang, setLang] = useState<"fr" | "en">("fr");
   const [form, setForm] = useState({
     titleFr: post.titleFr,
@@ -442,6 +467,7 @@ export function PostEditor({
             )
           }
           placeholder={lang === "fr" ? "Contenu (FR)" : "Content (EN)"}
+          onEditGroup={openGroupEdit}
         />
         <PostGalleryEditor
           postId={post.id}
@@ -565,6 +591,13 @@ export function PostEditor({
           {t("editor.delete")}
         </button>
       </div>
+
+      {editingGroupId && (
+        <MediaGroupEditor
+          groupId={editingGroupId}
+          onClose={cancelGroupEdit}
+        />
+      )}
     </div>
   );
 }

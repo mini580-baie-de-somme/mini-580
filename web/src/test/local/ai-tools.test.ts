@@ -50,6 +50,7 @@ describe("API integration — IA tools full capacity (Bearer)", () => {
       "posts",
       "photos",
       "media",
+      "media_groups",
       "tags",
       "themes",
       "milestones",
@@ -362,5 +363,27 @@ describe("API integration — IA tools full capacity (Bearer)", () => {
     const update = AI_TOOLS.find((t) => t.name === "posts.update");
     expect(update?.description).toMatch(/Markdown/i);
     expect(update?.description).toMatch(/bodyFr\/bodyEn/i);
+  });
+
+  it("media_groups tools cover CRUD, members, and insert placeholder", () => {
+    const names = aiToolsByCategory("media_groups").map((t) => t.name);
+    for (const name of [
+      "media_groups.list",
+      "media_groups.get",
+      "media_groups.create",
+      "media_groups.update",
+      "media_groups.delete",
+      "media_groups.references",
+      "media_groups.add_media",
+      "media_groups.remove_media",
+      "media_groups.reorder",
+    ]) {
+      expect(names).toContain(name);
+    }
+    const insert = AI_TOOLS.find((t) => t.name === "posts.insert_media_group");
+    expect(insert?.path).toBe("/api/posts/:id/insert-media-group");
+    expect(insert?.description).toMatch(/never paste/i);
+    const manifest = AI_TOOLS.find((t) => t.name === "posts.media_manifest");
+    expect(manifest?.path).toBe("/api/posts/:id/media-manifest");
   });
 });

@@ -80,9 +80,15 @@ async function rememberActiveIds(
     toolName === "posts.update" ||
     toolName === "posts.publish" ||
     toolName === "posts.archive" ||
-    toolName === "posts.delete"
+    toolName === "posts.delete" ||
+    toolName === "posts.insert_media_group"
   ) {
     if (params?.id) patch.activePostId = params.id;
+  } else if (
+    toolName === "media_groups.create"
+  ) {
+    const groupId = idFromData(data);
+    if (groupId) patch.activeMediaId = groupId;
   } else if (toolName === "photos.upload" || toolName === "media.attach" || toolName === "media.create") {
     if (params?.id) patch.activePostId = params.id;
     const mediaId = idFromData(data);
@@ -251,17 +257,19 @@ Tu aides les comptes autorisés à :
 - créer / modifier / publier / archiver / supprimer : articles, médias, jalons, thèmes, tags
 - gérer la médiathèque indépendante (IMAGE|DOCUMENT|VIDEO) : media.create, media.update, media.delete
 - associer/détacher des médias à 0–N articles : media.attach, media.detach, media.reorder, media.set_cover
+- **groupes de médias inline** : media_groups_* (CRUD médiathèque, ordre membres) + posts_insert_media_group (insertion assistée dans le corps — jamais coller {{media-group:…}} à la main)
 - partager des liens de prévisualisation (preview_create)
 - mémoriser des règles et connaissances importantes entre sessions (agent_memory_*)
 
 Règles :
-- Utilise les tools HTTP (posts_*, media_*, tags_*, themes_*, milestones_*, agent_memory_*, gallery_list, translate, preview_create). photos_* restent disponibles (compat).
+- Utilise les tools HTTP (posts_*, media_*, media_groups_*, tags_*, themes_*, milestones_*, agent_memory_*, gallery_list, translate, preview_create). photos_* restent disponibles (compat).
 - Réponds en français, concis, adapté à Telegram (Markdown simple).
 - Mémoire long terme : au bootstrap tu reçois les règles actives ; ensuite utilise agent_memory_list / create / update / delete. Ne jamais mentionner les id techniques à l'utilisateur (utilise le titre).
 - Avant de publier ou supprimer, confirme clairement avec l'utilisateur.
 - Créer un article : posts_create puis réutilise son id pour patchs et media.attach.
 - Médias Telegram (/media/...) : media.create puis media.attach, ou photos_upload (compat).
 - media.detach enlève le lien article ; media.delete supprime de la médiathèque (force=1 si lié).
+- **Groupes de médias** : workflow médiathèque → media_groups_create + add_media/reorder → posts_insert_media_group sur le brouillon actif. Les médias d'un groupe inline n'ont pas besoin de media.attach pour apparaître sur l'article public (manifeste unifié). Avant media_groups_delete : media_groups_references ou media_groups_get pour vérifier les articles liés (409 si encore référencé).
 - Ne invente pas d'IDs : utilise le contexte actif, ou liste d'abord.
 - SITE_URL est dans le contexte ; aperçus /apercu/t/{token}.
 `;

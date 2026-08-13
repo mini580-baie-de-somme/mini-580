@@ -9,7 +9,7 @@ Règles UI obligatoires pour **toutes** les listes CRUD de l’espace éditeur :
 - Table HTML réelle : un `<th>` / `<td>` par colonne (pas de `colSpan` + grille CSS pour simuler les colonnes)
 - Colonnes secondaires masquées en responsive (`hidden sm:table-cell` / `md:table-cell`) de façon **identique** entre en-tête et cellules
 - Formulaires de création / édition inline au-dessus de la liste (tags, thèmes, jalons, galerie) ou page dédiée (articles)
-- Modules : Articles, **Galerie (médiathèque)**, Jalons, Thématiques, Tags, Sync
+- Modules : Articles, **Galerie (médiathèque + groupes intégrés Phase 1d)**, Jalons, Thématiques, Tags, Sync
 - i18n FR/EN via `web/src/lib/i18n.ts`
 
 ## Médiathèque (`/editeur/galerie`)
@@ -27,6 +27,27 @@ Règles UI obligatoires pour **toutes** les listes CRUD de l’espace éditeur :
 - Bandeau pictos : **wrap** (`flex-wrap`) — pas de scroll horizontal page (~5+ pictos)
 - Boutons réordonnancement ← → : touch target **36px**
 - Modales photo/couverture : URLs virtuelles `?photo=`, `?cover=`, `?library=` — voir doc 12
+- **Phase 1d** : le bandeau éditeur continue de gérer les **standalone** `PostMedia` ; les médias des groupes inline peuvent être absents du bandeau (affichés via chip dans le corps)
+
+## Groupes de médias (Phase 1d — `docs/13-article-image-groups.md`)
+
+- Entité **`MediaGroup`** indépendante (médiathèque) — M:N avec `Media`, référencée dans `bodyFr`/`bodyEn` via token assisté
+- **Pas d’onglet / route dédiée** — groupes gérés **dans** `/editeur/galerie` :
+  - **Chips** sur chaque ligne média (appartenance M:N, clic → édition groupe)
+  - **Filtre par groupe** dans le panneau Filtres (`EditorFilterGroup`)
+  - **Bouton « Nouveau groupe »** dans la toolbar médiathèque
+- **Éditeur groupe** : modal fullscreen · URL virtuelle `?group=<id>` · drag ordre membres · titres FR/EN
+- **Corps d’article (TipTap)** : bloc atomique non éditable (chip « 📷 Titre · N médias ») — l’utilisateur **ne tape jamais** le token `{{media-group:…}}`
+- Toolbar corps : bouton **« Insérer un groupe »** → picker + création rapide
+- Suppression groupe : disabled si référencé dans ≥1 article (tooltip + lien articles)
+- Fiche média : section « Groupes » listant les appartenances M:N
+
+### Public / preview — mosaïque inline + galerie unifiée
+
+- **`InlineMediaGroup`** : mini mosaïque selon count (1 full · 2 côte à côte · 3 asymétrique · 4+ grille 2×2 + badge « +N »)
+- Clic mosaïque → **`MediaSlideshow`** existant (pas de second lightbox) à l’index du manifeste global
+- **Bandeau bas d’article + diaporama** : alimentés par le **manifeste unifié** (couverture → groupes inline ordre body → standalone `PostMedia`), pas `PostMedia` seul
+- Spec algorithmique : `docs/13-article-image-groups.md` § Manifeste médias unifié
 
 ## Règles listes (obligatoires)
 

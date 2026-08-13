@@ -15,6 +15,7 @@ export type AiToolDef = {
     | "posts"
     | "photos"
     | "media"
+    | "media_groups"
     | "tags"
     | "themes"
     | "milestones"
@@ -88,6 +89,103 @@ export const AI_TOOLS: AiToolDef[] = [
     auth: "bearer_or_session",
     category: "posts",
   },
+  {
+    name: "posts.insert_media_group",
+    description:
+      "Insert a media group placeholder into post bodyFr/bodyEn — never paste {{media-group:…}} manually. Body: { groupId, lang?: fr|en|both (default both), position?: end|start (default end) }. Group media appear inline on the public article without media.attach.",
+    method: "POST",
+    path: "/api/posts/:id/insert-media-group",
+    auth: "bearer_or_session",
+    category: "posts",
+  },
+  {
+    name: "posts.media_manifest",
+    description:
+      "Unified article media manifest (cover → inline groups in body order → standalone attachments). Query: locale=fr|en.",
+    method: "GET",
+    path: "/api/posts/:id/media-manifest",
+    auth: "public",
+    category: "posts",
+  },
+
+  // Media groups (médiathèque — independent of posts)
+  {
+    name: "media_groups.list",
+    description:
+      "List media groups (paginated). Query: q, limit, offset. Returns { items, total, totalAll } when paginated.",
+    method: "GET",
+    path: "/api/media-groups",
+    auth: "bearer_or_session",
+    category: "media_groups",
+  },
+  {
+    name: "media_groups.get",
+    description:
+      "Get media group detail: ordered members, layout (GRID|ROW|SINGLE), referencedByPostIds.",
+    method: "GET",
+    path: "/api/media-groups/:id",
+    auth: "bearer_or_session",
+    category: "media_groups",
+  },
+  {
+    name: "media_groups.create",
+    description:
+      "Create media group in library. Body: { titleFr?, titleEn?, layout?: GRID|ROW|SINGLE, mediaIds?: string[] }.",
+    method: "POST",
+    path: "/api/media-groups",
+    auth: "bearer_or_session",
+    category: "media_groups",
+  },
+  {
+    name: "media_groups.update",
+    description:
+      "Patch group meta and/or replace ordered members. Body: { titleFr?, titleEn?, layout?, slug?, mediaIds?: string[] }.",
+    method: "PATCH",
+    path: "/api/media-groups/:id",
+    auth: "bearer_or_session",
+    category: "media_groups",
+  },
+  {
+    name: "media_groups.delete",
+    description:
+      "Delete group if not referenced in any article body. Returns 409 + referencedByPosts if still used.",
+    method: "DELETE",
+    path: "/api/media-groups/:id",
+    auth: "bearer_or_session",
+    category: "media_groups",
+  },
+  {
+    name: "media_groups.references",
+    description: "List posts whose bodyFr/bodyEn contain this group's inline placeholder.",
+    method: "GET",
+    path: "/api/media-groups/:id/references",
+    auth: "bearer_or_session",
+    category: "media_groups",
+  },
+  {
+    name: "media_groups.add_media",
+    description: "Add one media to group at end. Body: { mediaId }.",
+    method: "POST",
+    path: "/api/media-groups/:id/members",
+    auth: "bearer_or_session",
+    category: "media_groups",
+  },
+  {
+    name: "media_groups.remove_media",
+    description: "Remove media from group (does not delete library item). params: id=groupId, mediaId.",
+    method: "DELETE",
+    path: "/api/media-groups/:id/members/:mediaId",
+    auth: "bearer_or_session",
+    category: "media_groups",
+  },
+  {
+    name: "media_groups.reorder",
+    description: "Reorder group members. Body: { mediaIds: string[] } — must match current members exactly.",
+    method: "PUT",
+    path: "/api/media-groups/:id/members/reorder",
+    auth: "bearer_or_session",
+    category: "media_groups",
+  },
 
   // Public gallery + media library + legacy photo aliases
   {
@@ -102,7 +200,7 @@ export const AI_TOOLS: AiToolDef[] = [
   {
     name: "media.list",
     description:
-      "List media library items (paginated). Query: q, kind=IMAGE|DOCUMENT|VIDEO, limit, offset. Returns { items, total, totalAll }. Media are independent of posts (0–N links).",
+      "List media library items (paginated). Query: q, kind=IMAGE|DOCUMENT|VIDEO, groupId (filter by media group), limit, offset. Returns { items, total, totalAll }. Media are independent of posts (0–N links).",
     method: "GET",
     path: "/api/media-library",
     auth: "bearer_or_session",

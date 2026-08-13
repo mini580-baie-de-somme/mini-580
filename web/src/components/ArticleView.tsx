@@ -2,41 +2,19 @@
 
 import Link from "next/link";
 import type { HullId } from "@/lib/types";
+import type { ArticleMediaPageData, ArticleManifestMedia } from "@/lib/article-media-types";
+import { useArticleMediaSlideshow } from "@/lib/article-media-slideshow";
 import { resolveThumbKind } from "@/lib/media-file-client";
 import { ArticleBody } from "./ArticleBody";
 import { GalleryImage } from "./GalleryImage";
 import { BlogTaxonomyLinks } from "./BlogTaxonomyLinks";
 import { HullBadgeList } from "./HullBadge";
 import { MediaKindThumb } from "./MediaKindThumb";
-import { MediaSlideshow, useMediaSlideshow } from "./MediaSlideshow";
+import { MediaSlideshow } from "./MediaSlideshow";
 import { PostCard } from "./PostCard";
 import { useLocale } from "./LocaleProvider";
 
-type ArticleImage = {
-  id?: string;
-  kind?: string | null;
-  mimeType?: string | null;
-  urlOrigin?: string;
-  url?: string;
-  urlMoyenne?: string | null;
-  urlGrande?: string | null;
-  urlPetite?: string | null;
-  urlPicto?: string | null;
-  titleFr?: string;
-  titleEn?: string;
-  descriptionFr?: string;
-  descriptionEn?: string;
-  captionFr?: string;
-  captionEn?: string;
-  focusX?: number;
-  focusY?: number;
-  zoom?: number;
-  rotation?: number;
-  cropX?: number;
-  cropY?: number;
-  cropW?: number;
-  cropH?: number;
-};
+type ArticleImage = ArticleManifestMedia;
 
 type ArticlePost = {
   slug: string;
@@ -107,15 +85,25 @@ function BackArrowIcon({ className }: { className?: string }) {
 export function ArticleView({
   post,
   relatedPosts = [],
+  mediaPage,
 }: {
   post: ArticlePost;
   relatedPosts?: RelatedPost[];
+  mediaPage?: ArticleMediaPageData;
 }) {
   const { locale, t } = useLocale();
-  const slideshow = useMediaSlideshow();
+  const slideshow = useArticleMediaSlideshow();
   const title = locale === "fr" ? post.titleFr : post.titleEn;
   const excerpt = locale === "fr" ? post.excerptFr : post.excerptEn;
   const body = locale === "fr" ? post.bodyFr : post.bodyEn;
+  const manifest =
+    locale === "en"
+      ? mediaPage?.manifestEn ?? post.images
+      : mediaPage?.manifestFr ?? post.images;
+  const manifestIndexByGroupId =
+    locale === "en"
+      ? mediaPage?.manifestIndexByGroupIdEn ?? {}
+      : mediaPage?.manifestIndexByGroupIdFr ?? {};
   const date = post.publishedAt
     ? new Date(post.publishedAt).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-GB", {
         day: "numeric",
@@ -185,15 +173,23 @@ export function ArticleView({
           </div>
         )}
 
-        <ArticleBody content={body} />
+        <ArticleBody
+          content={body}
+          locale={locale}
+          mediaGroups={mediaPage?.mediaGroups}
+          manifestIndexByGroupId={manifestIndexByGroupId}
+          onOpenMediaGroup={(groupId) =>
+            slideshow.openAtGroup(groupId, manifestIndexByGroupId)
+          }
+        />
 
-        {post.images.length > 0 && (
+        {manifest.length > 0 && (
           <section className="mt-10 border-t border-[#d4dde6] pt-8 sm:mt-12 sm:pt-10">
             <div className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-xl font-semibold text-[#0D131A]">
                 {t("article.gallery")}
               </h2>
-              {post.images.length > 1 && (
+              {manifest.length > 1 && (
                 <button
                   type="button"
                   onClick={() => slideshow.startSlideshow(0)}
@@ -204,7 +200,7 @@ export function ArticleView({
               )}
             </div>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6">
-              {post.images.map((img, i) => {
+              {manifest.map((img, i) => {
                 const displayKind = resolveThumbKind(
                   img.kind,
                   img.mimeType,
@@ -252,7 +248,7 @@ export function ArticleView({
         )}
 
         <MediaSlideshow
-          items={post.images}
+          items={manifest}
           open={slideshow.open}
           initialIndex={slideshow.initialIndex}
           initialAutoPlay={slideshow.initialAutoPlay}

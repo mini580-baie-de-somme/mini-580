@@ -3,39 +3,17 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { HullId } from "@/lib/types";
+import type { ArticleMediaPageData, ArticleManifestMedia } from "@/lib/article-media-types";
+import { useArticleMediaSlideshow } from "@/lib/article-media-slideshow";
 import { resolveThumbKind } from "@/lib/media-file-client";
 import { GalleryImage } from "./GalleryImage";
 import { ArticleBody } from "./ArticleBody";
 import { LangToggle } from "./LangToggle";
 import { HullBadgeList } from "./HullBadge";
 import { MediaKindThumb } from "./MediaKindThumb";
-import { MediaSlideshow, useMediaSlideshow } from "./MediaSlideshow";
+import { MediaSlideshow } from "./MediaSlideshow";
 
-type PreviewImage = {
-  id?: string;
-  kind?: string | null;
-  mimeType?: string | null;
-  urlOrigin?: string;
-  url?: string;
-  urlMoyenne?: string | null;
-  urlGrande?: string | null;
-  urlPetite?: string | null;
-  urlPicto?: string | null;
-  titleFr?: string;
-  titleEn?: string;
-  descriptionFr?: string;
-  descriptionEn?: string;
-  captionFr?: string;
-  captionEn?: string;
-  focusX?: number;
-  focusY?: number;
-  zoom?: number;
-  rotation?: number;
-  cropX?: number;
-  cropY?: number;
-  cropW?: number;
-  cropH?: number;
-};
+type PreviewImage = ArticleManifestMedia;
 
 type PreviewPost = {
   id: string;
@@ -67,15 +45,25 @@ function imageSrc(img: PreviewImage): string {
 export function PreviewArticle({
   post,
   showEditorLink = true,
+  mediaPage,
 }: {
   post: PreviewPost;
   showEditorLink?: boolean;
+  mediaPage?: ArticleMediaPageData;
 }) {
   const [lang, setLang] = useState<"fr" | "en">("fr");
-  const slideshow = useMediaSlideshow();
+  const slideshow = useArticleMediaSlideshow();
   const title = lang === "fr" ? post.titleFr : post.titleEn;
   const excerpt = lang === "fr" ? post.excerptFr : post.excerptEn;
   const body = lang === "fr" ? post.bodyFr : post.bodyEn;
+  const manifest =
+    lang === "en"
+      ? mediaPage?.manifestEn ?? post.images
+      : mediaPage?.manifestFr ?? post.images;
+  const manifestIndexByGroupId =
+    lang === "en"
+      ? mediaPage?.manifestIndexByGroupIdEn ?? {}
+      : mediaPage?.manifestIndexByGroupIdFr ?? {};
 
   return (
     <article>
@@ -102,13 +90,21 @@ export function PreviewArticle({
         </div>
       )}
 
-      <ArticleBody content={body} />
+      <ArticleBody
+        content={body}
+        locale={lang}
+        mediaGroups={mediaPage?.mediaGroups}
+        manifestIndexByGroupId={manifestIndexByGroupId}
+        onOpenMediaGroup={(groupId) =>
+          slideshow.openAtGroup(groupId, manifestIndexByGroupId)
+        }
+      />
 
-      {post.images.length > 0 && (
+      {manifest.length > 0 && (
         <section className="mt-10">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-semibold">Médias</h2>
-            {post.images.length > 1 && (
+            {manifest.length > 1 && (
               <button
                 type="button"
                 onClick={() => slideshow.startSlideshow(0)}
@@ -119,7 +115,7 @@ export function PreviewArticle({
             )}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            {post.images.map((img, i) => {
+            {manifest.map((img, i) => {
               const displayKind = resolveThumbKind(
                 img.kind,
                 img.mimeType,
@@ -164,7 +160,7 @@ export function PreviewArticle({
       )}
 
       <MediaSlideshow
-        items={post.images}
+        items={manifest}
         open={slideshow.open}
         initialIndex={slideshow.initialIndex}
         initialAutoPlay={slideshow.initialAutoPlay}

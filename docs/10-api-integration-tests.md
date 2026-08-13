@@ -23,6 +23,7 @@ Couvre :
 - **Clipboard** (`media-clipboard`, blob image uniquement)
 - **Versioning build** (`build-version`, `build-counter.json`)
 - CRUD Tags / Themes / Jalons
+- **Media groups** (`media-groups.test.ts` — CRUD, delete 409, manifest, slug 301, filtre `groupId`, insert placeholder, member mutations)
 - Galerie publique (`/api/gallery` — published only + search)
 - Sync (OTP peer, apply pull, gardes, jobs async 202/409, peer média + checksum)
 - Surface tools IA (catalogue + exercice Bearer)
@@ -118,6 +119,14 @@ Spec complète : **`docs/12-photo-editor-medias.md`**
 - Zoom/rotation pivot **centre crop** (`offsetForScalePivot`)
 - Crop **CIRCLE** : cercle inscrit (pas ellipse CSS)
 - Remplacement originale → reset `DEFAULT_IMAGE_LAYOUT`
+- Canvas = **origin locale** uniquement (`editorCanvasSrc`) — jamais variants
+- Upload : prepare 4096 px max + XHR retry — voir `docs/12-photo-editor-medias.md` § Upload client
+
+### Refresh vignette post-save
+
+- PATCH layout → `rebakePending` si rebake async
+- Poll client `waitForMediaRebakeAfterPatch` — baseline = réponse PATCH
+- Second `onSaved` quand URLs variants tournent ; thumb cache-bust + remount
 
 ### Affichage public
 
@@ -135,3 +144,6 @@ Variants rebakés (pas de double CSS). Galerie / diaporama : ratio 3:4 ou cercle
 | `app-log.test.ts` | Niveaux log |
 | `build-version.test.ts` | Semver + compteur |
 | `photos.test.ts` / `media-library.test.ts` | CRUD + rebake |
+| `fetch-rebake-poll.test.ts` | Poll rebake après PATCH (baseline, urlPetite) |
+| `gallery-editor.test.ts` | `editorCanvasSrc`, `galleryThumbSrc`, cache-bust |
+| `layout-rebake-schedule.test.ts` | Rebake sync vs async |

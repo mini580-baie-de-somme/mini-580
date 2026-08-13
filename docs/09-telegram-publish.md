@@ -18,6 +18,7 @@ Par défaut, Telegram parle à un **agent Cursor** qui appelle les endpoints via
 - compaction auto **après** la réponse Telegram (seuil sur le tour qui vient de finir) quand `lastTurnInputTokens` ≥ 70% de `TELEGRAM_AGENT_CONTEXT_MAX_TOKENS` (défaut 128k) → synthèse stockée + nouveau fil Cursor au message suivant
 - **messages vocaux** : STT via `transcribe-audio.sh` (Whisper local si dispo, sinon OpenAI Whisper API) ; ack texte immédiat « Transcription… » puis agent ; webhook **200 tout de suite** (traitement async, évite timeout Telegram ~60s) ; réponses **texte** ; **+ vocal TTS** (`node-edge-tts`) seulement si le message entrant était vocal (`TELEGRAM_TTS_AUTO=voice`, défaut) ou toujours si `always` — image Docker : copie explicite `node-edge-tts` + deps dans le runtime standalone (`web/Dockerfile`, `outputFileTracingIncludes` webhook)
 - médiathèque indépendante `Media` (IMAGE|DOCUMENT|VIDEO) : `media.*` tools — create/update/delete/attach/detach/reorder/set_cover
+- **groupes de médias** (Phase 1d) : `media_groups.*` — CRUD médiathèque, ordre membres, scan références ; `posts.insert_media_group` injecte le placeholder dans bodyFr/En **sans saisie manuelle** de `{{media-group:…}}` ; médias de groupe **sans** `media.attach` obligatoire — manifeste article unifié côté public (`docs/13-article-image-groups.md`)
 - tools `photos.*` conservés en compat (même modèle sous-jacent)
 - liens d’aperçu `preview.create` → `/apercu/t/{token}`
 - traduction FR→EN (`translate`)
@@ -112,7 +113,7 @@ Chaque `Media` stocke :
 - `urlOrigin` + (IMAGE) formats dérivés `urlPicto` / `urlPetite` / `urlMoyenne` / `urlGrande` — **tous en `/media/...` local**
 - `titleFr/En`, `descriptionFr/En`, `takenAt`
 - Layout IMAGE (`ImageLayoutParams`) : `offsetX/Y`, `scaleX/Y`, `rotation`, `cropShape`, `cropInset`, `backgroundColor` + champs legacy sync (`focusX/Y`, `zoom`, …)
-- liaison articles via `PostMedia` (`sortOrder`, `isCover`) — 0 à N posts
+- liaison articles via `PostMedia` (`sortOrder`, `isCover`) — **standalone attachments** ; groupes inline via body (`docs/13-article-image-groups.md`)
 
 **Intégrité** : édition layout / rebake refusés si origin absente ou URL externe (422). Upload Telegram → bucket local direct. Médias Blogger historiques : re-upload originale requise — voir `docs/12-photo-editor-medias.md`.
 
@@ -125,9 +126,10 @@ Auth : cookie session **ou** `Authorization: Bearer <INGEST_API_KEY>` (optionnel
 | Tool | Méthode |
 |------|---------|
 | Galerie publique | `GET /api/gallery?kind=&hull=&theme=&tag=&milestone=&search=&sort=` |
-| Médiathèque liste | `GET /api/media-library?q=&kind=&limit=&offset=` |
+| Médiathèque liste | `GET /api/media-library?q=&kind=&groupId=&limit=&offset=` |
 | Médiathèque CRUD | `POST/PATCH/DELETE /api/media-library` · `…/:id` · `…/:id/replace` |
 | Médias d’un post | `GET/POST /api/posts/:id/media` |
+| Manifeste médias article (Phase 1d) | `GET /api/posts/:id/media-manifest?locale=fr\|en` — couverture + inline + standalone, ordre unifié |
 | Détacher | `DELETE /api/posts/:id/media/:mediaId` |
 | Réordonner | `PUT /api/posts/:id/media/reorder` `{ mediaIds }` |
 | Couverture | `POST /api/posts/:id/media/:mediaId/cover` |

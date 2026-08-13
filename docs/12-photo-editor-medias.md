@@ -1,8 +1,8 @@
 # Éditeur photo, médiathèque & intégrité stockage
 
-> Spec produit + technique — validée juillet 2026 (v1.2.x)
+> Spec produit + technique — validée juillet 2026 · stabilisée **v1.2.66** (août 2026)
 
-Couvre l’édition layout des images (article, couverture, médiathèque), le rebake des variants, l’intégrité du bucket local, les URLs virtuelles et le logging de debug.
+Couvre l’édition layout des images (article, couverture, médiathèque), le rebake des variants, l’intégrité du bucket local, les URLs virtuelles, le flux upload mobile et le logging de debug.
 
 ## Principes
 
@@ -15,6 +15,10 @@ Couvre l’édition layout des images (article, couverture, médiathèque), le r
 | **Pivot zoom/rotation** | Centre du crop (cadre blanc), pas le centre image. |
 | **Reset au remplacement** | Nouvelle originale → `DEFAULT_IMAGE_LAYOUT` (scale 1, rotation 0, offsets 0). |
 | **Pas de fallback silencieux** | Origin absente → erreur claire + audit UI ; pas de fetch Blogger ni rebake depuis `grande`. |
+| **Canvas = origin uniquement** | `editorCanvasSrc()` — jamais `urlMoyenne` / `urlGrande` (variants déjà croppés et basse résolution). |
+| **Vignettes article = variants** | `galleryThumbSrc()` — picto → petite → moyenne ; **jamais** `urlOrigin`. |
+| **Upload mobile fiable** | Multipart via **XHR** + retry ; compression client avant envoi (max 4096 px). |
+| **Refresh vignette post-save** | Poll rebake async jusqu’à rotation des URLs variants ; baseline = **réponse PATCH** (pas le draft pre-save). |
 
 ## Modèle layout (`ImageLayoutParams`)
 
@@ -175,22 +179,84 @@ Erreur save : bannière avec `detail` + `traceId` serveur (ex. `Origin fetch fai
 
 ## Flux save / rebake
 
+### Nouveau média (« Ajouter un média »)
+
+Tant que le POST ne passe pas, **rien n’est en base** (`draft.id` vide, preview locale `URL.createObjectURL`).
+
+1. **Prepare** — `prepareImageForUpload(pendingFile)` (downscale max 4096 px, JPEG 92 %, skip si &lt; 2 Mo)
+2. **Upload** — `POST /api/posts/:id/media` via `uploadFormDataWithRetry` (XHR, 4 retries, timeout 120 s)
+   - `createMediaFromUpload` → `storeOriginAndVariants` (origin + 4 variants layout default) → insert Prisma
+3. **Patch layout** — `PATCH /api/posts/:id/images/:imageId` avec cadrage
+4. Rebake async si layout modifié → poll client (voir ci-dessous)
+
+Échec upload côté navigateur (`Failed to fetch`) = abort **avant** le serveur — zéro trace nginx ; logs client `[photo-editor-trace]` `save.upload.start` / `save.error`.
+
+### Édition layout (média existant)
+
 1. Client PATCH layout (+ meta) → API
 2. Persist DB (layout + champs legacy sync)
-3. Rebake depuis **origin locale** + layout persisté
-4. Échec rebake → **500** JSON `{ traceId, detail, step }` (plus de faux succès)
-5. Sync `coverImageUrl` / variantes si article couverture
-6. Client conserve layout sauvé (pas de reset au remapping)
+3. Rebake depuis **origin locale** + layout persisté (sync ou async selon `layout-rebake-schedule.ts`)
+4. Réponse PATCH inclut `rebakePending: boolean` + URLs variants **courantes**
+5. Échec rebake → **500** JSON `{ traceId, detail, step }` (plus de faux succès)
+6. Sync `coverImageUrl` / variantes si article couverture
+7. Client ferme la modal + `onSaved(saved)` immédiat avec layout persisté
+8. **Poll rebake** (async, non bloquant) :
+   - Baseline = `mediaVariantSnapshot(patchResponse)` — **pas** le draft pre-save ni les URLs post-upload intermédiaires
+   - `waitForMediaRebakeAfterPatch(mediaId, baseline, { maxMs: 20_000 })`
+   - Détecte rotation sur picto / petite / moyenne / grande
+   - Timeout → `fetchMediaAfterRebakeTimeout` (dernier recours)
+   - Succès → second `onSaved` avec variants à jour + `galleryThumbCacheBust()` pour remount `<img>`
+
+### Remplacement fichier (`POST …/replace`)
+
+- Stocke **origin seule** ; variants mis à `null` (pas de rebake intermédiaire avec l’ancien layout)
+- PATCH suivant rebake avec le layout de la modal
+- Évite le bug « poll s’arrête sur variant intermédiaire au mauvais cadrage »
 
 Routes :  
 - `PATCH /api/posts/:id/images/:imageId`  
 - `PATCH /api/media-library/:id`  
-- `POST …/replace` — remplacement fichier + reset layout
+- `POST /api/media-library/:id/replace` — remplacement origin ; variants rebakés au PATCH layout
 
-## Article — bandeau pictos
+## Upload client (mobile / Chrome)
 
-- Pictos médias : `flex-wrap` (pas de scroll horizontal page)
+Fichiers : `web/src/lib/prepare-upload-image.ts`, `web/src/lib/upload-form-data.ts`, `web/src/lib/fetch-with-network-retry.ts`.
+
+| Étape | Détail |
+|-------|--------|
+| Compression | `ORIGIN_UPLOAD_MAX_DIMENSION = 4096` — rebake Sharp lit ce fichier ; plus de plafond 1600 px mobile |
+| WYSIWYG upload | Preview locale = fichier **après** `prepareImageForUpload` (même bytes que l’envoi) |
+| Transport | **XHR** `uploadFormData` (plus fiable que `fetch`+FormData sur gros multipart mobile) |
+| Retry upload | `uploadFormDataWithRetry` — 4 tentatives, backoff 600 ms × attempt ; FormData reconstruit à chaque essai |
+| Retry PATCH | `fetchWithNetworkRetry` — 4 tentatives |
+| Erreur réseau | `isNetworkFetchError` — `Failed to fetch`, `Load failed`, abort XHR |
+
+**Cause incident août 2026 :** pool connexions Chrome (~6/host) saturé par les `keepalive` autosave article pendant modal ouverte + upload sans retry → abort client, message « Connexion interrompue ».
+
+## Sources d’image éditeur vs vignettes
+
+| Usage | Fonction | Source autorisée |
+|-------|----------|------------------|
+| Canvas édition (move/rotate/crop) | `editorCanvasSrc()` | `localPreviewUrl` (pending) ou `urlOrigin` cache-busté |
+| Panneau latéral preview | idem | **origin uniquement** (depuis v1.2.66) |
+| Vignette bandeau article | `galleryThumbSrc()` | picto → petite → moyenne (+ cache-bust layout) |
+| Affichage public galerie | `GalleryImage` / `imageSrc()` | variants rebakés, pas origin plein cadre |
+
+Refresh origin à l’ouverture modal edit : `GET /api/media-library/[id]` si besoin.
+
+## Article — bandeau pictos & galerie publique (Phase 1d)
+
+**Éditeur** (inchangé v1.2.x) :
+
+- Pictos médias standalone : `flex-wrap` (pas de scroll horizontal page)
 - Boutons réordonnancement ← → agrandis (36px touch target)
+
+**Public / preview** (Phase 1d — `docs/13-article-image-groups.md`) :
+
+- Bandeau bas de page + bouton diaporama alimentés par le **manifeste médias unifié** (plus seulement `PostMedia`)
+- Ordre manifeste : couverture → groupes inline (ordre placeholders dans body locale) → standalone `PostMedia`
+- Dedupe par `mediaId` (première occurrence gagne)
+- Lightbox / diaporama : composant existant **`MediaSlideshow`** — partagé avec mosaïques inline
 
 ## Description site (footer / metadata)
 
@@ -207,8 +273,25 @@ Routes :
 | URLs virtuelles | `web/src/lib/virtual-url.ts` |
 | Logging | `web/src/lib/app-log.ts` |
 | Clipboard | `web/src/lib/media-file-client.ts` |
+| Canvas src / thumbs | `web/src/lib/gallery-editor.ts` |
+| Poll rebake client | `web/src/lib/wait-for-media-rebake.ts` |
+| Upload prepare | `web/src/lib/prepare-upload-image.ts` |
+| Upload XHR + retry | `web/src/lib/upload-form-data.ts` |
+| Fetch retry | `web/src/lib/fetch-with-network-retry.ts` |
+| Schedule rebake async | `web/src/lib/layout-rebake-schedule.ts` |
 | Canvas | `web/src/components/PhotoCanvasEditor.tsx` |
-| Modal | `web/src/components/PhotoEditModal.tsx` |
+| Modal save flow | `web/src/components/PhotoEditModal.tsx` |
+
+## Historique correctifs (v1.2.58 → v1.2.66)
+
+| Version | Problème | Fix |
+|---------|----------|-----|
+| **1.2.58** | Upload mobile abort (`Failed to fetch`) — Chrome + Safari | XHR multipart, retry upload/PATCH, message erreur explicite |
+| **1.2.60** | Vignette article stale après crop | Poll rebake inclut `urlPetite` ; cache-bust thumb ; remount `<img>` |
+| **1.2.61** | Édition sur variant dégradé ; origin mobile 1600 px | `editorCanvasSrc()` origin-only ; upload max 4096 px ; preview WYSIWYG |
+| **1.2.66** | Refresh + résolution toujours KO | Poll baseline = réponse PATCH ; replace sans rebake intermédiaire ; panneau latéral origin |
+
+**Médias legacy :** photos uploadées avant v1.2.61 (origin ~1600 px) ou collage clipboard — **Remplacer le fichier** avec l’original pour regagner la pleine résolution.
 
 ## Checklist nouvelle modale / overlay
 

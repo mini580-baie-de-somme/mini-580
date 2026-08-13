@@ -55,7 +55,7 @@ Phase 2 (VM dédiée) :
 - `status` : DRAFT | PUBLISHED
 - `slug`, `coverImageUrl`, `publishedAt`
 - Relations : hulls (268/269/270), tags, themes, milestone optionnel, images
-- Médias : table `Media` (IMAGE|DOCUMENT|VIDEO) liée M:N aux posts via `PostMedia` ; bucket local + variants IMAGE — voir `docs/07-deploy-cicd.md` et `docs/09-telegram-publish.md`
+- Médias : table `Media` (IMAGE|DOCUMENT|VIDEO) ; liaison posts via `PostMedia` (**standalone attachments** + couverture) ; groupes inline via `MediaGroup` dans le body — manifeste unifié pour affichage public — voir `docs/13-article-image-groups.md`
 
 ### Tag (enrichissable)
 - `slug` unique, `labelFr`, `labelEn`
@@ -66,12 +66,19 @@ Phase 2 (VM dédiée) :
 
 ### Media (médiathèque)
 - Types : `IMAGE` | `DOCUMENT` (PDF) | `VIDEO` (mp4/webm)
-- Indépendant des articles — liaison M:N via `PostMedia` (`sortOrder`, `isCover`)
+- Indépendant des articles — liaison posts via `PostMedia` (`sortOrder`, `isCover`) pour **pièces jointes standalone** et couverture
 - Meta bilingue + transforms (IMAGE) + variants picto/petite/moyenne/grande
 - **Stockage** : bucket local `/media/...` (S3-like) — origin + variants sur disque VPS
 - **Intégrité** : audit `assessMediaIntegrity` — origin locale obligatoire pour édition layout ; badges UI `Local OK` / `Non conforme`
 - Éditeur : `/editeur/galerie` · public : `/galerie` (multi-médias, filtre `kind`)
 - Détail éditeur photo, rebake, clipboard, URLs virtuelles : **`docs/12-photo-editor-medias.md`**
+
+### MediaGroup (Phase 1d — groupes inline)
+- Entité médiathèque indépendante — M:N avec `Media` via `MediaGroupMember` (`sortOrder`)
+- Référencée dans `Post.bodyFr` / `bodyEn` par token assisté `{{media-group:<id>}}`
+- Médias de groupe **non requis** dans `PostMedia` pour l’affichage public
+- **Manifeste article** : algorithme unifié couverture → groupes inline (ordre body) → standalone — bandeau bas + diaporama + indices lightbox
+- Spec complète : **`docs/13-article-image-groups.md`**
 
 ### Milestone (jalon)
 - `titleFr/En`, `descriptionFr/En`, `milestoneDate`, `sortOrder`
@@ -144,7 +151,8 @@ Voir **[Déploiement & CI/CD](07-deploy-cicd.md)** :
 |-------|---------|--------|
 | **1a** | Site public + DB + seed 3 articles + jalons | ✅ Livré |
 | **1b** | Auth + éditeur + autosave + preview + médiathèque + galerie publique + sync TEST↔PROD | ✅ Livré |
-| **1c** | Éditeur photo mobile, intégrité media, rebake strict, URLs virtuelles, CI/CD promotion package | ✅ Livré (v1.2.x) |
+| **1c** | Éditeur photo mobile, intégrité media, rebake strict, URLs virtuelles, CI/CD promotion package | ✅ Livré (**v1.2.66** — upload mobile, refresh vignettes, origin full-res) |
+| **1d** | Groupes inline + manifeste médias unifié + mosaïque + `MediaSlideshow` partagé (médiathèque M:N, slug history SEO, TipTap assisté, tools Telegram) | ✅ **1d-a → 1d-f** — deploy TEST en attente — voir `docs/13-article-image-groups.md` |
 | **2** | VM OpenClaw Class Mini 5.80 Baie de Somme + Telegram publish (production équipe) | En cours |
 | **3** | Google Drive, newsletter, commentaires | À faire |
 

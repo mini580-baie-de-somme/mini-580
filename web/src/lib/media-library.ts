@@ -41,6 +41,19 @@ export const mediaInclude = {
       },
     },
   },
+  groupMembers: {
+    orderBy: { sortOrder: "asc" as const },
+    include: {
+      group: {
+        select: {
+          id: true,
+          slug: true,
+          titleFr: true,
+          titleEn: true,
+        },
+      },
+    },
+  },
 } satisfies Prisma.MediaInclude;
 
 export type MediaWithPosts = Prisma.MediaGetPayload<{ include: typeof mediaInclude }>;
@@ -53,8 +66,12 @@ export function mediaWhere(filters?: {
   q?: string;
   kind?: string;
   visibility?: string;
+  groupId?: string;
 }): Prisma.MediaWhereInput {
   const where: Prisma.MediaWhereInput = {};
+  if (filters?.groupId) {
+    where.groupMembers = { some: { groupId: filters.groupId } };
+  }
   if (filters?.kind && filters.kind !== "ALL") {
     const kind = filters.kind as MediaKind;
     if (Object.values(MediaKind).includes(kind)) {
@@ -89,6 +106,7 @@ export function parseMediaListParams(searchParams: URLSearchParams) {
   const q = searchParams.get("q")?.trim() || undefined;
   const kind = searchParams.get("kind") ?? undefined;
   const visibility = searchParams.get("visibility") ?? undefined;
+  const groupId = searchParams.get("groupId")?.trim() || undefined;
   const limit = Math.min(
     100,
     Math.max(
@@ -98,7 +116,7 @@ export function parseMediaListParams(searchParams: URLSearchParams) {
     )
   );
   const offset = Math.max(0, Number.parseInt(searchParams.get("offset") ?? "0", 10) || 0);
-  return { q, kind, visibility, limit, offset };
+  return { q, kind, visibility, groupId, limit, offset };
 }
 
 /** Shape expected by legacy post image consumers (includes sortOrder from link). */

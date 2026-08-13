@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { prepareArticleMediaPageData } from "@/lib/article-media-page";
 import { postInclude, withLegacyImages } from "@/lib/posts";
 import { PreviewArticle } from "@/components/PreviewArticle";
 
@@ -22,6 +23,13 @@ export default async function SharedPreviewPage({ params }: PageProps) {
   }
 
   const post = withLegacyImages(preview.post);
+  const mediaPage = await prepareArticleMediaPageData({
+    id: preview.post.id,
+    coverImageUrl: preview.post.coverImageUrl,
+    bodyFr: preview.post.bodyFr,
+    bodyEn: preview.post.bodyEn,
+    mediaLinks: preview.post.mediaLinks,
+  });
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
@@ -35,6 +43,7 @@ export default async function SharedPreviewPage({ params }: PageProps) {
           ...post,
           publishedAt: post.publishedAt?.toISOString() ?? null,
         }}
+        mediaPage={mediaPage}
       />
     </div>
   );

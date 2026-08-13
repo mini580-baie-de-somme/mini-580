@@ -31,4 +31,15 @@ describe("article-markdown", () => {
     const html = markdownToHtml(legacy);
     expect(html).toContain("<p");
   });
+
+  it("round-trips media group placeholders through HTML", () => {
+    const md =
+      "Intro paragraph.\n\n{{media-group:clgroup123abc}}\n\nOutro **bold**.";
+    const html = markdownToHtml(md);
+    expect(html).toContain('data-media-group-id="clgroup123abc"');
+    const back = htmlToMarkdown(html);
+    expect(back).toContain("{{media-group:clgroup123abc}}");
+    expect(back).toContain("Intro paragraph");
+    expect(back).toContain("**bold**");
+  });
 });

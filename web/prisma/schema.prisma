@@ -117,6 +117,7 @@ model Post {
   themes        PostTheme[]
   milestones    PostMilestone[]
   mediaLinks    PostMedia[]
+  slugHistory   PostSlugHistory[]
   telegramSessions TelegramPublishSession[]
   previewTokens PreviewToken[]
 }
@@ -191,6 +192,12 @@ enum MediaKind {
   VIDEO
 }
 
+enum MediaGroupLayout {
+  GRID
+  ROW
+  SINGLE
+}
+
 /// Independent media library item (photo, PDF, video) — linkable to 0–N posts.
 model Media {
   id            String      @id @default(cuid())
@@ -227,12 +234,83 @@ model Media {
   cropY         Float       @default(0)
   cropW         Float       @default(1)
   cropH         Float       @default(1)
+  /// URL slug for public gallery routes (optional until set; unique when present)
+  slug          String?     @unique
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   posts         PostMedia[]
+  groupMembers  MediaGroupMember[]
+  slugHistory   MediaSlugHistory[]
 
   @@index([kind])
   @@index([createdAt])
+}
+
+/// Reusable media bundle for inline article blocks (médiathèque — not post-scoped).
+model MediaGroup {
+  id        String           @id @default(cuid())
+  slug      String           @unique
+  titleFr   String           @default("")
+  titleEn   String           @default("")
+  layout    MediaGroupLayout @default(GRID)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  members   MediaGroupMember[]
+  slugHistory MediaGroupSlugHistory[]
+
+  @@index([updatedAt])
+}
+
+/// M:N Media ↔ MediaGroup with explicit member order.
+model MediaGroupMember {
+  groupId   String
+  mediaId   String
+  sortOrder Int        @default(0)
+  group     MediaGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  media     Media      @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, mediaId])
+  @@index([groupId, sortOrder])
+  @@index([mediaId])
+}
+
+/// SEO redirect chain when Post.slug changes.
+model PostSlugHistory {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  oldSlug   String
+  newSlug   String
+  changedAt DateTime @default(now())
+
+  @@index([oldSlug])
+  @@index([postId, changedAt])
+}
+
+/// SEO redirect chain when Media.slug changes.
+model MediaSlugHistory {
+  id        String   @id @default(cuid())
+  mediaId   String
+  media     Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  oldSlug   String
+  newSlug   String
+  changedAt DateTime @default(now())
+
+  @@index([oldSlug])
+  @@index([mediaId, changedAt])
+}
+
+/// SEO redirect chain when MediaGroup.slug changes.
+model MediaGroupSlugHistory {
+  id        String     @id @default(cuid())
+  groupId   String
+  group     MediaGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  oldSlug   String
+  newSlug   String
+  changedAt DateTime   @default(now())
+
+  @@index([oldSlug])
+  @@index([groupId, changedAt])
 }
 
 /// Post ↔ Media association (order + cover flag per post).

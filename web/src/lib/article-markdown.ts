@@ -1,5 +1,8 @@
 import { marked } from "marked";
 import TurndownService from "turndown";
+import { parseArticleBodySegments } from "@/lib/article-body-segments";
+import { mediaGroupPlaceholder } from "@/lib/media-group-token";
+import { mediaGroupHtml, MEDIA_GROUP_HTML_ATTR } from "@/lib/media-group-html";
 
 /** Supported Markdown subset for article bodies (FR/EN). */
 export const ARTICLE_MARKDOWN_HELP = {
@@ -34,6 +37,19 @@ turndown.addRule("paragraphSpacing", {
   },
 });
 
+turndown.addRule("mediaGroupBlock", {
+  filter(node) {
+    return (
+      node.nodeName === "DIV" &&
+      (node as HTMLElement).getAttribute(MEDIA_GROUP_HTML_ATTR) != null
+    );
+  },
+  replacement(_content, node) {
+    const id = (node as HTMLElement).getAttribute(MEDIA_GROUP_HTML_ATTR);
+    if (!id) return "";
+    return `\n\n${mediaGroupPlaceholder(id)}\n\n`;
+  },
+});
 marked.setOptions({
   gfm: true,
   breaks: false,
@@ -43,8 +59,26 @@ marked.setOptions({
 export function markdownToHtml(markdown: string): string {
   const source = markdown.trim();
   if (!source) return "";
-  const html = marked.parse(source, { async: false }) as string;
-  return html.trim();
+
+  const segments = parseArticleBodySegments(source);
+  const hasGroups = segments.some((segment) => segment.type === "media-group");
+  if (!hasGroups) {
+    const html = marked.parse(source, { async: false }) as string;
+    return html.trim();
+  }
+
+  const parts = segments
+    .map((segment) => {
+      if (segment.type === "media-group") {
+        return mediaGroupHtml(segment.groupId);
+      }
+      const text = segment.content.trim();
+      if (!text) return "";
+      return marked.parse(text, { async: false }) as string;
+    })
+    .filter(Boolean);
+
+  return parts.join("\n").trim();
 }
 
 /** Convert visual editor HTML back to Markdown for storage. */

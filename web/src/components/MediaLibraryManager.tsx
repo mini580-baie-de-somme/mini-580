@@ -5,8 +5,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualUrl } from "@/hooks/useVirtualUrl";
 import {
   MEDIA_EDIT_PARAM_KEYS,
+  MEDIA_GROUP_PARAM_KEYS,
   parseMediaEditState,
+  parseMediaGroupEditState,
   serializeMediaEditState,
+  serializeMediaGroupEditState,
 } from "@/lib/virtual-url";
 import { useLocale } from "./LocaleProvider";
 import { EditorListCount } from "./EditorListCount";
@@ -55,6 +58,8 @@ import {
 import type { MediaIntegrity } from "@/lib/media-integrity-types";
 import { MediaIntegrityNotice } from "./MediaIntegrityNotice";
 import { MediaClipboardPasteButton } from "./MediaClipboardPasteButton";
+import { MediaGroupChips, type MediaGroupSummary } from "./MediaGroupChips";
+import { MediaGroupEditor } from "./MediaGroupEditor";
 import { isLocalMediaUrl } from "@/lib/media-integrity-shared";
 type MediaKind = MediaKindClient;
 
@@ -96,10 +101,15 @@ type MediaItem = {
       status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
     };
   }[];
+  groupMembers?: {
+    group: MediaGroupSummary;
+  }[];
   integrity?: MediaIntegrity;
 };
 
 type VisibilityFilter = "ALL" | "public" | "draft" | "orphan";
+
+type MediaGroupOption = MediaGroupSummary & { memberCount?: number };
 
 type FormState = {
   titleFr: string;
@@ -154,6 +164,10 @@ function previewSrcForMedia(m: MediaItem): string {
   return m.urlOrigin;
 }
 
+function groupsFromMedia(m: MediaItem): MediaGroupSummary[] {
+  return (m.groupMembers ?? []).map((gm) => gm.group);
+}
+
 function withSizeLimits(template: string): string {
   return template
     .replace("{photoMax}", String(formatMaxMb(MEDIA_MAX_BYTES)))
@@ -186,9 +200,12 @@ export function MediaLibraryManager() {
   const { searchParams, pushVirtual, closeVirtual, markOpenedViaPush } =
     useVirtualUrl();
   const editingId = parseMediaEditState(searchParams);
+  const editingGroupId = parseMediaGroupEditState(searchParams);
   const [q, setQ] = useState("");
   const [kind, setKind] = useState<"ALL" | MediaKind>("ALL");
   const [visibility, setVisibility] = useState<VisibilityFilter>("ALL");
+  const [groupFilterId, setGroupFilterId] = useState<string>("ALL");
+  const [groupOptions, setGroupOptions] = useState<MediaGroupOption[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [editingMedia, setEditingMedia] = useState<MediaItem | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -206,8 +223,24 @@ export function MediaLibraryManager() {
     if (q) params.set("q", q);
     if (kind !== "ALL") params.set("kind", kind);
     if (visibility !== "ALL") params.set("visibility", visibility);
+    if (groupFilterId !== "ALL") params.set("groupId", groupFilterId);
     return params.toString();
-  }, [q, kind, visibility]);
+  }, [q, kind, visibility, groupFilterId]);
+
+  const reloadGroups = useCallback(async () => {
+    try {
+      const res = await fetch("/api/media-groups");
+      if (!res.ok) return;
+      const data = (await res.json()) as MediaGroupOption[] | { items: MediaGroupOption[] };
+      setGroupOptions(Array.isArray(data) ? data : (data.items ?? []));
+    } catch {
+      // keep previous options
+    }
+  }, []);
+
+  useEffect(() => {
+    void reloadGroups();
+  }, [reloadGroups]);
 
   const {
     items,
@@ -296,8 +329,48 @@ export function MediaLibraryManager() {
   }
 
   function openMediaEdit(id: string) {
-    pushVirtual(serializeMediaEditState(id), MEDIA_EDIT_PARAM_KEYS);
+    pushVirtual(
+      { ...serializeMediaEditState(id), ...serializeMediaGroupEditState(null) },
+      MEDIA_GROUP_PARAM_KEYS
+    );
     markOpenedViaPush();
+  }
+
+  function openGroupEdit(id: string) {
+    pushVirtual(
+      { ...serializeMediaGroupEditState(id), ...serializeMediaEditState(null) },
+      MEDIA_EDIT_PARAM_KEYS
+    );
+    markOpenedViaPush();
+  }
+
+  async function startNewGroup() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/media-groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ titleFr: "", titleEn: "" }),
+      });
+      const data = await readApiJson(res);
+      if (!res.ok) {
+        throw new Error(
+          typeof data.error === "string" ? data.error : t("mediaGroup.saveError")
+        );
+      }
+      const group = data as { id: string };
+      await reloadGroups();
+      openGroupEdit(group.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("mediaGroup.saveError"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function cancelGroupEdit() {
+    closeVirtual(MEDIA_GROUP_PARAM_KEYS);
   }
 
   function startCreate() {
@@ -652,6 +725,14 @@ export function MediaLibraryManager() {
             <button
               type="button"
               disabled={busy}
+              onClick={() => void startNewGroup()}
+              className="rounded-md border border-[#495867] px-3 py-2 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
+            >
+              {t("mediaGroup.new")}
+            </button>
+            <button
+              type="button"
+              disabled={busy}
               onClick={startCreate}
               className="rounded-md bg-[#495867] px-3 py-2 text-sm text-white hover:bg-[#3a4654] disabled:opacity-50"
             >
@@ -666,6 +747,17 @@ export function MediaLibraryManager() {
           {localError ||
             (error === "LOAD_FAILED" ? t("list.loadError") : error)}
         </p>
+      )}
+
+      {editingGroupId && (
+        <MediaGroupEditor
+          groupId={editingGroupId}
+          onClose={cancelGroupEdit}
+          onSaved={() => {
+            void reload();
+            void reloadGroups();
+          }}
+        />
       )}
 
       {editingId && (
@@ -954,6 +1046,26 @@ export function MediaLibraryManager() {
                       {t("media.takenAtHint")}
                     </span>
                   </label>
+
+                  <div className="border-t border-[#eef3f7] pt-3">
+                    <p className="text-[11px] font-medium text-[#495867]">
+                      {t("mediaGroup.inGroups")}
+                    </p>
+                    {editingMedia && groupsFromMedia(editingMedia).length > 0 ? (
+                      <div className="mt-1">
+                        <MediaGroupChips
+                          groups={groupsFromMedia(editingMedia)}
+                          locale={locale}
+                          maxVisible={6}
+                          onGroupClick={openGroupEdit}
+                        />
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-[10px] text-[#495867]">
+                        {t("mediaGroup.none")}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 </div>
@@ -973,7 +1085,8 @@ export function MediaLibraryManager() {
         activeFilterCount={
           (q ? 1 : 0) +
           (kind !== "ALL" ? 1 : 0) +
-          (visibility !== "ALL" ? 1 : 0)
+          (visibility !== "ALL" ? 1 : 0) +
+          (groupFilterId !== "ALL" ? 1 : 0)
         }
         activeChips={((): EditorListActiveChip[] => {
           const chips: EditorListActiveChip[] = [];
@@ -998,17 +1111,29 @@ export function MediaLibraryManager() {
               label: visibilityLabel(visibility),
             });
           }
+          if (groupFilterId !== "ALL") {
+            const g = groupOptions.find((o) => o.id === groupFilterId);
+            chips.push({
+              key: "group",
+              prefix: t("mediaGroup.filter"),
+              label: g
+                ? (locale === "fr" ? g.titleFr : g.titleEn) || g.slug || g.id.slice(0, 8)
+                : groupFilterId.slice(0, 8),
+            });
+          }
           return chips;
         })()}
         onRemoveChip={(key) => {
           if (key === "q") setQ("");
           if (key === "kind") setKind("ALL");
           if (key === "visibility") setVisibility("ALL");
+          if (key === "group") setGroupFilterId("ALL");
         }}
         onClearAll={() => {
           setQ("");
           setKind("ALL");
           setVisibility("ALL");
+          setGroupFilterId("ALL");
         }}
         filterPanel={
           <>
@@ -1034,6 +1159,30 @@ export function MediaLibraryManager() {
                 </EditorFilterChip>
               ))}
             </EditorFilterGroup>
+            <EditorFilterGroup label={t("mediaGroup.filter")}>
+              <EditorFilterChip
+                active={groupFilterId === "ALL"}
+                onClick={() => setGroupFilterId("ALL")}
+              >
+                {t("mediaGroup.filterAll")}
+              </EditorFilterChip>
+              {groupOptions.map((g) => {
+                const label =
+                  (locale === "fr" ? g.titleFr : g.titleEn) ||
+                  g.slug ||
+                  g.id.slice(0, 8);
+                return (
+                  <EditorFilterChip
+                    key={g.id}
+                    active={groupFilterId === g.id}
+                    onClick={() => setGroupFilterId(g.id)}
+                  >
+                    {label}
+                    {typeof g.memberCount === "number" ? ` (${g.memberCount})` : ""}
+                  </EditorFilterChip>
+                );
+              })}
+            </EditorFilterGroup>
           </>
         }
       />
@@ -1042,7 +1191,12 @@ export function MediaLibraryManager() {
         <EditorListCount
           total={total}
           totalAll={totalAll}
-          filtered={Boolean(q) || kind !== "ALL" || visibility !== "ALL"}
+          filtered={
+            Boolean(q) ||
+            kind !== "ALL" ||
+            visibility !== "ALL" ||
+            groupFilterId !== "ALL"
+          }
           totalLabel={t("list.count")}
           filteredLabel={t("list.countFiltered")}
         />
@@ -1085,6 +1239,11 @@ export function MediaLibraryManager() {
                       {(locale === "fr" ? m.titleFr : m.titleEn) || m.id.slice(0, 8)}
                     </div>
                     <div className="text-xs text-[#495867]">{m.mimeType}</div>
+                    <MediaGroupChips
+                      groups={groupsFromMedia(m)}
+                      locale={locale}
+                      onGroupClick={openGroupEdit}
+                    />
                   </td>
                   <td className="hidden px-4 py-3 sm:table-cell">{kindLabel(m.kind)}</td>
                   <td className="hidden px-4 py-3 md:table-cell">
