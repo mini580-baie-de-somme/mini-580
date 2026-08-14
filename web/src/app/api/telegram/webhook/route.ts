@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { getTelegramBotToken } from "@/lib/telegram/api";
 import {
   processTelegramUpdate,
@@ -32,9 +32,11 @@ export async function POST(request: NextRequest) {
   try {
     const update = (await request.json()) as TelegramUpdate;
     // Ack immediately — STT + agent can exceed Telegram's webhook wait (~60s).
-    void processTelegramUpdate(update).catch((err) => {
-      console.error("telegram webhook background failed", err);
-    });
+    after(() =>
+      processTelegramUpdate(update).catch((err) => {
+        console.error("telegram webhook background failed", err);
+      })
+    );
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("telegram webhook failed", err);

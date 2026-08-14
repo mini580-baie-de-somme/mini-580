@@ -2,6 +2,7 @@ import "server-only";
 
 import { mkdirSync } from "fs";
 import { Agent, type SDKCustomTool } from "@cursor/sdk";
+import { appLog } from "@/lib/app-log";
 import { prisma } from "@/lib/db";
 import {
   agentCallableTools,
@@ -324,6 +325,60 @@ async function persistTurnUsage(
 }
 
 const compactingThreadIds = new Set<string>();
+const threadTurnChains = new Map<string, Promise<unknown>>();
+
+function threadTurnKey(telegramUserId: string, telegramChatId: string): string {
+  return `${telegramUserId}:${telegramChatId}`;
+}
+
+/** Serialize agent turns + compaction per Telegram thread (avoids concurrent Cursor resume). */
+async function withThreadTurnLock<T>(
+  telegramUserId: string,
+  telegramChatId: string,
+  fn: () => Promise<T>
+): Promise<T> {
+  const key = threadTurnKey(telegramUserId, telegramChatId);
+  const prev = threadTurnChains.get(key) ?? Promise.resolve();
+  const run = prev.catch(() => undefined).then(fn);
+  threadTurnChains.set(key, run);
+  try {
+    return await run;
+  } finally {
+    if (threadTurnChains.get(key) === run) {
+      threadTurnChains.delete(key);
+    }
+  }
+}
+
+function getRunWaitTimeoutMs(): number {
+  const raw = process.env.TELEGRAM_AGENT_RUN_TIMEOUT_MS?.trim();
+  if (!raw) return 120_000;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 15_000) return 120_000;
+  return n;
+}
+
+async function waitForAgentRun(
+  run: { wait: () => Promise<{ status: string; result?: unknown; error?: { message?: string }; id?: string; usage?: { inputTokens?: number } }> },
+  label: string
+) {
+  const timeoutMs = getRunWaitTimeoutMs();
+  const result = await Promise.race([
+    run.wait(),
+    new Promise<never>((_, reject) => {
+      setTimeout(
+        () =>
+          reject(
+            new Error(
+              `${label} timeout after ${Math.round(timeoutMs / 1000)}s — envoie /reset si ça se reproduit.`
+            )
+          ),
+        timeoutMs
+      );
+    }),
+  ]);
+  return result;
+}
 
 async function compactTelegramSession(input: {
   threadId: string;
@@ -339,7 +394,7 @@ async function compactTelegramSession(input: {
       local: { cwd: input.cwd },
     });
     const run = await agent.send(SESSION_COMPACT_USER_PROMPT);
-    const result = await run.wait();
+    const result = await waitForAgentRun(run, "Compaction agent");
     const text =
       typeof result.result === "string" ? result.result.trim() : "";
     return text.length > 0 ? text : null;
@@ -372,7 +427,7 @@ async function executeAgentSend(input: {
     try {
       await using agent = await Agent.resume(agentId, agentOpts);
       const run = await agent.send(input.message);
-      const result = await run.wait();
+      const result = await waitForAgentRun(run, "Agent resume");
       resultText = typeof result.result === "string" ? result.result : "";
       if (result.status === "error") {
         resultText =
@@ -384,7 +439,12 @@ async function executeAgentSend(input: {
         agentId,
         usageInput: result.usage?.inputTokens,
       };
-    } catch {
+    } catch (err) {
+      appLog("telegram-agent", "warn", "agent_resume_failed", {
+        threadId: input.threadId,
+        agentId,
+        error: err instanceof Error ? err.message : String(err),
+      });
       agentId = null;
     }
   }
@@ -400,7 +460,7 @@ async function executeAgentSend(input: {
   });
 
   const run = await agent.send(input.message);
-  const result = await run.wait();
+  const result = await waitForAgentRun(run, "Agent create");
   resultText = typeof result.result === "string" ? result.result : "";
   if (result.status === "error") {
     resultText =
@@ -420,6 +480,15 @@ async function executeAgentSend(input: {
  * completed turn reported input tokens ≥ compaction threshold.
  */
 export async function maybeCompactTelegramSessionAfterTurn(input: {
+  telegramUserId: string;
+  telegramChatId: string;
+}): Promise<void> {
+  await withThreadTurnLock(input.telegramUserId, input.telegramChatId, () =>
+    maybeCompactTelegramSessionAfterTurnUnlocked(input)
+  );
+}
+
+async function maybeCompactTelegramSessionAfterTurnUnlocked(input: {
   telegramUserId: string;
   telegramChatId: string;
 }): Promise<void> {
@@ -470,6 +539,17 @@ export async function runTelegramAgentTurn(input: {
   userMessage: string;
   mediaUrls?: string[];
 }): Promise<string> {
+  return withThreadTurnLock(input.telegramUserId, input.telegramChatId, () =>
+    runTelegramAgentTurnUnlocked(input)
+  );
+}
+
+async function runTelegramAgentTurnUnlocked(input: {
+  telegramUserId: string;
+  telegramChatId: string;
+  userMessage: string;
+  mediaUrls?: string[];
+}): Promise<string> {
   const apiKey = getCursorApiKey();
   if (!apiKey) {
     return "⚠️ CURSOR_API_KEY manquant — agent indisponible.";
@@ -477,6 +557,13 @@ export async function runTelegramAgentTurn(input: {
   if (!getIngestKeyPresent()) {
     return "⚠️ INGEST_API_KEY manquant — les tools API ne peuvent pas s'authentifier.";
   }
+
+  appLog("telegram-agent", "info", "turn_start", {
+    telegramUserId: input.telegramUserId,
+    telegramChatId: input.telegramChatId,
+    messageChars: input.userMessage.length,
+    mediaCount: input.mediaUrls?.length ?? 0,
+  });
 
   const thread = await getOrCreateThread(
     input.telegramUserId,
@@ -548,12 +635,24 @@ export async function runTelegramAgentTurn(input: {
     await persistTurnUsage(thread.id, { inputTokens: out.usageInput });
   } catch (err) {
     resultText = `Erreur agent: ${err instanceof Error ? err.message : String(err)}`;
+    appLog("telegram-agent", "error", "turn_failed", {
+      telegramUserId: input.telegramUserId,
+      threadId: thread.id,
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 
-  return (
+  const reply =
     resultText.trim() ||
-    "_(pas de réponse texte — vérifie les tools ou reformule)_"
-  );
+    "_(pas de réponse texte — vérifie les tools ou reformule)_";
+
+  appLog("telegram-agent", "info", "turn_done", {
+    telegramUserId: input.telegramUserId,
+    threadId: thread.id,
+    replyChars: reply.length,
+  });
+
+  return reply;
 }
 
 function getIngestKeyPresent(): boolean {
