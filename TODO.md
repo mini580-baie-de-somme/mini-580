@@ -1,6 +1,6 @@
 # TODO — Class Mini 5.80 Baie de Somme
 
-> Dernière mise à jour : 2026-08-13 · prod **v1.2.88** (Phase 1d + correctifs août)
+> Dernière mise à jour : 2026-08-14 · prod **v1.2.89** · v1.2.90 en cours (compaction non bloquante)
 
 ## ✅ Terminé — Phase 1c éditeur photo (août 2026)
 
@@ -45,6 +45,24 @@ Spec : `docs/13-article-image-groups.md` · livré **v1.2.67 → v1.2.88** (TEST
 - [x] Slug groupe auto depuis titre (v1.2.87)
 - [x] Footer Simohra FR/EN (v1.2.88)
 - [x] Pipeline commit → push → CI → deploy TEST → validation Hammed → **deploy PROD v1.2.88**
+
+### Correctif bot Telegram prod (2026-08-14)
+
+- [x] Verrou thread + timeout 120s run.wait + after() webhook — **v1.2.89**
+- [x] Tests CI 11/11 Telegram ✓ · deploy manuel (CI SSH timeout GitHub→VPS)
+
+### Compaction non bloquante + non-régression (2026-08-14)
+
+Spec : `docs/14-telegram-agent-compaction.md` · cible **v1.2.90**
+
+- [x] Compaction hors lock tour — fire-and-forget post-réponse
+- [x] Fork bootstrap si message pendant compaction (`compactingAgentIds`)
+- [x] Reset optimiste `cursorAgentId` — fil forké préservé
+- [x] Échec compaction → pas de reset historique
+- [x] Tests `telegram-agent-compaction.test.ts` (local, mock Cursor SDK)
+- [x] Tests `compaction-regression.test.ts` (webhook wiring)
+- [ ] Commit → push → CI → deploy TEST → validation Hammed → deploy PROD **v1.2.90**
+- [ ] Port aligné **simohra.fr** (clone mini580, branding Simohra)
 
 ## 📋 Backlog site (Phase 1)
 

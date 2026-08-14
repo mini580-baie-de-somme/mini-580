@@ -325,13 +325,20 @@ async function persistTurnUsage(
 }
 
 const compactingThreadIds = new Set<string>();
+/** threadId → cursorAgentId snapshot while compaction runs on that agent */
+const compactingAgentIds = new Map<string, string>();
 const threadTurnChains = new Map<string, Promise<unknown>>();
 
 function threadTurnKey(telegramUserId: string, telegramChatId: string): string {
   return `${telegramUserId}:${telegramChatId}`;
 }
 
-/** Serialize agent turns + compaction per Telegram thread (avoids concurrent Cursor resume). */
+function isAgentUnderCompaction(threadId: string, agentId: string | null): boolean {
+  if (!agentId) return false;
+  return compactingAgentIds.get(threadId) === agentId;
+}
+
+/** Serialize user turns per Telegram thread (compaction runs outside this lock). */
 async function withThreadTurnLock<T>(
   telegramUserId: string,
   telegramChatId: string,
@@ -423,6 +430,14 @@ async function executeAgentSend(input: {
     local: { cwd: input.cwd, customTools: input.customTools },
   };
 
+  if (isAgentUnderCompaction(input.threadId, agentId)) {
+    appLog("telegram-agent", "info", "compaction_fork_bootstrap", {
+      threadId: input.threadId,
+      agentId,
+    });
+    agentId = null;
+  }
+
   if (agentId) {
     try {
       await using agent = await Agent.resume(agentId, agentOpts);
@@ -478,14 +493,14 @@ async function executeAgentSend(input: {
 /**
  * Compacts the Cursor thread after a user-visible turn (post-reply), when the
  * completed turn reported input tokens ≥ compaction threshold.
+ * Non-blocking: never queued behind the next user turn; concurrent turns fork
+ * a fresh Cursor agent while compaction reads the old snapshot.
  */
 export async function maybeCompactTelegramSessionAfterTurn(input: {
   telegramUserId: string;
   telegramChatId: string;
 }): Promise<void> {
-  await withThreadTurnLock(input.telegramUserId, input.telegramChatId, () =>
-    maybeCompactTelegramSessionAfterTurnUnlocked(input)
-  );
+  return maybeCompactTelegramSessionAfterTurnUnlocked(input);
 }
 
 async function maybeCompactTelegramSessionAfterTurnUnlocked(input: {
@@ -507,26 +522,56 @@ async function maybeCompactTelegramSessionAfterTurnUnlocked(input: {
   const apiKey = getCursorApiKey();
   if (!apiKey) return;
 
+  const agentIdAtStart = thread.cursorAgentId;
   compactingThreadIds.add(thread.id);
+  compactingAgentIds.set(thread.id, agentIdAtStart);
+
+  appLog("telegram-agent", "info", "compaction_start", {
+    threadId: thread.id,
+    agentId: agentIdAtStart,
+    lastTurnInputTokens: thread.lastTurnInputTokens,
+  });
+
   try {
     const summary = await compactTelegramSession({
       threadId: thread.id,
-      cursorAgentId: thread.cursorAgentId,
+      cursorAgentId: agentIdAtStart,
       apiKey,
       model: { id: getCursorModelId() },
       cwd: getCursorCwd(),
     });
+
+    if (!summary) {
+      appLog("telegram-agent", "warn", "compaction_failed", {
+        threadId: thread.id,
+        agentId: agentIdAtStart,
+      });
+      return;
+    }
+
     await prisma.telegramAgentThread.update({
       where: { id: thread.id },
       data: {
-        cursorAgentId: null,
-        sessionSummary: summary ?? thread.sessionSummary,
+        sessionSummary: summary,
         sessionCompactedAt: new Date(),
         lastTurnInputTokens: null,
       },
     });
+
+    const reset = await prisma.telegramAgentThread.updateMany({
+      where: { id: thread.id, cursorAgentId: agentIdAtStart },
+      data: { cursorAgentId: null },
+    });
+
+    appLog("telegram-agent", "info", "compaction_done", {
+      threadId: thread.id,
+      agentId: agentIdAtStart,
+      agentReset: reset.count > 0,
+      summaryChars: summary.length,
+    });
   } finally {
     compactingThreadIds.delete(thread.id);
+    compactingAgentIds.delete(thread.id);
   }
 }
 

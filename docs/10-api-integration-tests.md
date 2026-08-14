@@ -64,7 +64,13 @@ FSM locale (`processTelegramUpdate`) avec API Telegram mockée.
 cd web && npm run test:telegram
 ```
 
-Scénarios (`npm run test:telegram` — **7/7**) :
+Scénarios (`npm run test:telegram`) :
+
+**Compaction / agent (2)** — `compaction-regression.test.ts` :
+- reply Telegram avant compaction
+- pas de compaction si le tour agent échoue
+
+**Parcours publication FSM (7)** — `conversations.test.ts` :
 
 | Scénario | Couverture |
 |----------|------------|
@@ -77,6 +83,27 @@ Scénarios (`npm run test:telegram` — **7/7**) :
 | `/statut` + `/annuler` | |
 
 Sans `CURSOR_API_KEY` : les tests Telegram/IA **échouent** (clé obligatoire).
+
+### Compaction agent — non-régression
+
+Invariants détaillés : **`docs/14-telegram-agent-compaction.md`**
+
+```bash
+cd web
+# Unit + intégration DB (mock @cursor/sdk)
+npm run test:local -- src/test/local/telegram-agent-compaction.test.ts
+npm run test:local -- src/test/local/session-context.test.ts
+
+# Wiring webhook (reply avant compaction)
+npm run test:telegram -- src/test/telegram/compaction-regression.test.ts
+```
+
+Couverture minimale avant deploy bot :
+- compaction **post-réponse**, jamais bloquante pour le tour suivant
+- fork bootstrap si message pendant compaction
+- reset `cursorAgentId` optimiste (fil forké préservé)
+- échec compaction → pas de perte d’historique
+- timeout `run.wait()` → message explicite (pas de hang ⏳)
 
 ### D’où vient la clé (jamais dans git)
 

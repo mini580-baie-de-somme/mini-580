@@ -36,6 +36,20 @@ describe("telegram session-context", () => {
     expect(msg).toContain("Salut");
   });
 
+  it("compact trigger respects env overrides", () => {
+    const prevMax = process.env.TELEGRAM_AGENT_CONTEXT_MAX_TOKENS;
+    const prevRatio = process.env.TELEGRAM_AGENT_COMPACT_HIGH_RATIO;
+    process.env.TELEGRAM_AGENT_CONTEXT_MAX_TOKENS = "100000";
+    process.env.TELEGRAM_AGENT_COMPACT_HIGH_RATIO = "0.5";
+    expect(compactTriggerTokens(100_000)).toBe(50_000);
+    expect(shouldCompactSession(50_000, 100_000)).toBe(true);
+    expect(shouldCompactSession(49_999, 100_000)).toBe(false);
+    if (prevMax === undefined) delete process.env.TELEGRAM_AGENT_CONTEXT_MAX_TOKENS;
+    else process.env.TELEGRAM_AGENT_CONTEXT_MAX_TOKENS = prevMax;
+    if (prevRatio === undefined) delete process.env.TELEGRAM_AGENT_COMPACT_HIGH_RATIO;
+    else process.env.TELEGRAM_AGENT_COMPACT_HIGH_RATIO = prevRatio;
+  });
+
   it("memory hash is stable", () => {
     expect(hashMemoryBrief("a")).toBe(hashMemoryBrief("a"));
     expect(hashMemoryBrief("a")).not.toBe(hashMemoryBrief("b"));
