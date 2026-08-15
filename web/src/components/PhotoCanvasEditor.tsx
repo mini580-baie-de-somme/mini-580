@@ -758,7 +758,9 @@ export function PhotoCanvasEditor({
           {locale === "fr" ? "Format" : "Format"}
           <select
             value={cropAspectFormat}
-            disabled={disabled || !onCropAspectFormatChange}
+            disabled={
+              disabled || !(onCropFormatChange || onCropAspectFormatChange)
+            }
             onChange={(e) => {
               const format = e.target.value as CropAspectFormat;
               const nextLayout: ImageLayoutParams = {
@@ -772,7 +774,7 @@ export function PhotoCanvasEditor({
                 onCropAspectFormatChange?.(format);
               }
             }}
-            className="rounded border border-[#d4dde6] px-1.5 py-0.5 text-xs"
+            className="min-h-[44px] rounded border border-[#d4dde6] px-1.5 py-0.5 text-xs sm:min-h-0"
           >
             {CROP_ASPECT_FORMATS.map((f) => (
               <option key={f} value={f}>
