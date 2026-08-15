@@ -16,7 +16,7 @@ import { elapsedProjectDays, sumWorkDays } from "@/lib/project-metrics";
 type Props = {
   milestones: TimelineMilestone[];
   standalonePosts: TimelinePost[];
-  allPostsForMetrics: TimelinePost[];
+  allPostsForMetrics: { workDays: number | null }[];
 };
 
 export function TimelineContent({

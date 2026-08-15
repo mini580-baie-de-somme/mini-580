@@ -83,6 +83,16 @@ export function LoginForm() {
         setError(t("login.otpVerifyFailed"));
         return;
       }
+      router.push("/editeur");
+      router.refresh();
+    } catch {
+      setError(t("login.network"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function switchMode(next: LoginMode) {
     setMode(next);
     setError("");
     setInfo("");
