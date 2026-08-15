@@ -6,6 +6,11 @@ import { AuthOtpPurpose, UserStatus } from "@/generated/prisma/client";
 import { appLog } from "@/lib/app-log";
 import { prisma } from "@/lib/db";
 import { sendTelegramPlainText } from "@/lib/telegram/api";
+import {
+  AUTH_INVALID_CREDENTIALS,
+  AUTH_OTP_REQUEST_ACK,
+  AUTH_OTP_VERIFY_FAILED,
+} from "@/lib/auth-messages";
 
 export const OTP_TTL_MS = 5 * 60 * 1000;
 const OTP_MAX_ATTEMPTS = 5;
@@ -66,16 +71,13 @@ export async function requestAuthOtp(input: {
 
   if (!user || user.status !== UserStatus.ACTIVE) {
     appLog("auth-otp", "warn", "request_rejected_inactive", { email });
-    return { ok: false, status: 403, error: "Email not authorized" };
+    // Anti-enumeration: same ack whether or not the account exists.
+    return { ok: true };
   }
 
   if (!user.telegramUserId) {
     appLog("auth-otp", "warn", "request_rejected_no_telegram", { email });
-    return {
-      ok: false,
-      status: 400,
-      error: "Compte sans Telegram — contactez un administrateur",
-    };
+    return { ok: true };
   }
 
   const recent = await countRecentOtpRequests(email, input.purpose);
@@ -136,7 +138,7 @@ export async function verifyAuthOtp(input: {
   appLog("auth-otp", "info", "verify_attempt", { email, purpose: input.purpose });
 
   if (!/^\d{4}$/.test(code)) {
-    return { ok: false, status: 400, error: "Code invalide" };
+    return { ok: false, status: 401, error: AUTH_OTP_VERIFY_FAILED };
   }
 
   const challenge = await prisma.authOtpChallenge.findFirst({
@@ -150,12 +152,12 @@ export async function verifyAuthOtp(input: {
 
   if (!challenge) {
     appLog("auth-otp", "warn", "verify_no_challenge", { email });
-    return { ok: false, status: 401, error: "Code expiré ou invalide" };
+    return { ok: false, status: 401, error: AUTH_OTP_VERIFY_FAILED };
   }
 
   if (challenge.attempts >= OTP_MAX_ATTEMPTS) {
     appLog("auth-otp", "warn", "verify_max_attempts", { email });
-    return { ok: false, status: 401, error: "Trop de tentatives — demandez un nouveau code" };
+    return { ok: false, status: 401, error: AUTH_OTP_VERIFY_FAILED };
   }
 
   const valid = await verifyOtpCode(code, challenge.codeHash);
@@ -168,7 +170,7 @@ export async function verifyAuthOtp(input: {
       email,
       attempts: challenge.attempts + 1,
     });
-    return { ok: false, status: 401, error: "Code incorrect" };
+    return { ok: false, status: 401, error: AUTH_OTP_VERIFY_FAILED };
   }
 
   await prisma.webConnectLink.updateMany({
@@ -184,7 +186,7 @@ export async function verifyAuthOtp(input: {
   });
 
   if (!user || user.status !== UserStatus.ACTIVE) {
-    return { ok: false, status: 403, error: "Email not authorized" };
+    return { ok: false, status: 401, error: AUTH_OTP_VERIFY_FAILED };
   }
 
   appLog("auth-otp", "info", "verify_ok", { email, userId: user.id });
@@ -272,7 +274,7 @@ export async function redeemOtpChallengeById(challengeId: string): Promise<Verif
   });
 
   if (!user || user.status !== UserStatus.ACTIVE) {
-    return { ok: false, status: 403, error: "Email not authorized" };
+    return { ok: false, status: 401, error: AUTH_OTP_VERIFY_FAILED };
   }
 
   await prisma.webConnectLink.updateMany({

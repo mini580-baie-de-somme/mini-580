@@ -16,6 +16,8 @@ type Milestone = {
   descriptionFr: string;
   descriptionEn: string;
   milestoneDate: string;
+  endDate: string | null;
+  workloadForecast: number | null;
 };
 
 type FormState = {
@@ -24,6 +26,8 @@ type FormState = {
   descriptionFr: string;
   descriptionEn: string;
   milestoneDate: string;
+  endDate: string;
+  workloadForecast: string;
   slug: string;
 };
 
@@ -33,6 +37,8 @@ const emptyForm: FormState = {
   descriptionFr: "",
   descriptionEn: "",
   milestoneDate: new Date().toISOString().slice(0, 10),
+  endDate: "",
+  workloadForecast: "",
   slug: "",
 };
 
@@ -109,6 +115,9 @@ export function MilestoneManager({ isTestEnv = false }: { isTestEnv?: boolean })
       descriptionFr: m.descriptionFr,
       descriptionEn: m.descriptionEn,
       milestoneDate: toDateInput(m.milestoneDate),
+      endDate: m.endDate ? toDateInput(m.endDate) : "",
+      workloadForecast:
+        m.workloadForecast != null ? String(m.workloadForecast) : "",
       slug: m.slug,
     });
   }
@@ -128,6 +137,13 @@ export function MilestoneManager({ isTestEnv = false }: { isTestEnv?: boolean })
         descriptionFr: form.descriptionFr,
         descriptionEn: form.descriptionEn,
         milestoneDate: new Date(form.milestoneDate).toISOString(),
+        endDate: form.endDate
+          ? new Date(form.endDate).toISOString()
+          : null,
+        workloadForecast:
+          form.workloadForecast.trim() === ""
+            ? null
+            : Math.max(0, parseInt(form.workloadForecast, 10) || 0),
         ...(form.slug.trim() ? { slug: form.slug.trim() } : {}),
       };
 
@@ -300,12 +316,41 @@ export function MilestoneManager({ isTestEnv = false }: { isTestEnv?: boolean })
               />
             </label>
             <label className="block text-sm">
-              <span className="mb-1 block text-[#495867]">Date</span>
+              <span className="mb-1 block text-[#495867]">
+                {t("milestones.startDate")}
+              </span>
               <input
                 type="date"
                 className="w-full rounded-md border border-[#d4dde6] px-3 py-2"
                 value={form.milestoneDate}
                 onChange={(e) => setForm({ ...form, milestoneDate: e.target.value })}
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="mb-1 block text-[#495867]">
+                {t("milestones.endDate")}
+              </span>
+              <input
+                type="date"
+                className="w-full rounded-md border border-[#d4dde6] px-3 py-2"
+                value={form.endDate}
+                onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="mb-1 block text-[#495867]">
+                {t("milestones.workloadForecast")}
+              </span>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                className="w-full rounded-md border border-[#d4dde6] px-3 py-2"
+                value={form.workloadForecast}
+                onChange={(e) =>
+                  setForm({ ...form, workloadForecast: e.target.value })
+                }
+                placeholder={t("milestones.optional")}
               />
             </label>
             <label className="block text-sm sm:col-span-2">

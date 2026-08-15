@@ -3,143 +3,238 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { useLocale } from "./LocaleProvider";
-import { compareByDateThenTitle } from "@/lib/milestones";
+import {
+  buildMilestoneBlocks,
+  standalonePublishedPosts,
+  barPositionPercent,
+  barWidthPercent,
+  type TimelineMilestone,
+  type TimelinePost,
+} from "@/lib/timeline-data";
+import { elapsedProjectDays, sumWorkDays } from "@/lib/project-metrics";
 
-type LinkedPost = {
-  id: string;
-  slug: string;
-  titleFr: string;
-  titleEn: string;
-  status: string;
+type Props = {
+  milestones: TimelineMilestone[];
+  standalonePosts: TimelinePost[];
+  allPostsForMetrics: TimelinePost[];
 };
 
-type MilestoneEntry = {
-  id: string;
-  titleFr: string;
-  titleEn: string;
-  descriptionFr: string;
-  descriptionEn: string;
-  milestoneDate: Date | string;
-  posts: { post: LinkedPost }[];
-};
-
-type StandalonePost = {
-  id: string;
-  slug: string;
-  titleFr: string;
-  titleEn: string;
-  publishedAt: Date | string;
-};
-
-type TimelineEntry =
-  | { kind: "milestone"; date: Date | string; milestone: MilestoneEntry }
-  | { kind: "post"; date: Date | string; post: StandalonePost };
-
-export function TimelineContent({ entries }: { entries: TimelineEntry[] }) {
+export function TimelineContent({
+  milestones,
+  standalonePosts,
+  allPostsForMetrics,
+}: Props) {
   const { locale, t } = useLocale();
   const dateLocale = locale === "fr" ? "fr-FR" : "en-GB";
   const lang = locale === "en" ? "en" : "fr";
 
-  const sorted = useMemo(
-    () =>
-      [...entries].sort((a, b) => {
-        const titleA =
-          a.kind === "milestone"
-            ? lang === "fr"
-              ? a.milestone.titleFr
-              : a.milestone.titleEn
-            : lang === "fr"
-              ? a.post.titleFr
-              : a.post.titleEn;
-        const titleB =
-          b.kind === "milestone"
-            ? lang === "fr"
-              ? b.milestone.titleFr
-              : b.milestone.titleEn
-            : lang === "fr"
-              ? b.post.titleFr
-              : b.post.titleEn;
-        return compareByDateThenTitle(
-          { date: a.date, title: titleA },
-          { date: b.date, title: titleB },
-          lang
-        );
-      }),
-    [entries, lang]
+  const blocks = useMemo(
+    () => buildMilestoneBlocks(milestones),
+    [milestones]
   );
+  const standalone = useMemo(
+    () => standalonePublishedPosts(standalonePosts),
+    [standalonePosts]
+  );
+
+  const elapsedDays = elapsedProjectDays();
+  const totalProducedDays = sumWorkDays(allPostsForMetrics);
+
+  const rangeStart = blocks[0]?.start ?? new Date();
+  const rangeEnd =
+    blocks.reduce<Date | null>((max, b) => {
+      const candidate = b.end ?? b.start;
+      return !max || candidate > max ? candidate : max;
+    }, null) ?? new Date();
+
+  function fmtDate(d: Date | string) {
+    return new Date(d).toLocaleDateString(dateLocale, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  }
+
+  function titleForPost(p: TimelinePost) {
+    return lang === "fr" ? p.titleFr : p.titleEn;
+  }
+
+  function titleForMilestone(m: TimelineMilestone) {
+    return lang === "fr" ? m.titleFr : m.titleEn;
+  }
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
       <h1 className="text-3xl font-bold text-[#0D131A]">{t("timeline.title")}</h1>
       <p className="mt-2 text-[#495867]">{t("timeline.subtitle")}</p>
 
-      <div className="relative mt-12">
-        <div className="absolute left-4 top-0 h-full w-px bg-[#d4dde6] sm:left-6" />
+      <div className="mt-8 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-lg border border-[#d4dde6] bg-[#f4f7fa] px-4 py-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-[#495867]">
+            {t("timeline.metricElapsed")}
+          </p>
+          <p className="mt-1 text-2xl font-bold text-[#0D131A]">
+            {elapsedDays}{" "}
+            <span className="text-base font-normal text-[#495867]">
+              {t("timeline.days")}
+            </span>
+          </p>
+        </div>
+        <div className="rounded-lg border border-[#d4dde6] bg-[#f4f7fa] px-4 py-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-[#495867]">
+            {t("timeline.metricProduced")}
+          </p>
+          <p className="mt-1 text-2xl font-bold text-[#0D131A]">
+            {totalProducedDays}{" "}
+            <span className="text-base font-normal text-[#495867]">
+              {t("timeline.days")}
+            </span>
+          </p>
+        </div>
+      </div>
 
-        <ul className="space-y-10">
-          {sorted.map((entry) => {
-            const dateStr = new Date(entry.date).toLocaleDateString(dateLocale, {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            });
-
-            if (entry.kind === "milestone") {
-              const m = entry.milestone;
-              const title = locale === "fr" ? m.titleFr : m.titleEn;
-              const description = locale === "fr" ? m.descriptionFr : m.descriptionEn;
-              const linkedPosts = m.posts
-                .map((pm) => pm.post)
-                .filter((p) => p.status === "PUBLISHED");
-
-              return (
-                <li key={`m-${m.id}`} className="relative pl-12 sm:pl-16">
-                  <span className="absolute left-2.5 top-1.5 h-3 w-3 rounded-full border-2 border-[#495867] bg-white sm:left-[1.125rem]" />
-                  <time className="text-xs font-medium uppercase tracking-wide text-[#495867]">
-                    {dateStr}
-                  </time>
-                  <h2 className="mt-1 text-lg font-semibold text-[#0D131A]">{title}</h2>
-                  {description && (
-                    <p className="mt-2 text-sm text-[#495867]">{description}</p>
-                  )}
-                  {linkedPosts.length > 0 && (
-                    <ul className="mt-3 space-y-1">
-                      {linkedPosts.map((p) => (
-                        <li key={p.id}>
-                          <Link
-                            href={`/blog/${p.slug}`}
-                            className="text-sm text-[#495867] hover:underline"
-                          >
-                            📄 {locale === "fr" ? p.titleFr : p.titleEn}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              );
-            }
-
-            const p = entry.post;
-            return (
-              <li key={`p-${p.id}`} className="relative pl-12 sm:pl-16">
-                <span className="absolute left-2.5 top-1.5 h-3 w-3 rounded-full bg-[#495867] sm:left-[1.125rem]" />
-                <time className="text-xs font-medium uppercase tracking-wide text-[#495867]">
-                  {dateStr}
-                </time>
-                <Link
-                  href={`/blog/${p.slug}`}
-                  className="mt-1 block text-lg font-medium text-[#0D131A] hover:text-[#495867]"
-                >
-                  {locale === "fr" ? p.titleFr : p.titleEn}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-
-        {sorted.length === 0 && (
+      <div className="relative mt-12 space-y-0">
+        {blocks.length === 0 && standalone.length === 0 && (
           <p className="text-center text-[#495867]">{t("timeline.empty")}</p>
+        )}
+
+        {blocks.map((block, index) => {
+          const m = block.milestone;
+          const title = titleForMilestone(m);
+          const description = lang === "fr" ? m.descriptionFr : m.descriptionEn;
+          const forecast = m.workloadForecast;
+
+          const barEnd = block.end ?? block.start;
+          const barLeft = barPositionPercent(block.start, rangeStart, rangeEnd);
+          const barWidth = block.isPunctual
+            ? 3
+            : barWidthPercent(block.start, barEnd, rangeStart, rangeEnd);
+
+          const prevEnd = index > 0 ? (blocks[index - 1].end ?? blocks[index - 1].start) : null;
+          const showGap =
+            prevEnd &&
+            block.start.getTime() > prevEnd.getTime() + 24 * 60 * 60 * 1000;
+
+          return (
+            <div key={m.id}>
+              {showGap && (
+                <div
+                  className="my-6 border-t-2 border-dashed border-[#b8c5d0]"
+                  aria-hidden
+                />
+              )}
+
+              <article className="relative pb-10">
+                <div className="mb-3 h-3 rounded-full bg-[#eef3f7]">
+                  <div
+                    className={`h-full rounded-full ${
+                      block.isPunctual
+                        ? "mx-auto w-3 bg-[#495867]"
+                        : "bg-[#495867]"
+                    }`}
+                    style={
+                      block.isPunctual
+                        ? undefined
+                        : {
+                            marginLeft: `${barLeft}%`,
+                            width: `${barWidth}%`,
+                          }
+                    }
+                    title={
+                      block.isPunctual
+                        ? t("timeline.punctual")
+                        : `${fmtDate(block.start)} → ${fmtDate(barEnd)}`
+                    }
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <time className="text-xs font-medium uppercase tracking-wide text-[#495867]">
+                    {fmtDate(block.start)}
+                    {block.end ? ` → ${fmtDate(block.end)}` : ""}
+                  </time>
+                  {block.isPunctual && (
+                    <span className="rounded-full bg-[#eef3f7] px-2 py-0.5 text-[10px] font-medium uppercase text-[#495867]">
+                      {t("timeline.punctual")}
+                    </span>
+                  )}
+                </div>
+
+                <h2 className="mt-1 text-lg font-semibold text-[#0D131A]">{title}</h2>
+
+                {(forecast != null || block.producedDays > 0) && (
+                  <p className="mt-1 text-sm text-[#495867]">
+                    {forecast != null && (
+                      <span>
+                        {t("timeline.forecast")}: {forecast} {t("timeline.days")}
+                      </span>
+                    )}
+                    {forecast != null && block.producedDays > 0 && " · "}
+                    {block.producedDays > 0 && (
+                      <span>
+                        {t("timeline.produced")}: {block.producedDays}{" "}
+                        {t("timeline.days")}
+                      </span>
+                    )}
+                  </p>
+                )}
+
+                {description && (
+                  <p className="mt-2 text-sm text-[#495867]">{description}</p>
+                )}
+
+                {block.steps.length > 0 && (
+                  <ul className="mt-4 space-y-2 border-l-2 border-[#495867] pl-4">
+                    {block.steps.map(({ post, date }) => (
+                      <li key={post.id} className="relative">
+                        <span className="absolute -left-[1.3rem] top-2 h-2 w-2 rounded-full bg-[#495867]" />
+                        <time className="text-[10px] uppercase text-[#6b7a8a]">
+                          {fmtDate(date)}
+                        </time>
+                        <Link
+                          href={`/blog/${post.slug}`}
+                          className="mt-0.5 block text-sm font-medium text-[#0D131A] hover:text-[#495867]"
+                        >
+                          {titleForPost(post)}
+                          {post.workDays != null && (
+                            <span className="ml-2 text-xs font-normal text-[#495867]">
+                              ({post.workDays} {t("timeline.days")})
+                            </span>
+                          )}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </article>
+            </div>
+          );
+        })}
+
+        {standalone.length > 0 && (
+          <section className="mt-8 border-t border-[#d4dde6] pt-8">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-[#495867]">
+              {t("timeline.standalonePosts")}
+            </h3>
+            <ul className="mt-4 space-y-4">
+              {standalone.map(({ post, date }) => (
+                <li key={post.id}>
+                  <time className="text-xs text-[#495867]">{fmtDate(date)}</time>
+                  <Link
+                    href={`/blog/${post.slug}`}
+                    className="mt-0.5 block text-base font-medium text-[#0D131A] hover:text-[#495867]"
+                  >
+                    {titleForPost(post)}
+                    {post.workDays != null && (
+                      <span className="ml-2 text-xs font-normal text-[#495867]">
+                        ({post.workDays} {t("timeline.days")})
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
       </div>
     </div>

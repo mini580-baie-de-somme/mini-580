@@ -256,4 +256,55 @@ describe("API integration — Tags / Themes / Jalons CRUD FR/EN", () => {
     );
     expect(del.status).toBe(200);
   });
+
+  it("rejects milestone endDate before start date", async () => {
+    const { POST } = await import("@/app/api/milestones/route");
+    const res = await POST(
+      jsonRequest("http://localhost/api/milestones", {
+        method: "POST",
+        headers: bearerHeaders(),
+        body: JSON.stringify({
+          slug: uniqueSlug(`${MILE_P}-bad-end`),
+          titleFr: "Bad end",
+          titleEn: "Bad end",
+          milestoneDate: "2026-05-10T00:00:00.000Z",
+          endDate: "2026-05-01T00:00:00.000Z",
+        }),
+      })
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("creates milestone with endDate and workloadForecast", async () => {
+    const { POST } = await import("@/app/api/milestones/route");
+    const slug = uniqueSlug(`${MILE_P}-period`);
+    const res = await POST(
+      jsonRequest("http://localhost/api/milestones", {
+        method: "POST",
+        headers: bearerHeaders(),
+        body: JSON.stringify({
+          slug,
+          titleFr: "Période",
+          titleEn: "Period",
+          milestoneDate: "2026-04-01T00:00:00.000Z",
+          endDate: "2026-04-30T00:00:00.000Z",
+          workloadForecast: 12,
+        }),
+      })
+    );
+    expect(res.status).toBe(201);
+    const created = await res.json();
+    expect(created.endDate).toBeTruthy();
+    expect(created.workloadForecast).toBe(12);
+
+    const { DELETE } = await import("@/app/api/milestones/[id]/route");
+    const del = await DELETE(
+      jsonRequest(`http://localhost/api/milestones/${created.id}`, {
+        method: "DELETE",
+        headers: bearerHeaders(),
+      }),
+      { params: Promise.resolve({ id: created.id }) }
+    );
+    expect(del.status).toBe(200);
+  });
 });

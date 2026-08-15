@@ -154,6 +154,22 @@ const messages = {
     en: "Class Globe build milestones and blog posts in chronological order.",
   },
   "timeline.empty": { fr: "Aucun jalon pour le moment.", en: "No milestones yet." },
+  "timeline.metricElapsed": {
+    fr: "Jours écoulés depuis le début",
+    en: "Days elapsed since project start",
+  },
+  "timeline.metricProduced": {
+    fr: "Jours produits (articles)",
+    en: "Produced days (articles)",
+  },
+  "timeline.days": { fr: "j", en: "d" },
+  "timeline.punctual": { fr: "Jalon ponctuel", en: "Punctual deadline" },
+  "timeline.forecast": { fr: "Prévision", en: "Forecast" },
+  "timeline.produced": { fr: "Produit", en: "Produced" },
+  "timeline.standalonePosts": {
+    fr: "Articles hors jalon",
+    en: "Posts outside milestones",
+  },
 
   "login.title": { fr: "Connexion éditeur", en: "Editor sign-in" },
   "login.subtitle": {
@@ -164,7 +180,10 @@ const messages = {
   "login.password": { fr: "Mot de passe", en: "Password" },
   "login.submit": { fr: "Se connecter", en: "Sign in" },
   "login.loading": { fr: "Connexion…", en: "Signing in…" },
-  "login.failed": { fr: "Connexion impossible", en: "Sign-in failed" },
+  "login.failed": {
+    fr: "Identifiants invalides",
+    en: "Invalid credentials",
+  },
   "login.network": { fr: "Erreur réseau", en: "Network error" },
   "login.modePassword": { fr: "Mot de passe", en: "Password" },
   "login.modeOtp": { fr: "Code Telegram", en: "Telegram code" },
@@ -172,12 +191,16 @@ const messages = {
   "login.otpCode": { fr: "Code à 4 chiffres", en: "4-digit code" },
   "login.otpVerify": { fr: "Valider le code", en: "Verify code" },
   "login.otpSent": {
-    fr: "Code envoyé sur Telegram (valide 5 minutes).",
-    en: "Code sent on Telegram (valid 5 minutes).",
+    fr: "Si un compte associé existe, un code a été envoyé sur Telegram (valide 5 minutes).",
+    en: "If an account exists, a code was sent on Telegram (valid 5 minutes).",
   },
   "login.otpRequestFailed": {
-    fr: "Impossible d'envoyer le code.",
-    en: "Could not send the code.",
+    fr: "Impossible d'envoyer le code pour le moment.",
+    en: "Could not send the code right now.",
+  },
+  "login.otpVerifyFailed": {
+    fr: "Code invalide ou expiré",
+    en: "Invalid or expired code",
   },
 
   "article.gallery": { fr: "Médias", en: "Media" },
@@ -227,6 +250,15 @@ const messages = {
   "editor.publishedAtHint": {
     fr: "Permet de rétro-dater ou placer l’article précisément sur la timeline.",
     en: "Backdate or place the post precisely on the timeline.",
+  },
+  "editor.workDays": {
+    fr: "Jours de travail produits",
+    en: "Work days produced",
+  },
+  "editor.workDaysPlaceholder": { fr: "Optionnel", en: "Optional" },
+  "editor.workDaysHint": {
+    fr: "Entier optionnel — alimente les métriques timeline et jalons.",
+    en: "Optional integer — feeds timeline and milestone metrics.",
   },
   "editor.author": { fr: "Auteur", en: "Author" },
   "editor.authorHint": {
@@ -533,6 +565,13 @@ const messages = {
   "milestones.search": { fr: "Rechercher un jalon…", en: "Search milestones…" },
   "milestones.empty": { fr: "Aucun jalon.", en: "No milestones yet." },
   "milestones.colDate": { fr: "Date", en: "Date" },
+  "milestones.startDate": { fr: "Date de début", en: "Start date" },
+  "milestones.endDate": { fr: "Date de fin (optionnel)", en: "End date (optional)" },
+  "milestones.workloadForecast": {
+    fr: "Charge prévisionnelle (j)",
+    en: "Forecast workload (days)",
+  },
+  "milestones.optional": { fr: "Optionnel", en: "Optional" },
   "milestones.colTitle": { fr: "FR / EN", en: "FR / EN" },
   "milestones.publishProd": { fr: "Publier PROD", en: "Publish to PROD" },
   "milestones.pullProd": { fr: "Tirer depuis PROD", en: "Pull from PROD" },

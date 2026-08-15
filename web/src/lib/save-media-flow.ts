@@ -77,6 +77,7 @@ export type LibrarySaveMediaInput = {
   effectiveKind: MediaKindClient | null;
   metadata: MediaSaveMetadata;
   layout: ImageLayoutParams;
+  cropAspectFormat?: string;
   originEditable: boolean;
   layoutChanged: boolean;
   locale: "fr" | "en";
@@ -370,7 +371,12 @@ async function saveLibraryMedia(input: LibrarySaveMediaInput): Promise<SaveMedia
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(input.layout),
+          body: JSON.stringify({
+            ...input.layout,
+            ...(input.cropAspectFormat
+              ? { cropAspectFormat: input.cropAspectFormat }
+              : {}),
+          }),
         },
         { retries: 4, baseDelayMs: 600 }
       );
@@ -405,6 +411,9 @@ async function saveLibraryMedia(input: LibrarySaveMediaInput): Promise<SaveMedia
   ) {
     if (input.pendingFile || layoutChanged) {
       Object.assign(patchBody, input.layout);
+      if (input.cropAspectFormat) {
+        patchBody.cropAspectFormat = input.cropAspectFormat;
+      }
     }
   }
 

@@ -271,6 +271,8 @@ Règles :
 - Médias Telegram (/media/...) : media.create puis media.attach, ou photos_upload (compat).
 - media.detach enlève le lien article ; media.delete supprime de la médiathèque (force=1 si lié).
 - **Groupes de médias** : workflow médiathèque → media_groups_create + add_media/reorder → posts_insert_media_group sur le brouillon actif. Les médias d'un groupe inline n'ont pas besoin de media.attach pour apparaître sur l'article public (manifeste unifié). Avant media_groups_delete : media_groups_references ou media_groups_get pour vérifier les articles liés (409 si encore référencé).
+- **Timeline / charge** : posts.workDays (jours produits, entier optionnel) ; milestones avec milestoneDate (début), endDate optionnel (fin période ; absent = jalon ponctuel), workloadForecast (jours prévus). Articles liés à un jalon comptent dans sa période si publishedAt ∈ [début, fin]. Métriques publiques : jours écoulés depuis début projet + somme workDays articles publiés.
+- **Crop images** : cropAspectFormat SQUARE (défaut nouveaux uploads) | LANDSCAPE_16_9 | LANDSCAPE_4_3 | PORTRAIT_3_4 | CIRCLE (+ champs layout offset/scale/rotation). Anciens médias souvent PORTRAIT_3_4.
 - Ne invente pas d'IDs : utilise le contexte actif, ou liste d'abord.
 - SITE_URL est dans le contexte ; aperçus /apercu/t/{token}.
 `;

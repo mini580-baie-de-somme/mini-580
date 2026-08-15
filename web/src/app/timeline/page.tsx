@@ -7,22 +7,23 @@ export const metadata = {
   title: "Timeline",
 };
 
+const postSelect = {
+  id: true,
+  slug: true,
+  titleFr: true,
+  titleEn: true,
+  status: true,
+  publishedAt: true,
+  workDays: true,
+} as const;
+
 export default async function TimelinePage() {
   const milestones = await prisma.milestone.findMany({
     orderBy: milestoneOrderBy("fr"),
     include: {
       posts: {
         include: {
-          post: {
-            select: {
-              id: true,
-              slug: true,
-              titleFr: true,
-              titleEn: true,
-              status: true,
-              publishedAt: true,
-            },
-          },
+          post: { select: postSelect },
         },
       },
     },
@@ -34,31 +35,19 @@ export default async function TimelinePage() {
       milestones: { none: {} },
     },
     orderBy: { publishedAt: "asc" },
-    select: {
-      id: true,
-      slug: true,
-      titleFr: true,
-      titleEn: true,
-      publishedAt: true,
-    },
+    select: postSelect,
   });
 
-  const entries = [
-    ...milestones.map((m) => ({
-      kind: "milestone" as const,
-      date: m.milestoneDate,
-      milestone: m,
-    })),
-    ...standalonePosts
-      .filter((p): p is (typeof standalonePosts)[number] & { publishedAt: Date } =>
-        p.publishedAt != null
-      )
-      .map((p) => ({
-        kind: "post" as const,
-        date: p.publishedAt,
-        post: p,
-      })),
-  ];
+  const allPostsForMetrics = await prisma.post.findMany({
+    where: { status: PostStatus.PUBLISHED },
+    select: { workDays: true },
+  });
 
-  return <TimelineContent entries={entries} />;
+  return (
+    <TimelineContent
+      milestones={milestones}
+      standalonePosts={standalonePosts}
+      allPostsForMetrics={allPostsForMetrics}
+    />
+  );
 }

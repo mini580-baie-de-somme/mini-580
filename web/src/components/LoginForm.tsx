@@ -31,7 +31,7 @@ export function LoginForm() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? t("login.failed"));
+        setError(t("login.failed"));
         return;
       }
       router.push("/editeur");
@@ -80,19 +80,9 @@ export function LoginForm() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? t("login.failed"));
+        setError(t("login.otpVerifyFailed"));
         return;
       }
-      router.push("/editeur");
-      router.refresh();
-    } catch {
-      setError(t("login.network"));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function switchMode(next: LoginMode) {
     setMode(next);
     setError("");
     setInfo("");

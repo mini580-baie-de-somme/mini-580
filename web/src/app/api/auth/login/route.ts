@@ -4,10 +4,10 @@ import { UserStatus } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import {
   createSessionToken,
-  isEmailAllowed,
   sessionCookieOptions,
   verifyPassword,
 } from "@/lib/auth";
+import { AUTH_INVALID_CREDENTIALS } from "@/lib/auth-messages";
 import { appLog } from "@/lib/app-log";
 import { isOtpOnlyPasswordHash } from "@/lib/auth-constants";
 
@@ -24,13 +24,6 @@ export async function POST(request: NextRequest) {
 
     appLog("auth-login", "info", "attempt", { email: normalized });
 
-    if (!(await isEmailAllowed(normalized))) {
-      return NextResponse.json(
-        { error: "Email not authorized" },
-        { status: 403 }
-      );
-    }
-
     const user = await prisma.user.findUnique({
       where: { email: normalized },
     });
@@ -42,7 +35,7 @@ export async function POST(request: NextRequest) {
     ) {
       appLog("auth-login", "warn", "invalid_credentials", { email: normalized });
       return NextResponse.json(
-        { error: "Invalid credentials" },
+        { error: AUTH_INVALID_CREDENTIALS },
         { status: 401 }
       );
     }

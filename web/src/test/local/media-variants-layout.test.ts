@@ -11,6 +11,7 @@ import {
 import {
   DEFAULT_IMAGE_LAYOUT,
   VARIANT_SIZE,
+  variantSizesForFormat,
 } from "@/lib/image-layout";
 import { mediaKeyFromUrl } from "@/lib/media-bucket";
 import { newMediaTraceId } from "@/lib/media-trace";
@@ -171,17 +172,18 @@ describe("media-variants — fixed 3:4 layout bake", () => {
     const grandeBuf = await readFile(
       resolve(root, mediaKeyFromUrl(urls.urlGrande)!)
     );
+    const squareSizes = variantSizesForFormat("SQUARE");
     const grandeMeta = await sharp(grandeBuf).metadata();
-    expect(grandeMeta.width).toBe(VARIANT_SIZE.grande.w);
-    expect(grandeMeta.height).toBe(VARIANT_SIZE.grande.h);
+    expect(grandeMeta.width).toBe(squareSizes.grande.w);
+    expect(grandeMeta.height).toBe(squareSizes.grande.h);
     expect(grandeMeta.format).toBe("webp");
 
     const pictoBuf = await readFile(
       resolve(root, mediaKeyFromUrl(urls.urlPicto)!)
     );
     const pictoMeta = await sharp(pictoBuf).metadata();
-    expect(pictoMeta.width).toBe(VARIANT_SIZE.picto.w);
-    expect(pictoMeta.height).toBe(VARIANT_SIZE.picto.h);
+    expect(pictoMeta.width).toBe(squareSizes.picto.w);
+    expect(pictoMeta.height).toBe(squareSizes.picto.h);
   });
 
   it("applyImageTransform handles cover-editor scale/rotation values", async () => {

@@ -40,7 +40,7 @@ export const AI_TOOLS: AiToolDef[] = [
   {
     name: "posts.create",
     description:
-      "Create a DRAFT post (empty body OK; titles default to Nouvel article / New article). Slug is always auto-generated from titleFr (client slug ignored). Optional publishedAt ISO for timeline/blog ordering. Returns id, blogPath, publicUrl (null until published) for patches and media.attach / photos.upload.",
+      "Create a DRAFT post (empty body OK; titles default to Nouvel article / New article). Slug is always auto-generated from titleFr (client slug ignored). Optional publishedAt ISO for timeline/blog ordering; optional workDays (integer, person-days produced for timeline metrics). Returns id, blogPath, publicUrl (null until published) for patches and media.attach / photos.upload.",
     method: "POST",
     path: "/api/posts",
     auth: "bearer_or_session",
@@ -58,7 +58,7 @@ export const AI_TOOLS: AiToolDef[] = [
   {
     name: "posts.update",
     description:
-      "Patch post FR/EN content, publishedAt, authorId (platform editor id), and relations (tags/themes/milestones/hulls). bodyFr/bodyEn accept Markdown: **bold**, ##/### headings, blank-line paragraphs, - bullets, 1. numbered lists (rendered on public blog). Slug is never set manually: while DRAFT it re-syncs from titleFr; once PUBLISHED/ARCHIVED it stays frozen. Returns blogPath + publicUrl.",
+      "Patch post FR/EN content, publishedAt, workDays (optional integer — person-days produced, feeds timeline/jalon metrics), authorId (platform editor id), and relations (tags/themes/milestones/hulls). bodyFr/bodyEn accept Markdown: **bold**, ##/### headings, blank-line paragraphs, - bullets, 1. numbered lists (rendered on public blog). Slug is never set manually: while DRAFT it re-syncs from titleFr; once PUBLISHED/ARCHIVED it stays frozen. Returns blogPath + publicUrl.",
     method: "PATCH",
     path: "/api/posts/:id",
     auth: "bearer_or_session",
@@ -225,7 +225,8 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "media.update",
-    description: "Patch media FR/EN meta and IMAGE transforms (focus/zoom/rotate/crop)",
+    description:
+      "Patch media FR/EN meta and IMAGE layout: cropAspectFormat (SQUARE|LANDSCAPE_16_9|LANDSCAPE_4_3|PORTRAIT_3_4|CIRCLE), offset/scale/rotation/cropInset/backgroundColor",
     method: "PATCH",
     path: "/api/media-library/:id",
     auth: "bearer_or_session",
@@ -426,7 +427,7 @@ export const AI_TOOLS: AiToolDef[] = [
   {
     name: "milestones.list",
     description:
-      "List milestones ordered by milestoneDate then title (locale). Query: limit, offset, q, locale=fr|en. Paginated → { items, total, totalAll }.",
+      "List milestones ordered by milestoneDate then title (locale). Each item: milestoneDate (start), optional endDate (period end; null = punctual deadline), optional workloadForecast (planned person-days), linked posts with workDays. Query: limit, offset, q, locale=fr|en. Paginated → { items, total, totalAll }.",
     method: "GET",
     path: "/api/milestones",
     auth: "public",
@@ -435,7 +436,7 @@ export const AI_TOOLS: AiToolDef[] = [
   {
     name: "milestones.create",
     description:
-      "Create bilingual milestone: titleFr, titleEn, milestoneDate (ISO), optional descriptionFr/En and slug. Sorted by date then title (no manual order field).",
+      "Create bilingual milestone: titleFr, titleEn, milestoneDate (ISO start), optional endDate (ISO, >= start; omit for punctual deadline), optional workloadForecast (integer person-days), optional descriptionFr/En and slug. Sorted by date then title (no manual order field).",
     method: "POST",
     path: "/api/milestones",
     auth: "bearer_or_session",
@@ -444,7 +445,7 @@ export const AI_TOOLS: AiToolDef[] = [
   {
     name: "milestones.update",
     description:
-      "Update milestone FR/EN titles, descriptions, milestoneDate, optional slug.",
+      "Update milestone FR/EN titles, descriptions, milestoneDate, endDate, workloadForecast, optional slug.",
     method: "PATCH",
     path: "/api/milestones/:id",
     auth: "bearer_or_session",

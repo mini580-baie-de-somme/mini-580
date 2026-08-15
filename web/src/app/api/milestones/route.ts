@@ -8,7 +8,7 @@ import {
   milestoneOrderBy,
   parseMilestoneLocale,
 } from "@/lib/milestones";
-import { requiredDateTime } from "@/lib/date-schema";
+import { requiredDateTime, optionalNullableDateTime } from "@/lib/date-schema";
 import { slugify } from "@/lib/utils";
 
 const milestoneInclude = {
@@ -71,14 +71,30 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ items, total, totalAll, limit, offset });
 }
 
-const createSchema = z.object({
-  titleFr: z.string().min(1),
-  titleEn: z.string().min(1),
-  descriptionFr: z.string().optional(),
-  descriptionEn: z.string().optional(),
-  milestoneDate: requiredDateTime,
-  slug: z.string().optional(),
-});
+const createSchema = z
+  .object({
+    titleFr: z.string().min(1),
+    titleEn: z.string().min(1),
+    descriptionFr: z.string().optional(),
+    descriptionEn: z.string().optional(),
+    milestoneDate: requiredDateTime,
+    endDate: optionalNullableDateTime,
+    workloadForecast: z.union([z.number().int().min(0), z.null()]).optional(),
+    slug: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.endDate) {
+      const start = new Date(data.milestoneDate);
+      const end = new Date(data.endDate);
+      if (end < start) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "endDate must be >= milestoneDate",
+          path: ["endDate"],
+        });
+      }
+    }
+  });
 
 export async function POST(request: NextRequest) {
   const editor = await getEditorOrService(request);
@@ -104,6 +120,8 @@ export async function POST(request: NextRequest) {
         descriptionFr: data.descriptionFr ?? "",
         descriptionEn: data.descriptionEn ?? "",
         milestoneDate: new Date(data.milestoneDate),
+        endDate: data.endDate ? new Date(data.endDate) : null,
+        workloadForecast: data.workloadForecast ?? null,
       },
     });
 

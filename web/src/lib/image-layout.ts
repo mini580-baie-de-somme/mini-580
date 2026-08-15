@@ -1,16 +1,80 @@
 /** Shared image layout — client + server safe (no Node imports). */
 
-export const IMAGE_ASPECT = 3 / 4; // width / height — mobile-first portrait
+export type CropAspectFormat =
+  | "SQUARE"
+  | "LANDSCAPE_16_9"
+  | "LANDSCAPE_4_3"
+  | "PORTRAIT_3_4"
+  | "CIRCLE";
 
-/** Fixed output boxes — same 3:4 aspect for every variant. */
-export const VARIANT_SIZE = {
-  picto: { w: 96, h: 128 },
-  petite: { w: 288, h: 384 },
-  moyenne: { w: 576, h: 768 },
-  grande: { w: 1080, h: 1440 },
-} as const;
+export const CROP_ASPECT_FORMATS: CropAspectFormat[] = [
+  "SQUARE",
+  "LANDSCAPE_16_9",
+  "LANDSCAPE_4_3",
+  "PORTRAIT_3_4",
+  "CIRCLE",
+];
 
-export type VariantKey = keyof typeof VARIANT_SIZE;
+export const CROP_FORMAT_LABELS: Record<
+  CropAspectFormat,
+  { fr: string; en: string }
+> = {
+  SQUARE: { fr: "Carré", en: "Square" },
+  LANDSCAPE_16_9: { fr: "Paysage 16:9", en: "Landscape 16:9" },
+  LANDSCAPE_4_3: { fr: "Paysage 4:3", en: "Landscape 4:3" },
+  PORTRAIT_3_4: { fr: "Portrait 3:4", en: "Portrait 3:4" },
+  CIRCLE: { fr: "Rond", en: "Round" },
+};
+
+export function resolveCropAspectFormat(raw?: string | null): CropAspectFormat {
+  if (raw && CROP_ASPECT_FORMATS.includes(raw as CropAspectFormat)) {
+    return raw as CropAspectFormat;
+  }
+  return "PORTRAIT_3_4";
+}
+
+export function imageAspectForFormat(format: CropAspectFormat): number {
+  switch (format) {
+    case "SQUARE":
+    case "CIRCLE":
+      return 1;
+    case "LANDSCAPE_16_9":
+      return 16 / 9;
+    case "LANDSCAPE_4_3":
+      return 4 / 3;
+    case "PORTRAIT_3_4":
+      return 3 / 4;
+  }
+}
+
+export function defaultCropShapeForFormat(format: CropAspectFormat): CropShape {
+  return format === "CIRCLE" ? "CIRCLE" : "RECT";
+}
+
+function variantBox(longEdge: number, aspect: number): { w: number; h: number } {
+  if (aspect >= 1) {
+    return { w: longEdge, h: Math.round(longEdge / aspect) };
+  }
+  return { w: Math.round(longEdge * aspect), h: longEdge };
+}
+
+export function variantSizesForFormat(format: CropAspectFormat) {
+  const aspect = imageAspectForFormat(format);
+  return {
+    picto: variantBox(128, aspect),
+    petite: variantBox(384, aspect),
+    moyenne: variantBox(768, aspect),
+    grande: variantBox(1440, aspect),
+  } as const;
+}
+
+/** @deprecated prefer imageAspectForFormat(cropAspectFormat) */
+export const IMAGE_ASPECT = imageAspectForFormat("PORTRAIT_3_4");
+
+/** @deprecated prefer variantSizesForFormat(cropAspectFormat) */
+export const VARIANT_SIZE = variantSizesForFormat("PORTRAIT_3_4");
+
+export type VariantKey = "picto" | "petite" | "moyenne" | "grande";
 
 export type CropShape = "RECT" | "CIRCLE";
 
@@ -51,7 +115,7 @@ export function cropWindowFractions(cropInset: number) {
  * Fixed logical canvas for editor crop/layout — decoupled from on-screen stage resize
  * (e.g. mobile bottom-sheet handle must not change crop pixel size).
  */
-export const EDITOR_REFERENCE_SIZE = VARIANT_SIZE.petite;
+export const EDITOR_REFERENCE_SIZE = variantSizesForFormat("SQUARE").petite;
 
 export type EditorCropWindow = {
   cropLeft: number;
@@ -272,6 +336,7 @@ export type LegacyMediaTransform = {
   offsetY?: number | null;
   lockAspect?: boolean | null;
   cropShape?: string | null;
+  cropAspectFormat?: string | null;
   backgroundColor?: string | null;
   cropInset?: number | null;
 };
@@ -301,11 +366,9 @@ function resolveOffset(
 
 /** Map legacy Media transform fields → layout params. */
 export function layoutFromLegacy(raw: LegacyMediaTransform): ImageLayoutParams {
+  const format = resolveCropAspectFormat(raw.cropAspectFormat);
   const scaleX = resolveScale(raw.scaleX, raw.zoom);
-  const scaleY = resolveScale(
-    raw.scaleY ?? raw.scaleX,
-    raw.zoom
-  );
+  const scaleY = resolveScale(raw.scaleY ?? raw.scaleX, raw.zoom);
 
   return {
     offsetX: resolveOffset(raw.offsetX, raw.focusX),
@@ -314,10 +377,19 @@ export function layoutFromLegacy(raw: LegacyMediaTransform): ImageLayoutParams {
     scaleY,
     rotation: raw.rotation ?? 0,
     lockAspect: raw.lockAspect ?? true,
-    cropShape: raw.cropShape === "CIRCLE" ? "CIRCLE" : "RECT",
+    cropShape:
+      raw.cropShape === "CIRCLE" || format === "CIRCLE"
+        ? "CIRCLE"
+        : "RECT",
     backgroundColor: raw.backgroundColor ?? "#000000",
     cropInset: raw.cropInset ?? 0.06,
   };
+}
+
+export function cropAspectFormatFromLegacy(
+  raw: LegacyMediaTransform
+): CropAspectFormat {
+  return resolveCropAspectFormat(raw.cropAspectFormat);
 }
 
 /** Keep legacy focus/zoom columns aligned when saving new layout fields. */

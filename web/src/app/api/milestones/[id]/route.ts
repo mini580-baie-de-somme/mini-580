@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
-import { requiredDateTime } from "@/lib/date-schema";
+import { requiredDateTime, optionalNullableDateTime } from "@/lib/date-schema";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -12,6 +12,8 @@ const updateSchema = z.object({
   descriptionFr: z.string().optional(),
   descriptionEn: z.string().optional(),
   milestoneDate: requiredDateTime.optional(),
+  endDate: optionalNullableDateTime,
+  workloadForecast: z.union([z.number().int().min(0), z.null()]).optional(),
   slug: z.string().optional(),
 });
 
@@ -23,9 +25,30 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
   const { id } = await context.params;
 
+  const existing = await prisma.milestone.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   try {
     const body = await request.json();
     const data = updateSchema.parse(body);
+
+    const nextStart = data.milestoneDate
+      ? new Date(data.milestoneDate)
+      : existing.milestoneDate;
+    const nextEnd =
+      data.endDate !== undefined
+        ? data.endDate
+          ? new Date(data.endDate)
+          : null
+        : existing.endDate;
+    if (nextEnd && nextEnd < nextStart) {
+      return NextResponse.json(
+        { error: "endDate must be >= milestoneDate" },
+        { status: 400 }
+      );
+    }
 
     const milestone = await prisma.milestone.update({
       where: { id },
@@ -37,6 +60,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         ...(data.slug !== undefined && { slug: data.slug }),
         ...(data.milestoneDate !== undefined && {
           milestoneDate: new Date(data.milestoneDate),
+        }),
+        ...(data.endDate !== undefined && {
+          endDate: data.endDate ? new Date(data.endDate) : null,
+        }),
+        ...(data.workloadForecast !== undefined && {
+          workloadForecast: data.workloadForecast,
         }),
       },
     });

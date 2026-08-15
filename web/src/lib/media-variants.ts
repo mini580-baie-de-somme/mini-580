@@ -17,17 +17,19 @@ import {
 import { isLocalMediaUrl } from "@/lib/media-integrity";
 import {
   DEFAULT_IMAGE_LAYOUT,
-  VARIANT_SIZE,
+  resolveCropAspectFormat,
+  variantSizesForFormat,
   layoutFromLegacy,
+  type CropAspectFormat,
   type ImageLayoutParams,
 } from "@/lib/image-layout";
 
-/** @deprecated use VARIANT_SIZE — kept for callers expecting max-edge numbers */
+/** @deprecated use variantSizesForFormat — kept for callers expecting max-edge numbers */
 export const VARIANT_MAX_EDGE = {
-  picto: VARIANT_SIZE.picto.w,
-  petite: VARIANT_SIZE.petite.w,
-  moyenne: VARIANT_SIZE.moyenne.w,
-  grande: VARIANT_SIZE.grande.w,
+  picto: variantSizesForFormat("PORTRAIT_3_4").picto.w,
+  petite: variantSizesForFormat("PORTRAIT_3_4").petite.w,
+  moyenne: variantSizesForFormat("PORTRAIT_3_4").moyenne.w,
+  grande: variantSizesForFormat("PORTRAIT_3_4").grande.w,
 } as const;
 
 export type MediaVariantUrls = {
@@ -47,6 +49,7 @@ type ResolvedOrigin = {
 };
 
 export type ImageTransformParams = ImageLayoutParams & {
+  cropAspectFormat?: string;
   /** Legacy aliases — optional when callers still send focus/zoom/crop */
   focusX?: number;
   focusY?: number;
@@ -94,8 +97,13 @@ export async function applyImageTransform(
   transform: ImageTransformParams = DEFAULT_IMAGE_LAYOUT
 ): Promise<Buffer> {
   const layout = normalizeLayout(transform);
-  const CW = VARIANT_SIZE.grande.w;
-  const CH = VARIANT_SIZE.grande.h;
+  const format = resolveCropAspectFormat(transform.cropAspectFormat);
+  if (format === "CIRCLE") {
+    layout.cropShape = "CIRCLE";
+  }
+  const sizes = variantSizesForFormat(format);
+  const CW = sizes.grande.w;
+  const CH = sizes.grande.h;
   const inset = Math.min(0.4, Math.max(0, layout.cropInset));
   const cropW = Math.max(1, Math.round(CW * (1 - 2 * inset)));
   const cropH = Math.max(1, Math.round(CH * (1 - 2 * inset)));
@@ -328,12 +336,15 @@ export async function bakeVariantsFromOrigin(
   const id = randomUUID();
   const base = `${yyyy}/${mm}/${id}`;
 
+  const format = resolveCropAspectFormat(transform.cropAspectFormat);
+  const sizes = variantSizesForFormat(format);
+
   try {
     const [pictoBuf, petiteBuf, moyenneBuf, grandeBuf] = await Promise.all([
-      resizeExact(master, VARIANT_SIZE.picto.w, VARIANT_SIZE.picto.h),
-      resizeExact(master, VARIANT_SIZE.petite.w, VARIANT_SIZE.petite.h),
-      resizeExact(master, VARIANT_SIZE.moyenne.w, VARIANT_SIZE.moyenne.h),
-      resizeExact(master, VARIANT_SIZE.grande.w, VARIANT_SIZE.grande.h),
+      resizeExact(master, sizes.picto.w, sizes.picto.h),
+      resizeExact(master, sizes.petite.w, sizes.petite.h),
+      resizeExact(master, sizes.moyenne.w, sizes.moyenne.h),
+      resizeExact(master, sizes.grande.w, sizes.grande.h),
     ]);
 
     const [picto, petite, moyenne, grande] = await Promise.all([
@@ -386,13 +397,17 @@ export async function storeOriginAndVariants(
   const originKey = `${base}/origin.${ext}`;
   const origin = await bucket.putObject(originKey, body, ct);
 
-  const master = await applyImageTransform(body, DEFAULT_IMAGE_LAYOUT);
+  const master = await applyImageTransform(body, {
+    ...DEFAULT_IMAGE_LAYOUT,
+    cropAspectFormat: "SQUARE",
+  });
+  const sizes = variantSizesForFormat("SQUARE");
 
   const [pictoBuf, petiteBuf, moyenneBuf, grandeBuf] = await Promise.all([
-    resizeExact(master, VARIANT_SIZE.picto.w, VARIANT_SIZE.picto.h),
-    resizeExact(master, VARIANT_SIZE.petite.w, VARIANT_SIZE.petite.h),
-    resizeExact(master, VARIANT_SIZE.moyenne.w, VARIANT_SIZE.moyenne.h),
-    resizeExact(master, VARIANT_SIZE.grande.w, VARIANT_SIZE.grande.h),
+    resizeExact(master, sizes.picto.w, sizes.picto.h),
+    resizeExact(master, sizes.petite.w, sizes.petite.h),
+    resizeExact(master, sizes.moyenne.w, sizes.moyenne.h),
+    resizeExact(master, sizes.grande.w, sizes.grande.h),
   ]);
 
   const [picto, petite, moyenne, grande] = await Promise.all([

@@ -3,15 +3,19 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import {
   BACKGROUND_PRESETS,
+  CROP_ASPECT_FORMATS,
+  CROP_FORMAT_LABELS,
   DEFAULT_IMAGE_LAYOUT,
-  IMAGE_ASPECT,
   computeEditorCropWindow,
   computeEditorPhotoLayout,
   coverScaleForCrop,
   cropCircleMetrics,
   cropWindowFractions,
+  defaultCropShapeForFormat,
+  imageAspectForFormat,
   layoutPatchForRotationChange,
   offsetForScalePivot,
+  type CropAspectFormat,
   type CropShape,
   type ImageLayoutParams,
 } from "@/lib/image-layout";
@@ -28,6 +32,8 @@ type Props = {
   imageSrc: string;
   value: ImageLayoutParams;
   onChange: (next: ImageLayoutParams) => void;
+  cropAspectFormat?: CropAspectFormat;
+  onCropAspectFormatChange?: (format: CropAspectFormat) => void;
   disabled?: boolean;
   /** Grow stage to fill parent height (workspace modal). */
   fillStage?: boolean;
@@ -113,6 +119,8 @@ export function PhotoCanvasEditor({
   imageSrc,
   value,
   onChange,
+  cropAspectFormat = "SQUARE",
+  onCropAspectFormatChange,
   disabled,
   fillStage = false,
   showStage = true,
@@ -501,7 +509,7 @@ export function PhotoCanvasEditor({
           : "relative mx-auto w-full max-w-[min(100%,360px)] shrink-0 cursor-grab touch-none overflow-hidden rounded-lg border border-[#d4dde6] shadow-sm active:cursor-grabbing"
       }
       style={{
-        aspectRatio: String(IMAGE_ASPECT),
+        aspectRatio: String(imageAspectForFormat(cropAspectFormat)),
       }}
       onWheel={onWheel}
       onPointerDown={(e) => onInteractionPointerDown(e, "pan")}
@@ -741,21 +749,26 @@ export function PhotoCanvasEditor({
           {locale === "fr" ? "Ratio" : "Aspect"}
         </label>
         <label className="flex items-center gap-1.5">
-          Crop
+          {locale === "fr" ? "Format" : "Format"}
           <select
-            value={value.cropShape}
-            disabled={disabled}
-            onChange={(e) =>
-              patch({ cropShape: e.target.value as CropShape })
-            }
+            value={cropAspectFormat}
+            disabled={disabled || !onCropAspectFormatChange}
+            onChange={(e) => {
+              const format = e.target.value as CropAspectFormat;
+              onCropAspectFormatChange?.(format);
+              patch({
+                cropShape: defaultCropShapeForFormat(format),
+              });
+            }}
             className="rounded border border-[#d4dde6] px-1.5 py-0.5 text-xs"
           >
-            <option value="RECT">
-              {locale === "fr" ? "Rect" : "Rect"}
-            </option>
-            <option value="CIRCLE">
-              {locale === "fr" ? "Cercle" : "Circle"}
-            </option>
+            {CROP_ASPECT_FORMATS.map((f) => (
+              <option key={f} value={f}>
+                {locale === "fr"
+                  ? CROP_FORMAT_LABELS[f].fr
+                  : CROP_FORMAT_LABELS[f].en}
+              </option>
+            ))}
           </select>
         </label>
         <label className="flex min-w-[8rem] flex-1 items-center gap-1.5">

@@ -48,8 +48,10 @@ import {
 } from "@/lib/media-limits";
 import {
   DEFAULT_IMAGE_LAYOUT,
+  cropAspectFormatFromLegacy,
   layoutFromLegacy,
   layoutParamsDiffer,
+  type CropAspectFormat,
   type ImageLayoutParams,
 } from "@/lib/image-layout";
 import {
@@ -97,6 +99,7 @@ type MediaItem = {
   lockAspect?: boolean;
   rotation: number;
   cropShape?: string;
+  cropAspectFormat?: string;
   backgroundColor?: string;
   cropInset?: number;
   focusX?: number;
@@ -131,6 +134,7 @@ type FormState = {
   descriptionEn: string;
   takenAt: string;
   layout: ImageLayoutParams;
+  cropAspectFormat: CropAspectFormat;
 };
 
 const emptyForm: FormState = {
@@ -140,6 +144,7 @@ const emptyForm: FormState = {
   descriptionEn: "",
   takenAt: "",
   layout: { ...DEFAULT_IMAGE_LAYOUT },
+  cropAspectFormat: "SQUARE",
 };
 
 const KIND_FILTERS: Array<"ALL" | MediaKind> = ["ALL", "IMAGE", "DOCUMENT", "VIDEO"];
@@ -167,6 +172,7 @@ function formFromMedia(m: MediaItem): FormState {
     descriptionEn: m.descriptionEn,
     takenAt: toDatetimeLocalValue(m.takenAt),
     layout: layoutFromLegacy(m),
+    cropAspectFormat: cropAspectFormatFromLegacy(m),
   };
 }
 
@@ -437,7 +443,8 @@ export function MediaLibraryManager() {
     try {
       const layoutChanged =
         Boolean(editingMedia) &&
-        layoutParamsDiffer(form.layout, layoutFromLegacy(editingMedia!));
+        (layoutParamsDiffer(form.layout, layoutFromLegacy(editingMedia!)) ||
+          form.cropAspectFormat !== cropAspectFormatFromLegacy(editingMedia!));
       const metadata = {
         titleFr: form.titleFr,
         titleEn: form.titleEn,
@@ -453,6 +460,7 @@ export function MediaLibraryManager() {
         effectiveKind,
         metadata,
         layout: form.layout,
+        cropAspectFormat: form.cropAspectFormat,
         originEditable,
         layoutChanged,
         locale,
@@ -716,6 +724,10 @@ export function MediaLibraryManager() {
                   imageSrc={canvasSrc!}
                   value={form.layout}
                   onChange={(layout) => setForm({ ...form, layout })}
+                  cropAspectFormat={form.cropAspectFormat}
+                  onCropAspectFormatChange={(cropAspectFormat) =>
+                    setForm({ ...form, cropAspectFormat })
+                  }
                   disabled={busy}
                   fillStage
                   showControls={false}
@@ -814,6 +826,10 @@ export function MediaLibraryManager() {
                         }
                         value={form.layout}
                         onChange={(layout) => setForm({ ...form, layout })}
+                        cropAspectFormat={form.cropAspectFormat}
+                        onCropAspectFormatChange={(cropAspectFormat) =>
+                          setForm({ ...form, cropAspectFormat })
+                        }
                         disabled={busy}
                         showStage={false}
                       />

@@ -515,7 +515,19 @@ export async function rebakeMediaVariants(
     layout,
   }, "info");
   await assertEditableImageOrigin({ ...media, kind: media.kind ?? "IMAGE" });
-  return bakeVariantsFromOrigin(media.urlOrigin, layout, stale, ctx);
+  return bakeVariantsFromOrigin(
+    media.urlOrigin,
+    {
+      ...layout,
+      cropAspectFormat:
+        "cropAspectFormat" in media
+          ? (media as { cropAspectFormat?: string | null }).cropAspectFormat ??
+            undefined
+          : undefined,
+    },
+    stale,
+    ctx
+  );
 }
 
 /** Collect URLs that may still be referenced as post.coverImageUrl before a rebake. */

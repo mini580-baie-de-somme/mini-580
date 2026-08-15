@@ -110,6 +110,8 @@ model Post {
   author        User                     @relation(fields: [authorId], references: [id])
   coverImageUrl String?
   publishedAt   DateTime?
+  /// Optional integer — person-days produced for this article (timeline metrics).
+  workDays      Int?
   createdAt     DateTime                 @default(now())
   updatedAt     DateTime                 @updatedAt
   hulls         PostHull[]
@@ -172,9 +174,13 @@ model Milestone {
   titleEn       String
   descriptionFr String          @default("") @db.Text
   descriptionEn String          @default("") @db.Text
-  milestoneDate DateTime
-  createdAt     DateTime        @default(now())
-  posts         PostMilestone[]
+  milestoneDate     DateTime
+  /// Optional end date (>= milestoneDate). Null = punctual deadline jalon.
+  endDate           DateTime?
+  /// Optional forecast person-days for this milestone period.
+  workloadForecast  Int?
+  createdAt         DateTime        @default(now())
+  posts             PostMilestone[]
 }
 
 model PostMilestone {
@@ -224,6 +230,8 @@ model Media {
   /// Free rotation in degrees
   rotation      Float       @default(0)
   cropShape     String      @default("RECT") // RECT | CIRCLE
+  /// SQUARE | LANDSCAPE_16_9 | LANDSCAPE_4_3 | PORTRAIT_3_4 | CIRCLE
+  cropAspectFormat String   @default("SQUARE")
   backgroundColor String    @default("#000000")
   cropInset     Float       @default(0.06)
   /// @deprecated legacy focus/zoom/crop — kept for compat, prefer offset/scale

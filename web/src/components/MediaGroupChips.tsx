@@ -18,7 +18,7 @@ type Props = {
 export function MediaGroupChips({
   groups,
   locale,
-  maxVisible = 2,
+  maxVisible = 3,
   compact = false,
   onGroupClick,
 }: Props) {
@@ -29,7 +29,11 @@ export function MediaGroupChips({
 
   return (
     <div
-      className={compact ? "flex max-w-full flex-wrap gap-0.5" : "mt-1 flex max-w-full flex-wrap gap-1"}
+      className={
+        compact
+          ? "flex max-w-full flex-col gap-1"
+          : "mt-1.5 flex max-w-full flex-col gap-1.5"
+      }
       onClick={(e) => e.stopPropagation()}
     >
       {visible.map((g) => {
@@ -42,12 +46,13 @@ export function MediaGroupChips({
             onClick={() => onGroupClick(g.id)}
             className={
               compact
-                ? "inline-flex max-w-[7rem] items-center truncate rounded-full bg-[#eef3f7] px-1.5 py-px text-[9px] font-medium text-[#495867] ring-1 ring-[#d4dde6]/80 hover:bg-[#495867] hover:text-white"
-                : "inline-flex max-w-[10rem] items-center truncate rounded border border-[#495867] bg-[#eef3f7] px-1.5 py-0.5 text-[10px] font-medium text-[#495867] hover:bg-[#495867] hover:text-white"
+                ? "inline-flex w-full max-w-full items-start rounded-md bg-[#eef3f7] px-2 py-1 text-left text-[11px] font-semibold leading-snug text-[#0D131A] ring-1 ring-[#495867]/25 hover:bg-[#495867] hover:text-white"
+                : "inline-flex w-full max-w-full items-start rounded-md border-2 border-[#495867]/30 bg-[#eef3f7] px-2.5 py-1.5 text-left text-xs font-semibold leading-snug text-[#0D131A] hover:border-[#495867] hover:bg-[#495867] hover:text-white"
             }
             title={label}
           >
-            {compact ? label : `📷 ${label}`}
+            <span className="mr-1.5 shrink-0 opacity-70">📷</span>
+            <span className="min-w-0 break-words">{label}</span>
           </button>
         );
       })}
@@ -55,11 +60,11 @@ export function MediaGroupChips({
         <span
           className={
             compact
-              ? "inline-flex items-center rounded-full bg-white px-1.5 py-px text-[9px] text-[#6b7a8a] ring-1 ring-[#d4dde6]"
-              : "inline-flex items-center rounded border border-[#d4dde6] bg-white px-1.5 py-0.5 text-[10px] text-[#495867]"
+              ? "inline-flex w-fit items-center rounded-md bg-white px-2 py-0.5 text-[10px] font-medium text-[#495867] ring-1 ring-[#d4dde6]"
+              : "inline-flex w-fit items-center rounded-md border border-[#d4dde6] bg-white px-2 py-0.5 text-[11px] font-medium text-[#495867]"
           }
         >
-          +{extra}
+          +{extra} {locale === "fr" ? "groupes" : "groups"}
         </span>
       )}
     </div>

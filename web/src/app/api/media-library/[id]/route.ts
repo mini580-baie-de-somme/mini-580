@@ -30,6 +30,9 @@ const patchSchema = z.object({
   lockAspect: z.boolean().optional(),
   rotation: z.number().optional(),
   cropShape: z.enum(["RECT", "CIRCLE"]).optional(),
+  cropAspectFormat: z
+    .enum(["SQUARE", "LANDSCAPE_16_9", "LANDSCAPE_4_3", "PORTRAIT_3_4", "CIRCLE"])
+    .optional(),
   backgroundColor: z.string().max(32).optional(),
   cropInset: z.number().min(0).max(0.4).optional(),
   // Legacy
@@ -51,6 +54,7 @@ const LAYOUT_KEYS = [
   "lockAspect",
   "rotation",
   "cropShape",
+  "cropAspectFormat",
   "backgroundColor",
   "cropInset",
   "focusX",
@@ -90,6 +94,7 @@ const NEW_LAYOUT_KEYS = [
   "lockAspect",
   "rotation",
   "cropShape",
+  "cropAspectFormat",
   "backgroundColor",
   "cropInset",
 ] as const;
@@ -146,6 +151,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         lockAspect: data.lockAspect,
         rotation: data.rotation,
         cropShape: data.cropShape,
+        cropAspectFormat: data.cropAspectFormat,
         backgroundColor: data.backgroundColor,
         cropInset: data.cropInset,
         ...(legacySync && {
