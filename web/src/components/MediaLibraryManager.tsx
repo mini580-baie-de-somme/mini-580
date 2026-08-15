@@ -33,7 +33,7 @@ import { MediaKindThumb } from "./MediaKindThumb";
 import { DatetimeLocalInput } from "./DatetimeLocalInput";
 import { EditorSheetPanel } from "./EditorSheetPanel";
 import { PhotoCanvasEditor } from "./PhotoCanvasEditor";
-import { editorCanvasSrc } from "@/lib/gallery-editor";
+import { editorCanvasSrc, mediaLibraryOpenUrl } from "@/lib/gallery-editor";
 import { FullscreenEditorModal } from "./FullscreenEditorModal";
 import {
   MEDIA_ACCEPT,
@@ -1170,7 +1170,7 @@ export function MediaLibraryManager() {
                     groups={groupsFromMedia(m)}
                     locale={locale}
                     busy={busy}
-                    openUrl={m.urlOrigin}
+                    openUrl={mediaLibraryOpenUrl(m)}
                     labels={{
                       edit: t("list.edit"),
                       open: t("media.open"),
@@ -1270,7 +1270,7 @@ export function MediaLibraryManager() {
                         {t("list.edit")}
                       </button>
                       <a
-                        href={m.urlOrigin}
+                        href={mediaLibraryOpenUrl(m)}
                         target="_blank"
                         rel="noreferrer"
                         className="text-xs text-[#495867] hover:underline"

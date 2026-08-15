@@ -4,6 +4,7 @@ import {
   editorCanvasSrc,
   findCoverImage,
   galleryThumbSrc,
+  mediaLibraryOpenUrl,
   mediaVariantSnapshot,
   toEditorImage,
   type GalleryEditorImage,
@@ -150,6 +151,33 @@ describe("gallery-editor cover helpers", () => {
       urlMoyenne: "/m.webp",
       urlGrande: "/g.webp",
     });
+  });
+
+  it("mediaLibraryOpenUrl prefers grande for images, origin for documents", () => {
+    expect(
+      mediaLibraryOpenUrl(
+        img({
+          id: "img",
+          urlGrande: "/media/img/grande.webp",
+          urlMoyenne: "/media/img/moyenne.webp",
+          urlOrigin: "/media/img/origin.jpg",
+        })
+      )
+    ).toBe("/media/img/grande.webp");
+    expect(
+      mediaLibraryOpenUrl(
+        img({
+          id: "pending",
+          urlMoyenne: "/media/pending/moyenne.webp",
+          urlOrigin: "/media/pending/origin.jpg",
+        })
+      )
+    ).toBe("/media/pending/moyenne.webp");
+    expect(
+      mediaLibraryOpenUrl(
+        img({ id: "doc", kind: "DOCUMENT", urlOrigin: "/media/doc/plan.pdf" })
+      )
+    ).toBe("/media/doc/plan.pdf");
   });
 
   it("editorCanvasSrc uses local preview or cache-busted origin only", () => {

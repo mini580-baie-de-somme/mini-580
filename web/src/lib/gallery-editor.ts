@@ -177,6 +177,24 @@ export function coverUrlFromImage(image: GalleryEditorImage): string {
   );
 }
 
+/** Open in new tab: largest baked variant for images (crop applied), origin for docs/video. */
+export function mediaLibraryOpenUrl(
+  media: Pick<
+    GalleryEditorImage,
+    "kind" | "urlOrigin" | "urlGrande" | "urlMoyenne" | "urlPetite"
+  >
+): string {
+  if ((media.kind || "IMAGE") === "IMAGE") {
+    return (
+      media.urlGrande ||
+      media.urlMoyenne ||
+      media.urlPetite ||
+      media.urlOrigin
+    );
+  }
+  return media.urlOrigin;
+}
+
 export function findCoverImage(
   images: GalleryEditorImage[],
   coverImageUrl: string | null | undefined
