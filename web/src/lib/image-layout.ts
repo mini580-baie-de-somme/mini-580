@@ -47,6 +47,35 @@ export function imageAspectForFormat(format: CropAspectFormat): number {
   }
 }
 
+/** Stage sizing — fillStage must fit inside parent without squashing aspect ratio. */
+export function editorStageStyleForFormat(
+  format: CropAspectFormat,
+  opts?: { fillStage?: boolean }
+): {
+  aspectRatio: string;
+  width?: string;
+  height?: string;
+  maxWidth?: string;
+  maxHeight?: string;
+} {
+  const aspect = imageAspectForFormat(format);
+  const fillStage = opts?.fillStage ?? false;
+  if (fillStage) {
+    return {
+      aspectRatio: String(aspect),
+      maxWidth: "100%",
+      maxHeight: "100%",
+      width: aspect >= 1 ? "100%" : "auto",
+      height: aspect >= 1 ? "auto" : "100%",
+    };
+  }
+  return {
+    aspectRatio: String(aspect),
+    width: "100%",
+    maxWidth: "min(100%, 360px)",
+  };
+}
+
 export function defaultCropShapeForFormat(format: CropAspectFormat): CropShape {
   return format === "CIRCLE" ? "CIRCLE" : "RECT";
 }

@@ -12,6 +12,7 @@ import {
   cropCircleMetrics,
   cropWindowFractions,
   defaultCropShapeForFormat,
+  editorStageStyleForFormat,
   imageAspectForFormat,
   layoutPatchForRotationChange,
   offsetForScalePivot,
@@ -511,12 +512,10 @@ export function PhotoCanvasEditor({
       ref={stageRef}
       className={
         fillStage
-          ? "relative h-full max-h-full w-auto max-w-full shrink-0 cursor-grab touch-none overflow-hidden rounded-lg border border-[#d4dde6] shadow-sm active:cursor-grabbing"
-          : "relative mx-auto w-full max-w-[min(100%,360px)] shrink-0 cursor-grab touch-none overflow-hidden rounded-lg border border-[#d4dde6] shadow-sm active:cursor-grabbing"
+          ? "relative shrink-0 cursor-grab touch-none overflow-hidden rounded-lg border border-[#d4dde6] shadow-sm active:cursor-grabbing"
+          : "relative mx-auto shrink-0 cursor-grab touch-none overflow-hidden rounded-lg border border-[#d4dde6] shadow-sm active:cursor-grabbing"
       }
-      style={{
-        aspectRatio: String(imageAspectForFormat(cropAspectFormat)),
-      }}
+      style={editorStageStyleForFormat(cropAspectFormat, { fillStage })}
       onWheel={onWheel}
       onPointerDown={(e) => onInteractionPointerDown(e, "pan")}
       onPointerMove={onInteractionPointerMove}

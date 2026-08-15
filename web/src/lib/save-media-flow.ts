@@ -5,7 +5,7 @@
  * - post: PATCH `/api/posts/:postId/images/:id` always includes layout when editable;
  *   library: layout in PATCH only when file replaced or layout changed.
  * - post: rebake follow-up refreshes gallery via onSaved + fetchMediaAfterRebakeTimeout;
- *   library: rebake timeout triggers list reload only.
+ *   library: rebake poll reloads list when variant URLs rotate (or on timeout).
  * - post: replace/upload FormData includes metadata; library replace is file-only.
  * - library create: separate layout PATCH after upload for IMAGE; post merges in one PATCH.
  */
@@ -538,19 +538,26 @@ export function followUpPostRebakePoll(opts: {
   })();
 }
 
-/** Library: reload list after rebake poll (no variant refresh in UI). */
+/** Library: reload list after async rebake rotates variant URLs. */
 export function followUpLibraryRebakePoll(opts: {
   mediaId: string;
   patchVariantBaseline: MediaVariantSnapshot;
   onReload: () => void | Promise<void>;
 }): void {
-  void waitForMediaRebakeAfterPatch(opts.mediaId, opts.patchVariantBaseline, {
-    maxMs: 20_000,
-  }).then((rebaked) => {
-    if (!rebaked) {
-      void opts.onReload();
+  void (async () => {
+    const rebaked =
+      (await waitForMediaRebakeAfterPatch(opts.mediaId, opts.patchVariantBaseline, {
+        maxMs: 20_000,
+      })) ??
+      (await fetchMediaAfterRebakeTimeout(opts.mediaId));
+    if (rebaked && mediaVariantsChanged(opts.patchVariantBaseline, rebaked)) {
+      await opts.onReload();
+      return;
     }
-  });
+    if (!rebaked) {
+      await opts.onReload();
+    }
+  })();
 }
 
 export function getSaveFlowErrorPhase(err: unknown): SaveMediaFlowPhase {

@@ -3,6 +3,7 @@ import {
   CROP_ASPECT_FORMATS,
   DEFAULT_IMAGE_LAYOUT,
   defaultCropShapeForFormat,
+  editorStageStyleForFormat,
   imageAspectForFormat,
   resolveCropAspectFormat,
   variantSizesForFormat,
@@ -57,6 +58,22 @@ describe("crop aspect formats", () => {
   it("square grande uses 1440 edge (new upload default format)", () => {
     const square = variantSizesForFormat("SQUARE").grande;
     expect(square).toEqual({ w: 1440, h: 1440 });
+  });
+
+  it("builds fillStage styles that preserve landscape 16:9 inside a bounded parent", () => {
+    const style = editorStageStyleForFormat("LANDSCAPE_16_9", { fillStage: true });
+    expect(style.aspectRatio).toBe(String(16 / 9));
+    expect(style.width).toBe("100%");
+    expect(style.height).toBe("auto");
+    expect(style.maxHeight).toBe("100%");
+  });
+
+  it("builds fillStage styles that preserve portrait 3:4 inside a bounded parent", () => {
+    const style = editorStageStyleForFormat("PORTRAIT_3_4", { fillStage: true });
+    expect(style.aspectRatio).toBe(String(3 / 4));
+    expect(style.height).toBe("100%");
+    expect(style.width).toBe("auto");
+    expect(style.maxWidth).toBe("100%");
   });
 
   it("atomic crop format change keeps aspect + shape in sync (split editor regression)", () => {

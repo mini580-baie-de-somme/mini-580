@@ -219,6 +219,25 @@ describe("followUpLibraryRebakePoll", () => {
     vi.unstubAllGlobals();
   });
 
+  it("reloads when rebake completes with new variant URLs", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "m1",
+          urlPicto: "/media/m1/picto-new.webp",
+        })
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const onReload = vi.fn();
+    followUpLibraryRebakePoll({
+      mediaId: "m1",
+      patchVariantBaseline: { urlPicto: "/media/m1/picto.webp" },
+      onReload,
+    });
+    await vi.waitFor(() => expect(onReload).toHaveBeenCalled());
+  });
+
   it("reloads when rebake times out", async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn().mockResolvedValue(
