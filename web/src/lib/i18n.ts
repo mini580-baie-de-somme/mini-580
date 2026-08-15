@@ -572,6 +572,11 @@ const messages = {
     en: "Forecast workload (days)",
   },
   "milestones.optional": { fr: "Optionnel", en: "Optional" },
+  "milestones.slug": { fr: "Slug (URL)", en: "Slug (URL)" },
+  "milestones.slugHint": {
+    fr: "Généré automatiquement depuis le titre EN.",
+    en: "Auto-generated from the EN title.",
+  },
   "milestones.colTitle": { fr: "FR / EN", en: "FR / EN" },
   "milestones.publishProd": { fr: "Publier PROD", en: "Publish to PROD" },
   "milestones.pullProd": { fr: "Tirer depuis PROD", en: "Pull from PROD" },

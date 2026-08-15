@@ -32,6 +32,7 @@ export default async function JalonModifierPage({ params }: PageProps) {
           milestoneDate: milestone.milestoneDate.toISOString(),
           endDate: milestone.endDate?.toISOString() ?? null,
         })}
+        savedSlug={milestone.slug}
         backHref={`/editeur/jalons/${milestone.id}`}
         title={`${milestone.titleFr} — (Modification)`}
       />

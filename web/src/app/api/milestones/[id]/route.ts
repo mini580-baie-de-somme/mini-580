@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
 import { requiredDateTime, optionalNullableDateTime } from "@/lib/date-schema";
+import { uniqueMilestoneSlug } from "@/lib/milestones";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -50,6 +51,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       );
     }
 
+    let slug = existing.slug;
+    if (data.titleEn !== undefined && data.titleEn.trim()) {
+      slug = await uniqueMilestoneSlug(data.titleEn, id);
+    }
+
     const milestone = await prisma.milestone.update({
       where: { id },
       data: {
@@ -57,7 +63,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         ...(data.titleEn !== undefined && { titleEn: data.titleEn }),
         ...(data.descriptionFr !== undefined && { descriptionFr: data.descriptionFr }),
         ...(data.descriptionEn !== undefined && { descriptionEn: data.descriptionEn }),
-        ...(data.slug !== undefined && { slug: data.slug }),
+        slug,
         ...(data.milestoneDate !== undefined && {
           milestoneDate: new Date(data.milestoneDate),
         }),

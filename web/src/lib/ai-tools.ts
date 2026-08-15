@@ -436,7 +436,7 @@ export const AI_TOOLS: AiToolDef[] = [
   {
     name: "milestones.create",
     description:
-      "Create bilingual milestone: titleFr, titleEn, milestoneDate (ISO start), optional endDate (ISO, >= start; omit for punctual deadline), optional workloadForecast (integer person-days), optional descriptionFr/En and slug. Sorted by date then title (no manual order field).",
+      "Create bilingual milestone: titleFr, titleEn, milestoneDate (ISO start), optional endDate (ISO, >= start; omit for punctual deadline), optional workloadForecast (integer person-days), optional descriptionFr/En. Slug auto-generated from titleEn (client slug ignored). Sorted by date then title (no manual order field).",
     method: "POST",
     path: "/api/milestones",
     auth: "bearer_or_session",
@@ -445,7 +445,7 @@ export const AI_TOOLS: AiToolDef[] = [
   {
     name: "milestones.update",
     description:
-      "Update milestone FR/EN titles, descriptions, milestoneDate, endDate, workloadForecast, optional slug.",
+      "Update milestone FR/EN titles, descriptions, milestoneDate, endDate, workloadForecast. Slug auto-syncs from titleEn (client slug ignored).",
     method: "PATCH",
     path: "/api/milestones/:id",
     auth: "bearer_or_session",

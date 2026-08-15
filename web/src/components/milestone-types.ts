@@ -18,7 +18,6 @@ export type MilestoneFormState = {
   milestoneDate: string;
   endDate: string;
   workloadForecast: string;
-  slug: string;
 };
 
 export const emptyMilestoneForm = (): MilestoneFormState => ({
@@ -29,7 +28,6 @@ export const emptyMilestoneForm = (): MilestoneFormState => ({
   milestoneDate: new Date().toISOString().slice(0, 10),
   endDate: "",
   workloadForecast: "",
-  slug: "",
 });
 
 export function toDateInput(value: string) {
@@ -45,7 +43,6 @@ export function milestoneToForm(m: MilestoneRecord): MilestoneFormState {
     milestoneDate: toDateInput(m.milestoneDate),
     endDate: m.endDate ? toDateInput(m.endDate) : "",
     workloadForecast: m.workloadForecast != null ? String(m.workloadForecast) : "",
-    slug: m.slug,
   };
 }
 

@@ -7,9 +7,9 @@ import { parseListPagination } from "@/lib/editor-list";
 import {
   milestoneOrderBy,
   parseMilestoneLocale,
+  uniqueMilestoneSlug,
 } from "@/lib/milestones";
 import { requiredDateTime, optionalNullableDateTime } from "@/lib/date-schema";
-import { slugify } from "@/lib/utils";
 
 const milestoneInclude = {
   posts: {
@@ -105,12 +105,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const data = createSchema.parse(body);
-    let slug = data.slug ?? slugify(data.titleEn);
-    let n = 0;
-    while (await prisma.milestone.findUnique({ where: { slug } })) {
-      n += 1;
-      slug = `${data.slug ?? slugify(data.titleEn)}-${n}`;
-    }
+    const slug = await uniqueMilestoneSlug(data.titleEn);
 
     const milestone = await prisma.milestone.create({
       data: {

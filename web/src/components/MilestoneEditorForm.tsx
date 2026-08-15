@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { slugify } from "@/lib/utils";
 import { EditorEntityPageTitle } from "./EditorEntityPageTitle";
 import { useLocale } from "./LocaleProvider";
 import type { MilestoneFormState } from "./milestone-types";
@@ -10,16 +11,29 @@ type Props = {
   mode: "create" | "edit";
   milestoneId?: string;
   initialForm: MilestoneFormState;
+  savedSlug?: string;
   backHref: string;
   title: string;
 };
 
-export function MilestoneEditorForm({ mode, milestoneId, initialForm, backHref, title }: Props) {
+export function MilestoneEditorForm({
+  mode,
+  milestoneId,
+  initialForm,
+  savedSlug,
+  backHref,
+  title,
+}: Props) {
   const { t } = useLocale();
   const router = useRouter();
   const [form, setForm] = useState<MilestoneFormState>(initialForm);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const slugPreview = useMemo(() => {
+    const fromTitle = slugify(form.titleEn.trim());
+    if (fromTitle) return fromTitle;
+    return savedSlug ?? "";
+  }, [form.titleEn, savedSlug]);
 
   async function save() {
     setBusy(true);
@@ -36,7 +50,6 @@ export function MilestoneEditorForm({ mode, milestoneId, initialForm, backHref, 
           form.workloadForecast.trim() === ""
             ? null
             : Math.max(0, parseInt(form.workloadForecast, 10) || 0),
-        ...(form.slug.trim() ? { slug: form.slug.trim() } : {}),
       };
 
       const res =
@@ -140,13 +153,14 @@ export function MilestoneEditorForm({ mode, milestoneId, initialForm, backHref, 
             />
           </label>
           <label className="block text-sm sm:col-span-2">
-            <span className="mb-1 block text-[#495867]">Slug (optionnel)</span>
+            <span className="mb-1 block text-[#495867]">{t("milestones.slug")}</span>
             <input
-              className="w-full rounded-md border border-[#d4dde6] px-3 py-2"
-              value={form.slug}
-              onChange={(e) => setForm({ ...form, slug: e.target.value })}
-              placeholder="auto depuis le titre EN"
+              readOnly
+              value={slugPreview}
+              className="w-full cursor-default rounded-md border border-[#d4dde6] bg-[#f4f7fa] px-3 py-2 font-mono text-sm text-[#495867]"
+              placeholder="—"
             />
+            <span className="mt-1 block text-[11px] text-[#495867]">{t("milestones.slugHint")}</span>
           </label>
         </div>
         <div className="mt-4 flex gap-2">

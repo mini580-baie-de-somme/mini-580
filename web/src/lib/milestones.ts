@@ -1,4 +1,8 @@
+import "server-only";
+
 import type { Prisma } from "@/generated/prisma/client";
+import { prisma } from "@/lib/db";
+import { slugify } from "@/lib/utils";
 
 export type MilestoneLocale = "fr" | "en";
 
@@ -16,6 +20,25 @@ export function parseMilestoneLocale(
   value: string | null | undefined
 ): MilestoneLocale {
   return value === "en" ? "en" : "fr";
+}
+
+/** Slug base for milestones — always derived from the English title. */
+export function milestoneSlugBase(titleEn: string): string {
+  return titleEn.trim() || "milestone";
+}
+
+export async function uniqueMilestoneSlug(
+  titleEn: string,
+  excludeId?: string
+): Promise<string> {
+  const slug = slugify(milestoneSlugBase(titleEn)) || "milestone";
+  let counter = 0;
+  while (true) {
+    const candidate = counter === 0 ? slug : `${slug}-${counter}`;
+    const existing = await prisma.milestone.findUnique({ where: { slug: candidate } });
+    if (!existing || existing.id === excludeId) return candidate;
+    counter++;
+  }
 }
 
 export function compareByDateThenTitle(
