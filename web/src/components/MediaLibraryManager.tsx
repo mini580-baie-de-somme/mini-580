@@ -723,10 +723,12 @@ export function MediaLibraryManager() {
                 <PhotoCanvasEditor
                   imageSrc={canvasSrc!}
                   value={form.layout}
-                  onChange={(layout) => setForm({ ...form, layout })}
+                  onChange={(layout) =>
+                    setForm((prev) => ({ ...prev, layout }))
+                  }
                   cropAspectFormat={form.cropAspectFormat}
-                  onCropAspectFormatChange={(cropAspectFormat) =>
-                    setForm({ ...form, cropAspectFormat })
+                  onCropFormatChange={(cropAspectFormat, layout) =>
+                    setForm((prev) => ({ ...prev, cropAspectFormat, layout }))
                   }
                   disabled={busy}
                   fillStage
@@ -825,10 +827,16 @@ export function MediaLibraryManager() {
                           editingMedia!.urlGrande!
                         }
                         value={form.layout}
-                        onChange={(layout) => setForm({ ...form, layout })}
+                        onChange={(layout) =>
+                          setForm((prev) => ({ ...prev, layout }))
+                        }
                         cropAspectFormat={form.cropAspectFormat}
-                        onCropAspectFormatChange={(cropAspectFormat) =>
-                          setForm({ ...form, cropAspectFormat })
+                        onCropFormatChange={(cropAspectFormat, layout) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            cropAspectFormat,
+                            layout,
+                          }))
                         }
                         disabled={busy}
                         showStage={false}

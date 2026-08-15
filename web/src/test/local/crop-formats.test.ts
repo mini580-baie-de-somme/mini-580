@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CROP_ASPECT_FORMATS,
+  DEFAULT_IMAGE_LAYOUT,
   defaultCropShapeForFormat,
   imageAspectForFormat,
   resolveCropAspectFormat,
@@ -56,5 +57,24 @@ describe("crop aspect formats", () => {
   it("square grande uses 1440 edge (new upload default format)", () => {
     const square = variantSizesForFormat("SQUARE").grande;
     expect(square).toEqual({ w: 1440, h: 1440 });
+  });
+
+  it("atomic crop format change keeps aspect + shape in sync (split editor regression)", () => {
+    const prev = {
+      layout: { ...DEFAULT_IMAGE_LAYOUT },
+      cropAspectFormat: "PORTRAIT_3_4" as const,
+    };
+    const nextFormat = "LANDSCAPE_16_9" as const;
+    const merged = {
+      ...prev,
+      cropAspectFormat: nextFormat,
+      layout: {
+        ...prev.layout,
+        cropShape: defaultCropShapeForFormat(nextFormat),
+      },
+    };
+    expect(merged.cropAspectFormat).toBe("LANDSCAPE_16_9");
+    expect(imageAspectForFormat(merged.cropAspectFormat)).toBeCloseTo(16 / 9, 5);
+    expect(merged.layout.cropShape).toBe("RECT");
   });
 });

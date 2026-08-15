@@ -34,6 +34,11 @@ type Props = {
   onChange: (next: ImageLayoutParams) => void;
   cropAspectFormat?: CropAspectFormat;
   onCropAspectFormatChange?: (format: CropAspectFormat) => void;
+  /** Atomic format + layout update (required when stage and controls are split). */
+  onCropFormatChange?: (
+    format: CropAspectFormat,
+    layout: ImageLayoutParams
+  ) => void;
   disabled?: boolean;
   /** Grow stage to fill parent height (workspace modal). */
   fillStage?: boolean;
@@ -121,6 +126,7 @@ export function PhotoCanvasEditor({
   onChange,
   cropAspectFormat = "SQUARE",
   onCropAspectFormatChange,
+  onCropFormatChange,
   disabled,
   fillStage = false,
   showStage = true,
@@ -755,10 +761,16 @@ export function PhotoCanvasEditor({
             disabled={disabled || !onCropAspectFormatChange}
             onChange={(e) => {
               const format = e.target.value as CropAspectFormat;
-              onCropAspectFormatChange?.(format);
-              patch({
+              const nextLayout: ImageLayoutParams = {
+                ...valueRef.current,
                 cropShape: defaultCropShapeForFormat(format),
-              });
+              };
+              if (onCropFormatChange) {
+                onCropFormatChange(format, nextLayout);
+              } else {
+                onChange(nextLayout);
+                onCropAspectFormatChange?.(format);
+              }
             }}
             className="rounded border border-[#d4dde6] px-1.5 py-0.5 text-xs"
           >
