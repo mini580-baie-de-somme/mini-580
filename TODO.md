@@ -1,8 +1,8 @@
 # TODO — Class Mini 5.80 Baie de Somme
 
-> Dernière mise à jour : 2026-08-15 · prod **v1.2.91** · v1.2.92 en local (timeline + crop + sécurité login)
+> Dernière mise à jour : 2026-08-15 · prod **v1.2.91** · test **v1.2.93**
 
-## 🚧 En cours — v1.2.92 (août 2026, local)
+## 🚧 En cours — v1.2.92 (août 2026)
 
 Spec : `docs/15-timeline-metrics.md` · `docs/12-photo-editor-medias.md` (crop formats)
 
@@ -13,8 +13,9 @@ Spec : `docs/15-timeline-metrics.md` · `docs/12-photo-editor-medias.md` (crop f
 - [x] Timeline — barres jalons, traits discontinus entre périodes, étapes articles, métriques header
 - [x] Médiathèque — chips groupes plus lisibles (stack, break-words)
 - [x] Agent Telegram — brief + tools MAJ
-- [x] Tests — `timeline-metrics.test.ts`, `crop-formats.test.ts`, `auth-security.test.ts` + milestones/posts workDays + fix variants SQUARE upload
-- [ ] Ship TEST → PROD
+- [x] Tests — `timeline-metrics`, `crop-formats`, `auth-security` + milestones/posts workDays (326 local)
+- [x] Ship TEST ✓ v1.2.93
+- [ ] Validation Hammed TEST → deploy PROD
 - [ ] Port simohra.fr (clone)
 
 ## ✅ Terminé — Phase 1c éditeur photo (août 2026)
