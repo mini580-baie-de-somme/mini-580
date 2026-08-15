@@ -8,7 +8,7 @@ Règles UI obligatoires pour **toutes** les listes CRUD de l’espace éditeur :
 - Conteneur liste : `rounded-lg border border-[#d4dde6] bg-white`
 - Table HTML réelle : un `<th>` / `<td>` par colonne (pas de `colSpan` + grille CSS pour simuler les colonnes)
 - Colonnes secondaires masquées en responsive (`hidden sm:table-cell` / `md:table-cell`) de façon **identique** entre en-tête et cellules
-- Formulaires de création / édition inline au-dessus de la liste (tags, thèmes, jalons, galerie) ou page dédiée (articles)
+- Formulaires inline au-dessus de la liste (tags, thématiques, galerie) ou pages dédiées (articles, **jalons**)
 - Modules : Articles, **Galerie (médiathèque + groupes intégrés Phase 1d)**, Jalons, Thématiques, Tags, Sync
 - i18n FR/EN via `web/src/lib/i18n.ts`
 
@@ -101,15 +101,15 @@ Surfaces publiques : **Blog** (`BlogFilters`) · **Galerie** (`GalleryPageConten
 
 - Clic n’importe où sur la ligne (sauf zone Actions) ouvre l’édition
 - Articles : navigation vers `/editeur/[id]`
-- Tags / thèmes / jalons : ouvre le formulaire d’édition inline (`startEdit`)
+- Tags / thématiques : ouvre le formulaire d’édition inline (`startEdit`)
+- **Jalons** : navigation vers `/editeur/jalons/[id]` (consultation) ; création via `/editeur/jalons/nouveau` ; modification via `/editeur/jalons/[id]/modifier`
 - `cursor-pointer` + hover de fond sur `<tr>`
 
 ### 4. Actions dans les lignes
 
-- Colonne **Actions** toujours présente
-- Au minimum : Éditer + Supprimer (et actions contextuelles : Publier PROD, etc.)
-- Les boutons / liens de la colonne Actions font `stopPropagation` pour ne pas déclencher le clic ligne
-- Styles : liens texte `text-xs`, supprimer en rouge
+- Colonne **Actions** : tags / thématiques — Éditer + Supprimer (+ `stopPropagation`)
+- **Jalons** : pas de colonne Actions — clic ligne uniquement ; actions (Modifier, Supprimer, Publier PROD) sur la page consultation
+- Liste jalons : date de début + date de fin (si définie) sous la date de début
 
 ### 5. Infinite scroll
 

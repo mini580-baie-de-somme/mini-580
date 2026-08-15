@@ -582,6 +582,12 @@ const messages = {
   "milestones.delete": { fr: "Supprimer", en: "Delete" },
   "milestones.save": { fr: "Enregistrer", en: "Save" },
   "milestones.cancel": { fr: "Annuler", en: "Cancel" },
+  "milestones.viewTitle": { fr: "Jalon : {name}", en: "Milestone: {name}" },
+  "milestones.noEndDate": { fr: "Non définie", en: "Not set" },
+  "milestones.dangerHint": {
+    fr: "Publication PROD (TEST) ou suppression définitive.",
+    en: "PROD publish (TEST) or permanent deletion.",
+  },
 } as const satisfies Record<string, Record<Locale, string>>;
 
 export type MessageKey = keyof typeof messages;
