@@ -1,6 +1,11 @@
 "use client";
 
-import { useRef, type InputHTMLAttributes } from "react";
+import { useEffect, useRef, useState, type InputHTMLAttributes } from "react";
+import {
+  applyDateDigitMask,
+  isoDateToDisplay,
+  parseDisplayDate,
+} from "@/lib/date-input-mask";
 
 function CalendarIcon({ className }: { className?: string }) {
   return (
@@ -28,17 +33,29 @@ type Props = Omit<
   onChange: (value: string) => void;
 };
 
-/** date input with native chevron hidden, calendar icon, and keyboard entry. */
+/** Date field: digit mask (JJ.MM.AAAA), ISO keyboard, and native calendar picker. */
 export function DateInput({
   value,
   onChange,
   className = "",
   ...rest
 }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const pickerRef = useRef<HTMLInputElement>(null);
+  const [text, setText] = useState(() => isoDateToDisplay(value));
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) setText(isoDateToDisplay(value));
+  }, [value, focused]);
+
+  function commitText(next: string) {
+    setText(next);
+    const iso = parseDisplayDate(next);
+    if (iso) onChange(iso);
+  }
 
   function openPicker() {
-    const el = inputRef.current;
+    const el = pickerRef.current;
     if (!el) return;
     if (typeof el.showPicker === "function") {
       el.showPicker();
@@ -50,12 +67,32 @@ export function DateInput({
   return (
     <div className={`relative mt-0.5 ${className}`}>
       <input
-        ref={inputRef}
-        type="date"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        type="text"
+        inputMode="numeric"
+        autoComplete="off"
+        placeholder="JJ.MM.AAAA"
+        value={text}
+        onFocus={() => setFocused(true)}
+        onBlur={() => {
+          setFocused(false);
+          const iso = parseDisplayDate(text);
+          if (iso) setText(isoDateToDisplay(iso));
+        }}
+        onChange={(e) => commitText(applyDateDigitMask(e.target.value))}
         className="datetime-local-input w-full rounded-md border border-[#d4dde6] px-3 py-2 pr-9 text-sm"
         {...rest}
+      />
+      <input
+        ref={pickerRef}
+        type="date"
+        tabIndex={-1}
+        aria-hidden
+        value={value}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setText(isoDateToDisplay(e.target.value));
+        }}
+        className="pointer-events-none absolute h-0 w-0 opacity-0"
       />
       <button
         type="button"
