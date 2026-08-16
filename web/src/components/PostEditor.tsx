@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { HullId } from "@/lib/types";
 import { ArticleBodyEditor } from "./ArticleBodyEditor";
+import { DatetimeLocalInput } from "./DatetimeLocalInput";
 import { LangToggle } from "./LangToggle";
 import { MediaGroupEditor } from "./MediaGroupEditor";
 import { PostGalleryEditor } from "./PostGalleryEditor";
@@ -420,13 +421,11 @@ export function PostEditor({
             <span className="mb-1 block text-[#495867]">
               {t("editor.publishedAt")}
             </span>
-            <input
-              type="datetime-local"
+            <DatetimeLocalInput
               value={form.publishedAt}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, publishedAt: e.target.value }))
+              onChange={(publishedAt) =>
+                setForm((f) => ({ ...f, publishedAt }))
               }
-              className="w-full rounded-md border border-[#d4dde6] px-3 py-2 text-sm"
             />
             <span className="mt-1 block text-[11px] text-[#495867]">
               {t("editor.publishedAtHint")}

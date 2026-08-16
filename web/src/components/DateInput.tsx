@@ -28,8 +28,8 @@ type Props = Omit<
   onChange: (value: string) => void;
 };
 
-/** datetime-local with native chevron hidden and a calendar icon on the right. */
-export function DatetimeLocalInput({
+/** date input with native chevron hidden, calendar icon, and keyboard entry. */
+export function DateInput({
   value,
   onChange,
   className = "",
@@ -51,7 +51,7 @@ export function DatetimeLocalInput({
     <div className={`relative mt-0.5 ${className}`}>
       <input
         ref={inputRef}
-        type="datetime-local"
+        type="date"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="datetime-local-input w-full rounded-md border border-[#d4dde6] px-3 py-2 pr-9 text-sm"
@@ -59,7 +59,7 @@ export function DatetimeLocalInput({
       />
       <button
         type="button"
-        aria-label="Choisir date et heure"
+        aria-label="Choisir une date"
         className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-[#495867] active:bg-[#eef3f7]"
         onClick={openPicker}
       >

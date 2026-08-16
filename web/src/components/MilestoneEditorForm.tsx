@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { slugify } from "@/lib/utils";
 import { EditorEntityPageTitle } from "./EditorEntityPageTitle";
+import { DateInput } from "./DateInput";
 import { useLocale } from "./LocaleProvider";
 import type { MilestoneFormState } from "./milestone-types";
 
@@ -34,6 +35,20 @@ export function MilestoneEditorForm({
     if (fromTitle) return fromTitle;
     return savedSlug ?? "";
   }, [form.titleEn, savedSlug]);
+
+  function onStartDateChange(milestoneDate: string) {
+    setForm((prev) => {
+      const syncEnd =
+        !prev.endDate ||
+        prev.endDate === prev.milestoneDate ||
+        prev.endDate < milestoneDate;
+      return {
+        ...prev,
+        milestoneDate,
+        ...(syncEnd ? { endDate: milestoneDate } : {}),
+      };
+    });
+  }
 
   async function save() {
     setBusy(true);
@@ -124,20 +139,16 @@ export function MilestoneEditorForm({
           </label>
           <label className="block text-sm">
             <span className="mb-1 block text-[#495867]">{t("milestones.startDate")}</span>
-            <input
-              type="date"
-              className="w-full rounded-md border border-[#d4dde6] px-3 py-2"
+            <DateInput
               value={form.milestoneDate}
-              onChange={(e) => setForm({ ...form, milestoneDate: e.target.value })}
+              onChange={onStartDateChange}
             />
           </label>
           <label className="block text-sm">
             <span className="mb-1 block text-[#495867]">{t("milestones.endDate")}</span>
-            <input
-              type="date"
-              className="w-full rounded-md border border-[#d4dde6] px-3 py-2"
+            <DateInput
               value={form.endDate}
-              onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+              onChange={(endDate) => setForm({ ...form, endDate })}
             />
           </label>
           <label className="block text-sm">
