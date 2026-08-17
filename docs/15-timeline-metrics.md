@@ -27,7 +27,7 @@ Validation: `endDate >= milestoneDate` when set.
 - Linked posts shown as **steps** when `publishedAt` ∈ [start, end] (inclusive, day granularity)
 - Badge: forecast days + produced days (sum of step `workDays`)
 
-**Standalone posts** — published posts with no milestone link, listed separately.
+**Standalone posts** — published posts whose `publishedAt` falls outside every milestone window.
 
 ## Agent / API
 

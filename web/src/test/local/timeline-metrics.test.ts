@@ -3,6 +3,7 @@ import {
   buildMilestoneBlocks,
   isMilestoneCurrent,
   postsInMilestoneWindow,
+  standalonePublishedPosts,
 } from "@/lib/timeline-data";
 import {
   calendarDaysBetween,
@@ -31,6 +32,26 @@ describe("timeline-data", () => {
   });
 
   it("includes posts within milestone date window only", () => {
+    const posts = [
+      {
+        id: "p1",
+        slug: "a",
+        titleFr: "A",
+        titleEn: "A",
+        status: "PUBLISHED",
+        publishedAt: "2026-01-15",
+        workDays: 3,
+      },
+      {
+        id: "p2",
+        slug: "b",
+        titleFr: "B",
+        titleEn: "B",
+        status: "PUBLISHED",
+        publishedAt: "2026-02-01",
+        workDays: 5,
+      },
+    ];
     const milestone = {
       id: "m1",
       titleFr: "Jalon",
@@ -40,39 +61,75 @@ describe("timeline-data", () => {
       milestoneDate: "2026-01-01",
       endDate: "2026-01-31",
       workloadForecast: 10,
-      posts: [
-        {
-          post: {
-            id: "p1",
-            slug: "a",
-            titleFr: "A",
-            titleEn: "A",
-            status: "PUBLISHED",
-            publishedAt: "2026-01-15",
-            workDays: 3,
-          },
-        },
-        {
-          post: {
-            id: "p2",
-            slug: "b",
-            titleFr: "B",
-            titleEn: "B",
-            status: "PUBLISHED",
-            publishedAt: "2026-02-01",
-            workDays: 5,
-          },
-        },
-      ],
+      posts: [{ post: posts[0] }, { post: posts[1] }],
     };
-    const steps = postsInMilestoneWindow(milestone);
+    const steps = postsInMilestoneWindow(milestone, posts);
     expect(steps.map((s) => s.post.id)).toEqual(["p1"]);
-    const blocks = buildMilestoneBlocks([milestone]);
+    const blocks = buildMilestoneBlocks([milestone], posts);
     expect(blocks[0]?.producedDays).toBe(3);
     expect(blocks[0]?.isPunctual).toBe(false);
   });
 
+  it("includes published posts by date even without explicit milestone link", () => {
+    const posts = [
+      {
+        id: "p1",
+        slug: "in-window",
+        titleFr: "Dans la période",
+        titleEn: "In window",
+        status: "PUBLISHED",
+        publishedAt: "2026-02-18T09:00:00.000Z",
+        workDays: 4,
+      },
+      {
+        id: "p2",
+        slug: "outside",
+        titleFr: "Hors période",
+        titleEn: "Outside",
+        status: "PUBLISHED",
+        publishedAt: "2026-03-28T09:00:00.000Z",
+        workDays: 2,
+      },
+    ];
+    const milestone = {
+      id: "m1",
+      titleFr: "Chantier",
+      titleEn: "Workshop",
+      descriptionFr: "",
+      descriptionEn: "",
+      milestoneDate: "2026-02-01",
+      endDate: "2026-03-01",
+      workloadForecast: null,
+      posts: [{ post: posts[1] }],
+    };
+    const steps = postsInMilestoneWindow(milestone, posts);
+    expect(steps.map((s) => s.post.id)).toEqual(["p1"]);
+    expect(
+      standalonePublishedPosts(posts, [milestone]).map((s) => s.post.id)
+    ).toEqual(["p2"]);
+  });
+
   it("includes posts on boundary dates (inclusive)", () => {
+    const posts = [
+      {
+        id: "start",
+        slug: "start",
+        titleFr: "Start",
+        titleEn: "Start",
+        status: "PUBLISHED",
+        publishedAt: "2026-01-01",
+        workDays: 1,
+      },
+      {
+        id: "end",
+        slug: "end",
+        titleFr: "End",
+        titleEn: "End",
+        status: "PUBLISHED",
+        publishedAt: "2026-01-10",
+        workDays: 2,
+      },
+    ];
     const milestone = {
       id: "m2",
       titleFr: "Jalon",
@@ -82,34 +139,11 @@ describe("timeline-data", () => {
       milestoneDate: "2026-01-01",
       endDate: "2026-01-10",
       workloadForecast: null,
-      posts: [
-        {
-          post: {
-            id: "start",
-            slug: "start",
-            titleFr: "Start",
-            titleEn: "Start",
-            status: "PUBLISHED",
-            publishedAt: "2026-01-01",
-            workDays: 1,
-          },
-        },
-        {
-          post: {
-            id: "end",
-            slug: "end",
-            titleFr: "End",
-            titleEn: "End",
-            status: "PUBLISHED",
-            publishedAt: "2026-01-10",
-            workDays: 2,
-          },
-        },
-      ],
+      posts: posts.map((post) => ({ post })),
     };
-    const steps = postsInMilestoneWindow(milestone);
+    const steps = postsInMilestoneWindow(milestone, posts);
     expect(steps.map((s) => s.post.id)).toEqual(["start", "end"]);
-    expect(buildMilestoneBlocks([milestone])[0]?.producedDays).toBe(3);
+    expect(buildMilestoneBlocks([milestone], posts)[0]?.producedDays).toBe(3);
   });
 
   it("detects current period milestone (inclusive boundaries)", () => {

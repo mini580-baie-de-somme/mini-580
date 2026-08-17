@@ -29,10 +29,10 @@ export default async function TimelinePage() {
     },
   });
 
-  const standalonePosts = await prisma.post.findMany({
+  const publishedPosts = await prisma.post.findMany({
     where: {
       status: PostStatus.PUBLISHED,
-      milestones: { none: {} },
+      publishedAt: { not: null },
     },
     orderBy: { publishedAt: "asc" },
     select: postSelect,
@@ -46,7 +46,7 @@ export default async function TimelinePage() {
   return (
     <TimelineContent
       milestones={milestones}
-      standalonePosts={standalonePosts}
+      publishedPosts={publishedPosts}
       allPostsForMetrics={allPostsForMetrics}
     />
   );

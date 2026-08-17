@@ -67,41 +67,57 @@ export function isMilestoneCurrent(
   return today >= startDay && today <= endDay;
 }
 
-/** Posts linked to milestone whose publishedAt falls within [start, end] (inclusive). */
+/** True when post publishedAt falls within milestone [start, end] (inclusive, day granularity). Punctual → start day only. */
+export function isPostInMilestoneWindow(
+  post: TimelinePost,
+  milestone: Pick<TimelineMilestone, "milestoneDate" | "endDate">,
+  publishedOnly = true
+): boolean {
+  if (publishedOnly && post.status !== "PUBLISHED") return false;
+  const pub = toDate(post.publishedAt);
+  if (!pub) return false;
+  const start = toDate(milestone.milestoneDate);
+  if (!start) return false;
+  const end = toDate(milestone.endDate);
+  const pubDay = startOfDay(pub);
+  const startDay = startOfDay(start);
+  if (!end) {
+    return pubDay.getTime() === startDay.getTime();
+  }
+  const endDay = startOfDay(end);
+  return pubDay >= startDay && pubDay <= endDay;
+}
+
+/** Published posts whose publishedAt falls within milestone [start, end] (inclusive). */
 export function postsInMilestoneWindow(
   milestone: TimelineMilestone,
+  allPosts: TimelinePost[],
   publishedOnly = true
 ): MilestoneArticleStep[] {
-  const start = toDate(milestone.milestoneDate);
-  if (!start) return [];
-  const end = toDate(milestone.endDate);
-  const startDay = startOfDay(start);
-  const endDay = end ? startOfDay(end) : null;
-
   const steps: MilestoneArticleStep[] = [];
-  for (const link of milestone.posts) {
-    const p = link.post;
-    if (publishedOnly && p.status !== "PUBLISHED") continue;
-    const pub = toDate(p.publishedAt);
-    if (!pub) continue;
-    const pubDay = startOfDay(pub);
-    if (pubDay < startDay) continue;
-    if (endDay && pubDay > endDay) continue;
-    steps.push({ post: p, date: pub });
+  for (const p of allPosts) {
+    if (!isPostInMilestoneWindow(p, milestone, publishedOnly)) continue;
+    steps.push({ post: p, date: toDate(p.publishedAt)! });
   }
   steps.sort((a, b) => a.date.getTime() - b.date.getTime());
   return steps;
 }
 
 export function buildMilestoneBlocks(
-  milestones: TimelineMilestone[]
+  milestones: TimelineMilestone[],
+  allPosts: TimelinePost[] = []
 ): TimelineMilestoneBlock[] {
+  const posts =
+    allPosts.length > 0
+      ? allPosts
+      : milestones.flatMap((m) => m.posts.map((link) => link.post));
+
   return milestones
     .map((m) => {
       const start = toDate(m.milestoneDate);
       if (!start) return null;
       const end = toDate(m.endDate);
-      const steps = postsInMilestoneWindow(m);
+      const steps = postsInMilestoneWindow(m, posts);
       const producedDays = steps.reduce(
         (acc, s) => acc + (s.post.workDays ?? 0),
         0
@@ -120,10 +136,25 @@ export function buildMilestoneBlocks(
 }
 
 export function standalonePublishedPosts(
-  posts: TimelinePost[]
+  posts: TimelinePost[],
+  milestones: TimelineMilestone[] = []
 ): TimelineStandalonePost[] {
+  const inAnyWindow =
+    milestones.length > 0
+      ? new Set(
+          buildMilestoneBlocks(milestones, posts).flatMap((b) =>
+            b.steps.map((s) => s.post.id)
+          )
+        )
+      : null;
+
   return posts
-    .filter((p) => p.status === "PUBLISHED" && p.publishedAt)
+    .filter(
+      (p) =>
+        p.status === "PUBLISHED" &&
+        p.publishedAt &&
+        !(inAnyWindow?.has(p.id) ?? false)
+    )
     .map((p) => ({
       post: p,
       date: toDate(p.publishedAt)!,

@@ -16,13 +16,13 @@ import { elapsedProjectDays, sumWorkDays } from "@/lib/project-metrics";
 
 type Props = {
   milestones: TimelineMilestone[];
-  standalonePosts: TimelinePost[];
+  publishedPosts: TimelinePost[];
   allPostsForMetrics: { workDays: number | null }[];
 };
 
 export function TimelineContent({
   milestones,
-  standalonePosts,
+  publishedPosts,
   allPostsForMetrics,
 }: Props) {
   const { locale, t } = useLocale();
@@ -30,12 +30,12 @@ export function TimelineContent({
   const lang = locale === "en" ? "en" : "fr";
 
   const blocks = useMemo(
-    () => buildMilestoneBlocks(milestones),
-    [milestones]
+    () => buildMilestoneBlocks(milestones, publishedPosts),
+    [milestones, publishedPosts]
   );
   const standalone = useMemo(
-    () => standalonePublishedPosts(standalonePosts),
-    [standalonePosts]
+    () => standalonePublishedPosts(publishedPosts, milestones),
+    [publishedPosts, milestones]
   );
 
   const elapsedDays = elapsedProjectDays();
