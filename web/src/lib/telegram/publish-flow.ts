@@ -5,6 +5,7 @@ import { Hull, Prisma, TelegramSessionStep } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { getPublicSiteBaseUrl } from "@/lib/site-url";
 import { postInclude, syncPostRelations, uniqueSlug, withLegacyImages } from "@/lib/posts";
+import { publishedAtForNamedMilestone } from "@/lib/milestone-windows";
 import { slugify } from "@/lib/utils";
 import {
   isTranslationConfigured,
@@ -359,25 +360,24 @@ export async function finalizeContentCollection(
     )
     .map((t) => t.id);
 
-  let milestoneIds: string[] = [];
+  let publishedAt: Date | null = null;
+  if (parsed.publishedAt) {
+    const d = new Date(parsed.publishedAt);
+    if (!Number.isNaN(d.getTime())) publishedAt = d;
+  }
+
+  let matchedMilestone: (typeof milestones)[number] | undefined;
   if (parsed.milestoneSlug) {
-    const m =
+    matchedMilestone =
       milestones.find((x) => x.slug === parsed.milestoneSlug) ||
       milestones.find(
         (x) =>
           slugify(x.titleFr) === slugify(parsed.milestoneSlug!) ||
           x.titleFr.toLowerCase().includes(parsed.milestoneSlug!.toLowerCase())
       );
-    if (m) milestoneIds = [m.id];
-  }
-
-  const { tagIds, tags: tagMeta } = await ensureTags(parsed.tagLabelsFr);
-  const slug = await uniqueSlug(parsed.titleFr, session.postId ?? undefined);
-
-  let publishedAt: Date | null = null;
-  if (parsed.publishedAt) {
-    const d = new Date(parsed.publishedAt);
-    if (!Number.isNaN(d.getTime())) publishedAt = d;
+    if (matchedMilestone) {
+      publishedAt = publishedAtForNamedMilestone(publishedAt, matchedMilestone);
+    }
   }
 
   let postId = session.postId;
@@ -420,7 +420,6 @@ export async function finalizeContentCollection(
     hulls: parsed.hulls as Hull[],
     tagIds,
     themeIds,
-    milestoneIds,
   });
 
   // Images are already linked during appendContent when postId exists.
@@ -1023,9 +1022,17 @@ export async function handleEditMessage(
     const m =
       milestones.find((x) => x.slug === q || slugify(x.titleFr) === slugify(q)) ||
       milestones.find((x) => x.titleFr.toLowerCase().includes(q.toLowerCase()));
-    await syncPostRelations(postId, {
-      milestoneIds: m ? [m.id] : [],
-    });
+    if (m) {
+      const post = await prisma.post.findUnique({ where: { id: postId } });
+      const publishedAt = publishedAtForNamedMilestone(
+        post?.publishedAt ?? null,
+        m
+      );
+      await prisma.post.update({
+        where: { id: postId },
+        data: { publishedAt },
+      });
+    }
   }
 
   if (session.step === "REVIEW_EN") return formatEnReview(postId);

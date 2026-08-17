@@ -37,15 +37,6 @@ export type SyncPostPayload = {
   hulls: Hull[];
   tags: { id: string; name: string; labelFr: string; labelEn: string }[];
   themes: { id: string; slug: string; labelFr: string; labelEn: string }[];
-  milestones: {
-    id: string;
-    slug: string;
-    titleFr: string;
-    titleEn: string;
-    descriptionFr: string;
-    descriptionEn: string;
-    milestoneDate: string;
-  }[];
   images: {
     id: string;
     urlOrigin: string;
@@ -108,15 +99,6 @@ function serializePost(post: PostWithRelations): SyncPostPayload {
       slug: t.theme.slug,
       labelFr: t.theme.labelFr,
       labelEn: t.theme.labelEn,
-    })),
-    milestones: post.milestones.map((m) => ({
-      id: m.milestone.id,
-      slug: m.milestone.slug,
-      titleFr: m.milestone.titleFr,
-      titleEn: m.milestone.titleEn,
-      descriptionFr: m.milestone.descriptionFr,
-      descriptionEn: m.milestone.descriptionEn,
-      milestoneDate: m.milestone.milestoneDate.toISOString(),
     })),
     images: post.mediaLinks.map((link) => ({
       id: link.media.id,
@@ -343,10 +325,7 @@ export async function upsertPostFromSync(payload: SyncPostPayload) {
       createdAt: new Date().toISOString(),
     })),
     themes: payload.themes,
-    milestones: payload.milestones.map((m) => ({
-      ...m,
-      createdAt: new Date().toISOString(),
-    })),
+    milestones: [],
   });
 
   const authorId = await ensureAuthor(payload.authorEmail);
@@ -404,16 +383,6 @@ export async function upsertPostFromSync(payload: SyncPostPayload) {
   if (payload.themes.length) {
     await prisma.postTheme.createMany({
       data: payload.themes.map((t) => ({ postId: payload.id, themeId: t.id })),
-    });
-  }
-
-  await prisma.postMilestone.deleteMany({ where: { postId: payload.id } });
-  if (payload.milestones.length) {
-    await prisma.postMilestone.createMany({
-      data: payload.milestones.map((m) => ({
-        postId: payload.id,
-        milestoneId: m.id,
-      })),
     });
   }
 

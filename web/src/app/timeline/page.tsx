@@ -18,30 +18,23 @@ const postSelect = {
 } as const;
 
 export default async function TimelinePage() {
-  const milestones = await prisma.milestone.findMany({
-    orderBy: milestoneOrderBy("fr"),
-    include: {
-      posts: {
-        include: {
-          post: { select: postSelect },
-        },
+  const [milestones, publishedPosts, allPostsForMetrics] = await Promise.all([
+    prisma.milestone.findMany({
+      orderBy: milestoneOrderBy("fr"),
+    }),
+    prisma.post.findMany({
+      where: {
+        status: PostStatus.PUBLISHED,
+        publishedAt: { not: null },
       },
-    },
-  });
-
-  const publishedPosts = await prisma.post.findMany({
-    where: {
-      status: PostStatus.PUBLISHED,
-      publishedAt: { not: null },
-    },
-    orderBy: { publishedAt: "asc" },
-    select: postSelect,
-  });
-
-  const allPostsForMetrics = await prisma.post.findMany({
-    where: { status: PostStatus.PUBLISHED },
-    select: { workDays: true },
-  });
+      orderBy: { publishedAt: "asc" },
+      select: postSelect,
+    }),
+    prisma.post.findMany({
+      where: { status: PostStatus.PUBLISHED },
+      select: { workDays: true },
+    }),
+  ]);
 
   return (
     <TimelineContent

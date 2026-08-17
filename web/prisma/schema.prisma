@@ -117,7 +117,6 @@ model Post {
   hulls         PostHull[]
   tags          PostTag[]
   themes        PostTheme[]
-  milestones    PostMilestone[]
   mediaLinks    PostMedia[]
   slugHistory   PostSlugHistory[]
   telegramSessions TelegramPublishSession[]
@@ -180,16 +179,6 @@ model Milestone {
   /// Optional forecast person-days for this milestone period.
   workloadForecast  Int?
   createdAt         DateTime        @default(now())
-  posts             PostMilestone[]
-}
-
-model PostMilestone {
-  postId      String
-  milestoneId String
-  post        Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
-  milestone   Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
-
-  @@id([postId, milestoneId])
 }
 
 enum MediaKind {

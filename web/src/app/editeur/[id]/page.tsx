@@ -14,13 +14,10 @@ export default async function EditPostPage({ params }: PageProps) {
   if (!session) redirect("/connexion");
 
   const { id } = await params;
-  const [post, tags, themes, milestones, editors] = await Promise.all([
+  const [post, tags, themes, editors] = await Promise.all([
     prisma.post.findUnique({ where: { id }, include: postInclude }),
     prisma.tag.findMany({ orderBy: { name: "asc" } }),
     prisma.theme.findMany({ orderBy: { slug: "asc" } }),
-    prisma.milestone.findMany({
-      orderBy: [{ milestoneDate: "asc" }, { titleFr: "asc" }],
-    }),
     listPlatformEditors(),
   ]);
 
@@ -46,7 +43,6 @@ export default async function EditPostPage({ params }: PageProps) {
         post={withLegacyImages(post)}
         tags={tags}
         themes={themes}
-        milestones={milestones}
         editors={editors}
         isTestEnv={isTestEnv}
         onProd={onProd}

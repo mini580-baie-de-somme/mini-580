@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { Prisma } from "@/generated/prisma/client";
+import { PostStatus, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
 import { parseListPagination } from "@/lib/editor-list";
@@ -9,24 +9,18 @@ import {
   parseMilestoneLocale,
   uniqueMilestoneSlug,
 } from "@/lib/milestones";
+import { postsInMilestoneWindow, type TimelinePost } from "@/lib/timeline-data";
 import { requiredDateTime, optionalNullableDateTime } from "@/lib/date-schema";
 
-const milestoneInclude = {
-  posts: {
-    include: {
-      post: {
-        select: {
-          id: true,
-          slug: true,
-          titleFr: true,
-          titleEn: true,
-          status: true,
-          publishedAt: true,
-        },
-      },
-    },
-  },
-} satisfies Prisma.MilestoneInclude;
+const postSelect = {
+  id: true,
+  slug: true,
+  titleFr: true,
+  titleEn: true,
+  status: true,
+  publishedAt: true,
+  workDays: true,
+} as const;
 
 function milestoneWhere(q?: string): Prisma.MilestoneWhereInput {
   if (!q) return {};
@@ -41,34 +35,73 @@ function milestoneWhere(q?: string): Prisma.MilestoneWhereInput {
   };
 }
 
+function serializeMilestoneWithPosts<
+  T extends {
+    id: string;
+    slug: string;
+    titleFr: string;
+    titleEn: string;
+    descriptionFr: string;
+    descriptionEn: string;
+    milestoneDate: Date;
+    endDate: Date | null;
+    workloadForecast: number | null;
+    createdAt: Date;
+  },
+>(milestone: T, allPosts: TimelinePost[]) {
+  const steps = postsInMilestoneWindow(
+    {
+      id: milestone.id,
+      titleFr: milestone.titleFr,
+      titleEn: milestone.titleEn,
+      descriptionFr: milestone.descriptionFr,
+      descriptionEn: milestone.descriptionEn,
+      milestoneDate: milestone.milestoneDate,
+      endDate: milestone.endDate,
+      workloadForecast: milestone.workloadForecast,
+    },
+    allPosts
+  );
+  return {
+    ...milestone,
+    posts: steps.map(({ post }) => ({ post })),
+  };
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const { limit, offset, q, paginated } = parseListPagination(searchParams);
   const where = milestoneWhere(q);
   const orderBy = milestoneOrderBy(parseMilestoneLocale(searchParams.get("locale")));
 
+  const allPosts = await prisma.post.findMany({
+    where: {
+      status: PostStatus.PUBLISHED,
+      publishedAt: { not: null },
+    },
+    select: postSelect,
+  });
+
   if (!paginated) {
-    const milestones = await prisma.milestone.findMany({
-      where,
-      orderBy,
-      include: milestoneInclude,
-    });
-    return NextResponse.json(milestones);
+    const milestones = await prisma.milestone.findMany({ where, orderBy });
+    return NextResponse.json(
+      milestones.map((m) => serializeMilestoneWithPosts(m, allPosts))
+    );
   }
 
   const [items, total, totalAll] = await Promise.all([
-    prisma.milestone.findMany({
-      where,
-      orderBy,
-      include: milestoneInclude,
-      take: limit,
-      skip: offset,
-    }),
+    prisma.milestone.findMany({ where, orderBy, take: limit, skip: offset }),
     prisma.milestone.count({ where }),
     prisma.milestone.count(),
   ]);
 
-  return NextResponse.json({ items, total, totalAll, limit, offset });
+  return NextResponse.json({
+    items: items.map((m) => serializeMilestoneWithPosts(m, allPosts)),
+    total,
+    totalAll,
+    limit,
+    offset,
+  });
 }
 
 const createSchema = z

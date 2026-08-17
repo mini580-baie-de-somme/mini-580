@@ -21,7 +21,7 @@ export default async function BlogPage({
   const params = await searchParams;
   const [posts, themes, tags] = await Promise.all([
     prisma.post.findMany({
-      where: publicPostWhere(params),
+      where: await publicPostWhere(params),
       include: postInclude,
       orderBy: { publishedAt: "desc" },
     }),

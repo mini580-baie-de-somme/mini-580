@@ -315,8 +315,9 @@ describe("API integration — IA tools full capacity (Bearer)", () => {
     expect(patchedMile.status).toBe(200);
     expect((await patchedMile.json()).titleEn).toBe("AI Milestone v2");
 
-    // Link relations on post (assisted CRUD)
+    // Link relations on post (assisted CRUD) — milestones inferred from publishedAt only
     const { PATCH } = await import("@/app/api/posts/[id]/route");
+    const mileDate = "2026-06-15T00:00:00.000Z";
     const linked = await PATCH(
       jsonRequest(`http://localhost/api/posts/${postId}`, {
         method: "PATCH",
@@ -324,7 +325,7 @@ describe("API integration — IA tools full capacity (Bearer)", () => {
         body: JSON.stringify({
           tagIds: [tagId],
           themeIds: [themeId],
-          milestoneIds: [milestoneId],
+          publishedAt: mileDate,
         }),
       }),
       { params: Promise.resolve({ id: postId }) }
@@ -333,7 +334,7 @@ describe("API integration — IA tools full capacity (Bearer)", () => {
     const full = await linked.json();
     expect(full.tagIds).toContain(tagId);
     expect(full.themeIds).toContain(themeId);
-    expect(full.milestoneIds).toContain(milestoneId);
+    expect(full.milestoneIds).toBeUndefined();
     expect(full.tags?.some((t: { id: string }) => t.id === tagId)).toBe(true);
     expect(full.themes?.some((t: { id: string }) => t.id === themeId)).toBe(true);
     expect(

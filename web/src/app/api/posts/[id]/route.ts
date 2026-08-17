@@ -4,7 +4,8 @@ import { Hull } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
 import { validatePlatformAuthorId } from "@/lib/editors";
-import { postInclude, uniqueSlug, syncPostRelations, serializePostForApi } from "@/lib/posts";
+import { postInclude, uniqueSlug, syncPostRelations, serializePostForApi, loadMilestoneWindows } from "@/lib/posts";
+import { milestonesForPostPublishedAt } from "@/lib/milestone-windows";
 import { recordSlugChange } from "@/lib/slug-history";
 import { optionalNullableDateTime } from "@/lib/date-schema";
 
@@ -23,7 +24,13 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  return NextResponse.json(serializePostForApi(post));
+  const allMilestones = await loadMilestoneWindows();
+  return NextResponse.json(
+    serializePostForApi(
+      post,
+      milestonesForPostPublishedAt(post, allMilestones, false)
+    )
+  );
 }
 
 const updateSchema = z.object({
@@ -40,7 +47,6 @@ const updateSchema = z.object({
   hulls: z.array(z.nativeEnum(Hull)).optional(),
   tagIds: z.array(z.string()).optional(),
   themeIds: z.array(z.string()).optional(),
-  milestoneIds: z.array(z.string()).optional(),
   authorId: z.string().optional(),
 });
 
@@ -107,15 +113,22 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       hulls: data.hulls,
       tagIds: data.tagIds,
       themeIds: data.themeIds,
-      milestoneIds: data.milestoneIds,
     });
 
     const post = await prisma.post.findUnique({
       where: { id },
       include: postInclude,
     });
+    const allMilestones = await loadMilestoneWindows();
 
-    return NextResponse.json(post ? serializePostForApi(post) : null);
+    return NextResponse.json(
+      post
+        ? serializePostForApi(
+            post,
+            milestonesForPostPublishedAt(post, allMilestones, false)
+          )
+        : null
+    );
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.flatten() }, { status: 400 });

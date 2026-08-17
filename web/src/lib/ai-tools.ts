@@ -31,7 +31,7 @@ export const AI_TOOLS: AiToolDef[] = [
   {
     name: "posts.list",
     description:
-      "List posts (published public, or paginated editor list when authenticated). Each item includes blogPath, publicUrl, tags (id, name, labelFr/En), themes (id, slug, labels), milestones, tagIds/themeIds/milestoneIds for patches.",
+      "List posts (published public, or paginated editor list when authenticated). Each item includes blogPath, publicUrl, tags (id, name, labelFr/En), themes (id, slug, labels), and date-inferred milestones (from publishedAt).",
     method: "GET",
     path: "/api/posts",
     auth: "public",
@@ -49,7 +49,7 @@ export const AI_TOOLS: AiToolDef[] = [
   {
     name: "posts.get",
     description:
-      "Get one post by id. Response includes blogPath, publicUrl, flat tags/themes/milestones (labels + ids), tagIds/themeIds/milestoneIds, and images.",
+      "Get one post by id. Response includes blogPath, publicUrl, flat tags/themes, date-inferred milestones (from publishedAt), tagIds/themeIds, and images.",
     method: "GET",
     path: "/api/posts/:id",
     auth: "public",
@@ -58,7 +58,7 @@ export const AI_TOOLS: AiToolDef[] = [
   {
     name: "posts.update",
     description:
-      "Patch post FR/EN content, publishedAt, workDays (optional integer — person-days produced, feeds timeline/jalon metrics), authorId (platform editor id), and relations (tags/themes/milestones/hulls). bodyFr/bodyEn accept Markdown: **bold**, ##/### headings, blank-line paragraphs, - bullets, 1. numbered lists (rendered on public blog). Slug is never set manually: while DRAFT it re-syncs from titleFr; once PUBLISHED/ARCHIVED it stays frozen. Returns blogPath + publicUrl.",
+      "Patch post FR/EN content, publishedAt, workDays (optional integer — person-days produced, feeds timeline/jalon metrics), authorId (platform editor id), and relations (tags/themes/hulls). Articles appear in timeline jalons when publishedAt falls within the jalon date window — no explicit milestone link. bodyFr/bodyEn accept Markdown: **bold**, ##/### headings, blank-line paragraphs, - bullets, 1. numbered lists (rendered on public blog). Slug is never set manually: while DRAFT it re-syncs from titleFr; once PUBLISHED/ARCHIVED it stays frozen. Returns blogPath + publicUrl.",
     method: "PATCH",
     path: "/api/posts/:id",
     auth: "bearer_or_session",
@@ -427,7 +427,7 @@ export const AI_TOOLS: AiToolDef[] = [
   {
     name: "milestones.list",
     description:
-      "List milestones ordered by milestoneDate then title (locale). Each item: milestoneDate (start), optional endDate (period end; null = punctual deadline), optional workloadForecast (planned person-days), linked posts with workDays. Query: limit, offset, q, locale=fr|en. Paginated → { items, total, totalAll }.",
+      "List milestones ordered by milestoneDate then title (locale). Each item: milestoneDate (start), optional endDate (period end; null = punctual deadline), optional workloadForecast (planned person-days), and posts whose publishedAt falls in the date window (not explicit links). Query: limit, offset, q, locale=fr|en. Paginated → { items, total, totalAll }.",
     method: "GET",
     path: "/api/milestones",
     auth: "public",

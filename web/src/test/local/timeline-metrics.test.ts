@@ -24,9 +24,8 @@ describe("timeline-data", () => {
         milestoneDate: "2026-02-01",
         endDate: null,
         workloadForecast: 5,
-        posts: [],
       },
-    ]);
+    ], []);
     expect(blocks[0]?.isPunctual).toBe(true);
     expect(blocks[0]?.end).toBeNull();
   });
@@ -61,7 +60,6 @@ describe("timeline-data", () => {
       milestoneDate: "2026-01-01",
       endDate: "2026-01-31",
       workloadForecast: 10,
-      posts: [{ post: posts[0] }, { post: posts[1] }],
     };
     const steps = postsInMilestoneWindow(milestone, posts);
     expect(steps.map((s) => s.post.id)).toEqual(["p1"]);
@@ -100,7 +98,6 @@ describe("timeline-data", () => {
       milestoneDate: "2026-02-01",
       endDate: "2026-03-01",
       workloadForecast: null,
-      posts: [{ post: posts[1] }],
     };
     const steps = postsInMilestoneWindow(milestone, posts);
     expect(steps.map((s) => s.post.id)).toEqual(["p1"]);
@@ -139,7 +136,6 @@ describe("timeline-data", () => {
       milestoneDate: "2026-01-01",
       endDate: "2026-01-10",
       workloadForecast: null,
-      posts: posts.map((post) => ({ post })),
     };
     const steps = postsInMilestoneWindow(milestone, posts);
     expect(steps.map((s) => s.post.id)).toEqual(["start", "end"]);

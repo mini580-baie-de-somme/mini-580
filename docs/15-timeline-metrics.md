@@ -29,18 +29,27 @@ Validation: `endDate >= milestoneDate` when set.
 
 **Standalone posts** — published posts whose `publishedAt` falls outside every milestone window.
 
+## Article ↔ jalon linking
+
+**No explicit link.** The `PostMilestone` junction table was removed. An article appears in a jalon on `/timeline` when its `publishedAt` falls within `[milestoneDate, endDate]` (inclusive, day granularity). Punctual jalons (`endDate` null) match the start day only.
+
+- Editor: set **publishedAt** — no jalon picker on articles
+- API / Telegram: `milestones` in post responses are **inferred** from `publishedAt`, read-only
+- Telegram `jalon:` sets `publishedAt` to the jalon start when no date is set
+
 ## Agent / API
 
-- `posts.create` / `posts.update` — optional `workDays`
+- `posts.create` / `posts.update` — optional `workDays`, optional `publishedAt` (timeline placement)
 - `milestones.create` / `milestones.update` — optional `endDate`, `workloadForecast`
 - Telegram `systemBrief` documents timeline semantics for the Cursor agent
 
 ## Tests
 
 - `src/test/local/timeline-metrics.test.ts` — window filtering + metrics sums
+- `src/test/local/milestone-windows.test.ts` — date inference helpers
 
 ## Pre-deploy checklist
 
-- [ ] Migration `20260815100000_workdays_milestone_timeline_crop` applied
+- [ ] Migration `20260817103000_drop_post_milestone` applied
 - [ ] Backfill optional: set `workDays` / milestone forecasts on key content
 - [ ] Verify `/timeline` metrics + one milestone with end date + articles in window

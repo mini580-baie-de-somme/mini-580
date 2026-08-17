@@ -1,3 +1,4 @@
+import { slugify } from "@/lib/utils";
 import { beforeAll, afterAll, describe, expect, it, vi } from "vitest";
 import {
   bearerHeaders,
@@ -176,12 +177,13 @@ describe("API integration — Tags / Themes / Jalons CRUD FR/EN", () => {
     const { PATCH, DELETE } = await import("@/app/api/milestones/[id]/route");
     const ctx = { params: Promise.resolve({ id: m.id }) };
 
+    const patchTitleEn = `Keel set ${uniqueSlug(MILE_P)}`;
     const patchRes = await PATCH(
       jsonRequest(`http://localhost/api/milestones/${m.id}`, {
         method: "PATCH",
         headers: bearerHeaders(),
         body: JSON.stringify({
-          titleEn: "Keel set",
+          titleEn: patchTitleEn,
           descriptionEn: "Updated EN",
         }),
       }),
@@ -189,20 +191,25 @@ describe("API integration — Tags / Themes / Jalons CRUD FR/EN", () => {
     );
     expect(patchRes.status).toBe(200);
     const patched = await patchRes.json();
-    expect(patched.titleEn).toBe("Keel set");
+    expect(patched.titleEn).toBe(patchTitleEn);
     expect(patched.descriptionEn).toBe("Updated EN");
-    expect(patched.slug).toBe("keel-set");
+    expect(patched.slug).toBe(slugify(patchTitleEn));
     expect(patched.sortOrder).toBeUndefined();
 
     // Same date → alphabetical by title in the requested locale.
     const sameDay = "2026-07-18T00:00:00.000Z";
+    const sortPrefix = uniqueSlug(`${MILE_P}-sort`);
+    const zuluFr = `Zulu FR ${sortPrefix}`;
+    const alphaFr = `Alpha FR ${sortPrefix}`;
+    const alphaEn = `Alpha EN ${sortPrefix}`;
+    const zuluEn = `Zulu EN ${sortPrefix}`;
     await POST(
       jsonRequest("http://localhost/api/milestones", {
         method: "POST",
         headers: bearerHeaders(),
         body: JSON.stringify({
-          titleFr: "Zulu FR",
-          titleEn: "Alpha EN",
+          titleFr: zuluFr,
+          titleEn: alphaEn,
           milestoneDate: sameDay,
         }),
       })
@@ -212,8 +219,8 @@ describe("API integration — Tags / Themes / Jalons CRUD FR/EN", () => {
         method: "POST",
         headers: bearerHeaders(),
         body: JSON.stringify({
-          titleFr: "Alpha FR",
-          titleEn: "Zulu EN",
+          titleFr: alphaFr,
+          titleEn: zuluEn,
           milestoneDate: sameDay,
         }),
       })
@@ -221,25 +228,25 @@ describe("API integration — Tags / Themes / Jalons CRUD FR/EN", () => {
 
     const listFr = await GET(
       jsonRequest("http://localhost/api/milestones", {
-        searchParams: { locale: "fr" },
+        searchParams: { locale: "fr", q: sortPrefix },
       })
     );
-    const frItems = (await listFr.json()) as { slug: string; titleFr: string }[];
-    const frSameDay = frItems.filter((x) =>
-      ["Alpha FR", "Zulu FR"].includes(x.titleFr)
-    );
-    expect(frSameDay.map((x) => x.titleFr)).toEqual(["Alpha FR", "Zulu FR"]);
+    const listFrBody = await listFr.json();
+    const frItems = (Array.isArray(listFrBody)
+      ? listFrBody
+      : listFrBody.items) as { slug: string; titleFr: string }[];
+    expect(frItems.map((x) => x.titleFr)).toEqual([alphaFr, zuluFr]);
 
     const listEn = await GET(
       jsonRequest("http://localhost/api/milestones", {
-        searchParams: { locale: "en" },
+        searchParams: { locale: "en", q: sortPrefix },
       })
     );
-    const enItems = (await listEn.json()) as { slug: string; titleEn: string }[];
-    const enSameDay = enItems.filter((x) =>
-      ["Alpha EN", "Zulu EN"].includes(x.titleEn)
-    );
-    expect(enSameDay.map((x) => x.titleEn)).toEqual(["Alpha EN", "Zulu EN"]);
+    const listEnBody = await listEn.json();
+    const enItems = (Array.isArray(listEnBody)
+      ? listEnBody
+      : listEnBody.items) as { slug: string; titleEn: string }[];
+    expect(enItems.map((x) => x.titleEn)).toEqual([alphaEn, zuluEn]);
 
     const list = await GET(jsonRequest("http://localhost/api/milestones"));
     expect((await list.json()).some((x: { id: string }) => x.id === m.id)).toBe(

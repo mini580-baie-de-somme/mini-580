@@ -251,13 +251,15 @@ Lesson learned: always verify plan compliance before ordering. Transparency incl
     });
 
     if (p.milestoneSlug) {
-      await prisma.postMilestone.deleteMany({ where: { postId: post.id } });
-      await prisma.postMilestone.create({
-        data: {
-          postId: post.id,
-          milestoneId: milestoneMap[p.milestoneSlug],
-        },
+      const milestone = await prisma.milestone.findUnique({
+        where: { slug: p.milestoneSlug },
       });
+      if (milestone && !post.publishedAt) {
+        await prisma.post.update({
+          where: { id: post.id },
+          data: { publishedAt: milestone.milestoneDate },
+        });
+      }
     }
   }
 

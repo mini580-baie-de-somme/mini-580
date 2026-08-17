@@ -47,7 +47,7 @@ const postSchema = z.object({
       milestoneDate: z.string(),
       sortOrder: z.number().optional(),
     })
-  ),
+  ).optional(),
   images: z.array(
     z.object({
       id: z.string(),

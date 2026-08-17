@@ -19,7 +19,6 @@ export type TimelineMilestone = {
   milestoneDate: Date | string;
   endDate: Date | string | null;
   workloadForecast: number | null;
-  posts: { post: TimelinePost }[];
 };
 
 export type MilestoneArticleStep = {
@@ -105,19 +104,14 @@ export function postsInMilestoneWindow(
 
 export function buildMilestoneBlocks(
   milestones: TimelineMilestone[],
-  allPosts: TimelinePost[] = []
+  allPosts: TimelinePost[]
 ): TimelineMilestoneBlock[] {
-  const posts =
-    allPosts.length > 0
-      ? allPosts
-      : milestones.flatMap((m) => m.posts.map((link) => link.post));
-
   return milestones
     .map((m) => {
       const start = toDate(m.milestoneDate);
       if (!start) return null;
       const end = toDate(m.endDate);
-      const steps = postsInMilestoneWindow(m, posts);
+      const steps = postsInMilestoneWindow(m, allPosts);
       const producedDays = steps.reduce(
         (acc, s) => acc + (s.post.workDays ?? 0),
         0

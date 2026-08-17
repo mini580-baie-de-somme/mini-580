@@ -13,7 +13,10 @@ import {
   syncPostRelations,
   serializePostForApi,
   serializePostEditorListItem,
+  loadMilestoneWindows,
+  inferMilestonesForPostList,
 } from "@/lib/posts";
+import { milestonesForPostPublishedAt } from "@/lib/milestone-windows";
 import { EDITOR_POSTS_PAGE_SIZE } from "@/lib/constants";
 import { getSyncEnv, isSyncConfigured, peerFetch } from "@/lib/sync-crypto";
 import type { SyncPostSummary } from "@/lib/sync";
@@ -33,7 +36,6 @@ const createPostSchema = z.object({
   hulls: z.array(z.nativeEnum(Hull)).optional(),
   tagIds: z.array(z.string()).optional(),
   themeIds: z.array(z.string()).optional(),
-  milestoneIds: z.array(z.string()).optional(),
   authorId: z.string().optional(),
 });
 
@@ -53,9 +55,9 @@ export async function GET(request: NextRequest) {
       Math.max(1, Number.parseInt(searchParams.get("limit") ?? String(EDITOR_POSTS_PAGE_SIZE), 10) || EDITOR_POSTS_PAGE_SIZE)
     );
     const offset = Math.max(0, Number.parseInt(searchParams.get("offset") ?? "0", 10) || 0);
-    const where = editorPostWhere({ q, status, hull, theme, tag });
+    const where = await editorPostWhere({ q, status, hull, theme, tag });
 
-    const [posts, total, totalAll] = await Promise.all([
+    const [posts, total, totalAll, allMilestones] = await Promise.all([
       prisma.post.findMany({
         where,
         include: postInclude,
@@ -65,7 +67,10 @@ export async function GET(request: NextRequest) {
       }),
       prisma.post.count({ where }),
       prisma.post.count(),
+      loadMilestoneWindows(),
     ]);
+
+    const inferred = inferMilestonesForPostList(posts, allMilestones);
 
     let prodIds = new Set<string>();
     if (getSyncEnv() === "test" && isSyncConfigured()) {
@@ -82,7 +87,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       items: posts.map((p) => ({
-        ...serializePostEditorListItem(p),
+        ...serializePostEditorListItem(p, inferred.get(p.id)),
         ...(prodIds.size > 0 ? { onProd: prodIds.has(p.id) } : {}),
       })),
       total,
@@ -92,12 +97,18 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const posts = await prisma.post.findMany({
-    where: publicPostWhere({ hull, theme, tag, search }),
-    include: postInclude,
-    orderBy: { publishedAt: "desc" },
-  });
-  return NextResponse.json(posts.map(serializePostForApi));
+  const [posts, allMilestones] = await Promise.all([
+    prisma.post.findMany({
+      where: await publicPostWhere({ hull, theme, tag, search }),
+      include: postInclude,
+      orderBy: { publishedAt: "desc" },
+    }),
+    loadMilestoneWindows(),
+  ]);
+  const inferred = inferMilestonesForPostList(posts, allMilestones);
+  return NextResponse.json(
+    posts.map((p) => serializePostForApi(p, inferred.get(p.id)))
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -146,15 +157,18 @@ export async function POST(request: NextRequest) {
       hulls: data.hulls,
       tagIds: data.tagIds,
       themeIds: data.themeIds,
-      milestoneIds: data.milestoneIds,
     });
 
     const full = await prisma.post.findUnique({
       where: { id: post.id },
       include: postInclude,
     });
+    const allMilestones = await loadMilestoneWindows();
 
-    return NextResponse.json(full ? serializePostForApi(full) : null, { status: 201 });
+    return NextResponse.json(
+      full ? serializePostForApi(full, milestonesForPostPublishedAt(full, allMilestones, false)) : null,
+      { status: 201 }
+    );
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.flatten() }, { status: 400 });

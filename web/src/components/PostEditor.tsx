@@ -27,7 +27,6 @@ import { cleanMediaGroupTokens } from "@/lib/media-group-token";
 
 type Tag = { id: string; name: string; labelFr: string; labelEn: string };
 type Theme = { id: string; slug: string; labelFr: string; labelEn: string };
-type Milestone = { id: string; slug: string; titleFr: string; titleEn: string };
 type PlatformEditor = { id: string; email: string; name: string | null };
 
 export type EditorPost = {
@@ -48,7 +47,6 @@ export type EditorPost = {
   hulls: { hull: HullId }[];
   tags: { tag: Tag }[];
   themes: { theme: Theme }[];
-  milestones: { milestone: Milestone }[];
   images: GalleryEditorImage[];
 };
 
@@ -56,7 +54,6 @@ type Props = {
   post: EditorPost;
   tags: Tag[];
   themes: Theme[];
-  milestones: Milestone[];
   editors: PlatformEditor[];
   isTestEnv?: boolean;
   onProd?: boolean;
@@ -68,7 +65,6 @@ export function PostEditor({
   post,
   tags,
   themes,
-  milestones,
   editors,
   isTestEnv = false,
   onProd,
@@ -110,7 +106,6 @@ export function PostEditor({
     hulls: post.hulls.map((h) => h.hull),
     tagIds: post.tags.map((t) => t.tag.id),
     themeIds: post.themes.map((t) => t.theme.id),
-    milestoneIds: post.milestones.map((m) => m.milestone.id),
   });
   const [slug, setSlug] = useState(post.slug);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -142,7 +137,6 @@ export function PostEditor({
       hulls: current.hulls,
       tagIds: current.tagIds,
       themeIds: current.themeIds,
-      milestoneIds: current.milestoneIds,
     };
   }, []);
 
@@ -285,7 +279,7 @@ export function PostEditor({
     }));
   }
 
-  function toggleId(key: "tagIds" | "themeIds" | "milestoneIds", id: string) {
+  function toggleId(key: "tagIds" | "themeIds", id: string) {
     setForm((f) => ({
       ...f,
       [key]: f[key].includes(id)
@@ -584,26 +578,6 @@ export function PostEditor({
           >
             + Tag
           </button>
-        </div>
-      </fieldset>
-
-      <fieldset className="rounded-lg border border-[#d4dde6] p-4">
-        <legend className="px-2 text-sm font-medium">Jalons</legend>
-        <div className="flex flex-wrap gap-2">
-          {milestones.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => toggleId("milestoneIds", m.id)}
-              className={`rounded border px-3 py-1 text-sm ${
-                form.milestoneIds.includes(m.id)
-                  ? "border-[#495867] bg-[#495867] text-white"
-                  : "border-[#d4dde6]"
-              }`}
-            >
-              {m.titleFr}
-            </button>
-          ))}
         </div>
       </fieldset>
 

@@ -3,12 +3,16 @@ import "server-only";
 import { MediaKind, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import type { GalleryFilters, GalleryItem } from "@/lib/gallery-types";
+import {
+  milestonesForPostPublishedAt,
+  publishedAtRangeForMilestone,
+} from "@/lib/milestone-windows";
 import { displayImageUrl } from "@/lib/media-variants";
 import { parseHull } from "@/lib/utils";
 
 export type { GalleryFilters, GalleryItem, GalleryPhoto } from "@/lib/gallery-types";
 
-function postFilter(filters: GalleryFilters): Prisma.PostWhereInput {
+async function postFilter(filters: GalleryFilters): Promise<Prisma.PostWhereInput> {
   const where: Prisma.PostWhereInput = { status: "PUBLISHED" };
 
   if (filters.hull) {
@@ -22,7 +26,15 @@ function postFilter(filters: GalleryFilters): Prisma.PostWhereInput {
     where.tags = { some: { tag: { name: filters.tag } } };
   }
   if (filters.milestone) {
-    where.milestones = { some: { milestone: { slug: filters.milestone } } };
+    const m = await prisma.milestone.findUnique({
+      where: { slug: filters.milestone },
+      select: { milestoneDate: true, endDate: true },
+    });
+    if (m) {
+      Object.assign(where, publishedAtRangeForMilestone(m));
+    } else {
+      where.id = "__none__";
+    }
   }
 
   return where;
@@ -37,49 +49,60 @@ export async function listGalleryItems(
       ? (filters.kind as MediaKind)
       : undefined;
 
-  const links = await prisma.postMedia.findMany({
-    where: {
-      post: postFilter(filters),
-      ...(kind ? { media: { kind } } : {}),
-      ...(search
-        ? {
-            OR: [
-              { media: { titleFr: { contains: search, mode: "insensitive" } } },
-              { media: { titleEn: { contains: search, mode: "insensitive" } } },
-              {
-                media: {
-                  descriptionFr: { contains: search, mode: "insensitive" },
+  const [links, allMilestones] = await Promise.all([
+    prisma.postMedia.findMany({
+      where: {
+        post: await postFilter(filters),
+        ...(kind ? { media: { kind } } : {}),
+        ...(search
+          ? {
+              OR: [
+                { media: { titleFr: { contains: search, mode: "insensitive" } } },
+                { media: { titleEn: { contains: search, mode: "insensitive" } } },
+                {
+                  media: {
+                    descriptionFr: { contains: search, mode: "insensitive" },
+                  },
                 },
-              },
-              {
-                media: {
-                  descriptionEn: { contains: search, mode: "insensitive" },
+                {
+                  media: {
+                    descriptionEn: { contains: search, mode: "insensitive" },
+                  },
                 },
-              },
-              {
-                post: {
-                  OR: [
-                    { titleFr: { contains: search, mode: "insensitive" } },
-                    { titleEn: { contains: search, mode: "insensitive" } },
-                  ],
+                {
+                  post: {
+                    OR: [
+                      { titleFr: { contains: search, mode: "insensitive" } },
+                      { titleEn: { contains: search, mode: "insensitive" } },
+                    ],
+                  },
                 },
-              },
-            ],
-          }
-        : {}),
-    },
-    include: {
-      media: true,
-      post: {
-        include: {
-          hulls: true,
-          tags: { include: { tag: true } },
-          themes: { include: { theme: true } },
-          milestones: { include: { milestone: true } },
+              ],
+            }
+          : {}),
+      },
+      include: {
+        media: true,
+        post: {
+          include: {
+            hulls: true,
+            tags: { include: { tag: true } },
+            themes: { include: { theme: true } },
+          },
         },
       },
-    },
-  });
+    }),
+    prisma.milestone.findMany({
+      select: {
+        id: true,
+        slug: true,
+        titleFr: true,
+        titleEn: true,
+        milestoneDate: true,
+        endDate: true,
+      },
+    }),
+  ]);
 
   // Dedupe media appearing on multiple published posts
   const byMedia = new Map<string, (typeof links)[number][]>();
@@ -109,11 +132,11 @@ export async function listGalleryItems(
       media.kind === "IMAGE" ? displayImageUrl(display) : media.urlOrigin;
 
     const milestones = group.flatMap((g) =>
-      g.post.milestones.map((m) => ({
-        slug: m.milestone.slug,
-        titleFr: m.milestone.titleFr,
-        titleEn: m.milestone.titleEn,
-        milestoneDate: m.milestone.milestoneDate.toISOString(),
+      milestonesForPostPublishedAt(g.post, allMilestones).map((m) => ({
+        slug: m.slug,
+        titleFr: m.titleFr,
+        titleEn: m.titleEn,
+        milestoneDate: m.milestoneDate.toISOString(),
       }))
     );
     const themes = group.flatMap((g) =>

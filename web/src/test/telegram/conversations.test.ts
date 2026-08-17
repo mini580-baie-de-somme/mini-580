@@ -149,12 +149,27 @@ async function loadGuidedPost() {
     where: { id: session!.postId! },
     include: {
       tags: { include: { tag: true } },
-      milestones: { include: { milestone: true } },
       mediaLinks: { orderBy: { sortOrder: "asc" }, include: { media: true } },
     },
   });
   expect(post).toBeTruthy();
   return { session: session!, post: post! };
+}
+
+async function postMatchesMilestone(
+  post: { publishedAt: Date | null; status: string },
+  milestone: { id: string; milestoneDate: Date; endDate: Date | null }
+) {
+  const all = [
+    {
+      ...milestone,
+      slug: "",
+      titleFr: "",
+      titleEn: "",
+    },
+  ];
+  const { milestonesForPostPublishedAt } = await import("@/lib/milestone-windows");
+  return milestonesForPostPublishedAt(post, all, false).some((m) => m.id === milestone.id);
 }
 
 /** Start /nouveau, send photos + structured text, finish collection → REVIEW_FR */
@@ -300,7 +315,7 @@ describe("Telegram conversation simulations — parcours guidé", () => {
 
     const { post } = await loadGuidedPost();
     expect(post.tags.some((t) => t.tag.id === tag.id)).toBe(true);
-    expect(post.milestones.some((m) => m.milestone.id === mile.id)).toBe(true);
+    expect(await postMatchesMilestone(post, mile)).toBe(true);
   });
 
   it("several photos → Cursor trad → reorder → meta FR/EN → keep as draft", async () => {
@@ -452,7 +467,7 @@ describe("Telegram conversation simulations — parcours guidé", () => {
     // AI parse may guess a milestone; human overrides with explicit jalon
     await run(textMsg(`jalon: ${mile.titleFr}`));
     const { post } = await loadGuidedPost();
-    expect(post.milestones.some((m) => m.milestone.id === mile.id)).toBe(true);
+    expect(await postMatchesMilestone(post, mile)).toBe(true);
   });
 
   it("/statut and /annuler work during guided flow", async () => {
