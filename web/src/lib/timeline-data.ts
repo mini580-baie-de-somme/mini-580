@@ -1,5 +1,12 @@
 /** Timeline view-model — pure helpers (client + server safe). */
 
+import {
+  PROJECT_START_DATE,
+  calendarDaysBetween,
+  parseLocalISODate,
+  startOfCalendarDay,
+} from "@/lib/project-metrics";
+
 export type TimelinePost = {
   id: string;
   slug: string;
@@ -156,20 +163,44 @@ export function standalonePublishedPosts(
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 }
 
-/** Bar width % within a timeline range (for Gantt-style visuals). */
+/** Project timeline axis: launch anchor → last milestone end (forecast). */
+export function timelineRangeFromBlocks(
+  blocks: TimelineMilestoneBlock[]
+): { rangeStart: Date; rangeEnd: Date } {
+  const rangeStart = startOfCalendarDay(parseLocalISODate(PROJECT_START_DATE));
+  let rangeEnd = rangeStart;
+
+  for (const block of blocks) {
+    const candidate = startOfCalendarDay(block.end ?? block.start);
+    if (candidate > rangeEnd) rangeEnd = candidate;
+  }
+
+  if (rangeEnd.getTime() <= rangeStart.getTime()) {
+    const fallback = new Date(rangeStart);
+    fallback.setDate(fallback.getDate() + 1);
+    return { rangeStart, rangeEnd: fallback };
+  }
+
+  return { rangeStart, rangeEnd };
+}
+
+/** Position % on the project axis (calendar-day granularity). */
 export function barPositionPercent(
   date: Date,
   rangeStart: Date,
   rangeEnd: Date
 ): number {
-  const total = rangeEnd.getTime() - rangeStart.getTime();
-  if (total <= 0) return 0;
-  return Math.min(
-    100,
-    Math.max(0, ((date.getTime() - rangeStart.getTime()) / total) * 100)
-  );
+  const startDay = startOfCalendarDay(rangeStart);
+  const endDay = startOfCalendarDay(rangeEnd);
+  const totalDays = calendarDaysBetween(startDay, endDay);
+  if (totalDays <= 0) return 0;
+
+  const dateDay = startOfCalendarDay(date);
+  const offsetDays = calendarDaysBetween(startDay, dateDay);
+  return Math.min(100, Math.max(0, (offsetDays / totalDays) * 100));
 }
 
+/** Bar width % — end date is inclusive (covers the full end day). */
 export function barWidthPercent(
   start: Date,
   end: Date,
@@ -177,6 +208,8 @@ export function barWidthPercent(
   rangeEnd: Date
 ): number {
   const left = barPositionPercent(start, rangeStart, rangeEnd);
-  const right = barPositionPercent(end, rangeStart, rangeEnd);
+  const endInclusive = startOfCalendarDay(end);
+  endInclusive.setDate(endInclusive.getDate() + 1);
+  const right = barPositionPercent(endInclusive, rangeStart, rangeEnd);
   return Math.max(2, right - left);
 }

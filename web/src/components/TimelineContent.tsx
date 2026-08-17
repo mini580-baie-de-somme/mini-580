@@ -9,6 +9,7 @@ import {
   barPositionPercent,
   barWidthPercent,
   isMilestoneCurrent,
+  timelineRangeFromBlocks,
   type TimelineMilestone,
   type TimelinePost,
 } from "@/lib/timeline-data";
@@ -41,12 +42,10 @@ export function TimelineContent({
   const elapsedDays = elapsedProjectDays();
   const totalProducedDays = sumWorkDays(allPostsForMetrics);
 
-  const rangeStart = blocks[0]?.start ?? new Date();
-  const rangeEnd =
-    blocks.reduce<Date | null>((max, b) => {
-      const candidate = b.end ?? b.start;
-      return !max || candidate > max ? candidate : max;
-    }, null) ?? new Date();
+  const { rangeStart, rangeEnd } = useMemo(
+    () => timelineRangeFromBlocks(blocks),
+    [blocks]
+  );
 
   function fmtDate(d: Date | string) {
     return new Date(d).toLocaleDateString(dateLocale, {
@@ -137,26 +136,26 @@ export function TimelineContent({
                     : ""
                 }`}
               >
-                <div className="mb-3 h-3 rounded-full bg-[#eef3f7]">
+                <div className="relative mb-3 h-3 rounded-full bg-[#eef3f7]">
                   <div
-                    className={`h-full rounded-full ${
-                      block.isPunctual
-                        ? `mx-auto w-3 ${isCurrent ? "bg-[#0D131A]" : "bg-[#495867]"}`
-                        : isCurrent
-                          ? "bg-[#0D131A]"
-                          : "bg-[#495867]"
+                    className={`absolute top-0 h-full rounded-full ${
+                      isCurrent ? "bg-[#0D131A]" : "bg-[#495867]"
                     }`}
                     style={
                       block.isPunctual
-                        ? undefined
+                        ? {
+                            left: `${barLeft}%`,
+                            width: "12px",
+                            transform: "translateX(-50%)",
+                          }
                         : {
-                            marginLeft: `${barLeft}%`,
+                            left: `${barLeft}%`,
                             width: `${barWidth}%`,
                           }
                     }
                     title={
                       block.isPunctual
-                        ? t("timeline.punctual")
+                        ? `${t("timeline.punctual")} — ${fmtDate(block.start)}`
                         : `${fmtDate(block.start)} → ${fmtDate(barEnd)}`
                     }
                   />
