@@ -8,6 +8,7 @@ import {
   standalonePublishedPosts,
   barPositionPercent,
   barWidthPercent,
+  isMilestoneCurrent,
   type TimelineMilestone,
   type TimelinePost,
 } from "@/lib/timeline-data";
@@ -109,6 +110,11 @@ export function TimelineContent({
           const barWidth = block.isPunctual
             ? 3
             : barWidthPercent(block.start, barEnd, rangeStart, rangeEnd);
+          const isCurrent = isMilestoneCurrent(
+            block.start,
+            block.end,
+            block.isPunctual
+          );
 
           const prevEnd = index > 0 ? (blocks[index - 1].end ?? blocks[index - 1].start) : null;
           const showGap =
@@ -124,13 +130,21 @@ export function TimelineContent({
                 />
               )}
 
-              <article className="relative pb-10">
+              <article
+                className={`relative pb-10 ${
+                  isCurrent
+                    ? "-mx-3 rounded-lg border border-[#495867] bg-[#eef3f7] px-3 pt-3 ring-1 ring-[#495867]/20"
+                    : ""
+                }`}
+              >
                 <div className="mb-3 h-3 rounded-full bg-[#eef3f7]">
                   <div
                     className={`h-full rounded-full ${
                       block.isPunctual
-                        ? "mx-auto w-3 bg-[#495867]"
-                        : "bg-[#495867]"
+                        ? `mx-auto w-3 ${isCurrent ? "bg-[#0D131A]" : "bg-[#495867]"}`
+                        : isCurrent
+                          ? "bg-[#0D131A]"
+                          : "bg-[#495867]"
                     }`}
                     style={
                       block.isPunctual
@@ -156,6 +170,11 @@ export function TimelineContent({
                   {block.isPunctual && (
                     <span className="rounded-full bg-[#eef3f7] px-2 py-0.5 text-[10px] font-medium uppercase text-[#495867]">
                       {t("timeline.punctual")}
+                    </span>
+                  )}
+                  {isCurrent && (
+                    <span className="rounded-full bg-[#495867] px-2 py-0.5 text-[10px] font-medium uppercase text-white">
+                      {t("timeline.current")}
                     </span>
                   )}
                 </div>

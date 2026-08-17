@@ -51,6 +51,22 @@ function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
+/** True when today falls within [start, end] (inclusive, day granularity). Punctual → start day only. */
+export function isMilestoneCurrent(
+  start: Date,
+  end: Date | null,
+  isPunctual: boolean,
+  now = new Date()
+): boolean {
+  const today = startOfDay(now);
+  const startDay = startOfDay(start);
+  if (isPunctual || !end) {
+    return today.getTime() === startDay.getTime();
+  }
+  const endDay = startOfDay(end);
+  return today >= startDay && today <= endDay;
+}
+
 /** Posts linked to milestone whose publishedAt falls within [start, end] (inclusive). */
 export function postsInMilestoneWindow(
   milestone: TimelineMilestone,

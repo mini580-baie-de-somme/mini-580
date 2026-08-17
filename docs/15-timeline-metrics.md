@@ -17,11 +17,12 @@ Validation: `endDate >= milestoneDate` when set.
 ## Timeline UI (`/timeline`)
 
 **Header metrics**
-1. Days elapsed since `PROJECT_START_DATE` (`lib/project-metrics.ts`, override `NEXT_PUBLIC_PROJECT_START_DATE`)
+1. Days elapsed since `PROJECT_START_DATE` (`lib/project-metrics.ts`, default `2025-01-15` = « Lancement du projet », override `NEXT_PUBLIC_PROJECT_START_DATE`). **Calendar days** at day granularity (local timezone, inclusive same-day → 0).
 2. Sum of `workDays` on all **published** posts
 
 **Milestone blocks**
 - Continuous bar from start → end (or dot if punctual)
+- **Current milestone** highlighted when today ∈ [start, end] (inclusive) or on punctual start day — badge « En cours »
 - Dashed separator between non-contiguous milestone periods
 - Linked posts shown as **steps** when `publishedAt` ∈ [start, end] (inclusive, day granularity)
 - Badge: forecast days + produced days (sum of step `workDays`)

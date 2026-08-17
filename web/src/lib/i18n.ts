@@ -164,6 +164,7 @@ const messages = {
   },
   "timeline.days": { fr: "j", en: "d" },
   "timeline.punctual": { fr: "Jalon ponctuel", en: "Punctual deadline" },
+  "timeline.current": { fr: "En cours", en: "In progress" },
   "timeline.forecast": { fr: "Prévision", en: "Forecast" },
   "timeline.produced": { fr: "Produit", en: "Produced" },
   "timeline.standalonePosts": {
