@@ -159,8 +159,8 @@ const messages = {
     en: "Days elapsed since project start",
   },
   "timeline.metricProduced": {
-    fr: "Jours produits (articles)",
-    en: "Produced days (articles)",
+    fr: "Jours produits",
+    en: "Produced days",
   },
   "timeline.days": { fr: "j", en: "d" },
   "timeline.punctual": { fr: "Jalon ponctuel", en: "Punctual deadline" },

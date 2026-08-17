@@ -131,6 +131,8 @@ export function TimelineContent({
 
               <article
                 className={`relative pb-10 ${
+                  block.steps.length > 0 ? "mb-8" : ""
+                } ${
                   isCurrent
                     ? "-mx-3 rounded-lg border border-[#495867] bg-[#eef3f7] px-3 pt-3 ring-1 ring-[#495867]/20"
                     : ""
@@ -203,17 +205,6 @@ export function TimelineContent({
 
                 {block.steps.length > 0 && (
                   <div className="mt-5 rounded-lg border border-[#d4dde6] bg-[#f4f7fa]/90 p-4">
-                    <div className="mb-3 flex items-center gap-2">
-                      <h3 className="text-xs font-semibold uppercase tracking-wide text-[#495867]">
-                        {t("timeline.milestoneSteps")}
-                      </h3>
-                      <span
-                        className="rounded-full bg-[#495867]/10 px-2 py-0.5 text-[10px] font-medium text-[#495867]"
-                        aria-hidden
-                      >
-                        {block.steps.length}
-                      </span>
-                    </div>
                     <ol className="space-y-2">
                       {block.steps.map(({ post, date }, stepIndex) => (
                         <li key={post.id}>
@@ -233,20 +224,21 @@ export function TimelineContent({
                                 {t("timeline.step")} {stepIndex + 1}
                                 <span className="mx-1.5 text-[#b8c5d0]">·</span>
                                 <time dateTime={date.toISOString()}>{fmtDate(date)}</time>
+                                {post.workDays != null && (
+                                  <>
+                                    <span className="mx-1.5 text-[#b8c5d0]">·</span>
+                                    <span>
+                                      {post.workDays} {t("timeline.days")}
+                                    </span>
+                                  </>
+                                )}
                               </p>
                               <p className="mt-0.5 text-sm font-semibold leading-snug text-[#0D131A] group-hover:text-[#495867]">
                                 {titleForPost(post)}
                               </p>
-                              <div className="mt-2 flex flex-wrap items-center gap-2">
-                                {post.workDays != null && (
-                                  <span className="rounded bg-[#eef3f7] px-1.5 py-0.5 text-[10px] font-medium text-[#495867]">
-                                    {post.workDays} {t("timeline.days")}
-                                  </span>
-                                )}
-                                <span className="text-xs font-medium text-[#495867] group-hover:underline">
-                                  {t("timeline.readArticle")} →
-                                </span>
-                              </div>
+                              <p className="mt-2 text-xs font-medium text-[#495867] group-hover:underline">
+                                {t("timeline.readArticle")} →
+                              </p>
                             </div>
                           </Link>
                         </li>
