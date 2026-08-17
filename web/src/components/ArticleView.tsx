@@ -135,6 +135,14 @@ export function ArticleView({
               <h1 className="text-2xl font-bold leading-tight text-[#0D131A] sm:text-4xl sm:leading-tight">
                 {title}
               </h1>
+              {date && post.publishedAt ? (
+                <time
+                  dateTime={new Date(post.publishedAt).toISOString()}
+                  className="block text-sm text-[#495867]"
+                >
+                  {date}
+                </time>
+              ) : null}
               <BlogTaxonomyLinks
                 themes={post.themes.map(({ theme }) => theme)}
                 tags={post.tags.map(({ tag }) => tag)}
@@ -149,17 +157,9 @@ export function ArticleView({
             </p>
           ) : null}
 
-          {(date || post.author.name) && (
-            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-[#495867]">
-              {date && <time>{date}</time>}
-              {date && post.author.name && (
-                <span aria-hidden className="text-[#b0bcc8]">
-                  ·
-                </span>
-              )}
-              {post.author.name && <span>{post.author.name}</span>}
-            </p>
-          )}
+          {post.author.name ? (
+            <p className="text-sm text-[#495867]">{post.author.name}</p>
+          ) : null}
         </header>
 
         {post.coverImageUrl && (
