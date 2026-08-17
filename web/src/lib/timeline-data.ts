@@ -68,7 +68,7 @@ export function isMilestoneCurrent(
 
 /** True when post publishedAt falls within milestone [start, end] (inclusive, day granularity). Punctual → start day only. */
 export function isPostInMilestoneWindow(
-  post: TimelinePost,
+  post: Pick<TimelinePost, "publishedAt" | "status">,
   milestone: Pick<TimelineMilestone, "milestoneDate" | "endDate">,
   publishedOnly = true
 ): boolean {
