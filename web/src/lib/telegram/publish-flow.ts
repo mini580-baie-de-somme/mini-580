@@ -5,7 +5,7 @@ import { Hull, Prisma, TelegramSessionStep } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { getPublicSiteBaseUrl } from "@/lib/site-url";
 import { postInclude, syncPostRelations, uniqueSlug, withLegacyImages } from "@/lib/posts";
-import { publishedAtForNamedMilestone } from "@/lib/milestone-windows";
+import { publishedAtForNamedMilestone, milestonesForPostPublishedAt } from "@/lib/milestone-windows";
 import { slugify } from "@/lib/utils";
 import {
   isTranslationConfigured,
@@ -380,6 +380,9 @@ export async function finalizeContentCollection(
     }
   }
 
+  const { tagIds, tags: tagMeta } = await ensureTags(parsed.tagLabelsFr);
+  const slug = await uniqueSlug(parsed.titleFr, session.postId ?? undefined);
+
   let postId = session.postId;
   if (!postId) {
     const authorId = await resolveTelegramAuthorId(session.telegramUserId);
@@ -508,14 +511,33 @@ async function loadPost(postId: string) {
   return withLegacyImages(post);
 }
 
+async function milestoneLabelsForPost(
+  post: { publishedAt: Date | null; status: string },
+  locale: "fr" | "en"
+): Promise<string[]> {
+  const milestones = await prisma.milestone.findMany({
+    select: {
+      id: true,
+      slug: true,
+      titleFr: true,
+      titleEn: true,
+      milestoneDate: true,
+      endDate: true,
+    },
+  });
+  return milestonesForPostPublishedAt(post, milestones, false).map((m) =>
+    locale === "fr" ? m.titleFr : m.titleEn
+  );
+}
+
 export async function formatFrReview(postId: string): Promise<BotReply> {
   const post = await loadPost(postId);
   const themes = post.themes.map((t) => t.theme.labelFr).join(", ") || "(aucun)";
   const tags = post.tags
     .map((t) => `${t.tag.labelFr}${t.tag.labelEn === t.tag.labelFr ? " [nouveau]" : ""}`)
     .join(", ") || "(aucun)";
-  const jalon =
-    post.milestones.map((m) => m.milestone.titleFr).join(", ") || "(aucun)";
+  const jalonLabels = await milestoneLabelsForPost(post, "fr");
+  const jalon = jalonLabels.join(", ") || "(aucun)";
 
   return {
     text: [
@@ -539,8 +561,8 @@ export async function formatEnReview(postId: string): Promise<BotReply> {
   const post = await loadPost(postId);
   const themes = post.themes.map((t) => t.theme.labelEn).join(", ") || "(none)";
   const tags = post.tags.map((t) => t.tag.labelEn).join(", ") || "(none)";
-  const jalon =
-    post.milestones.map((m) => m.milestone.titleEn).join(", ") || "(none)";
+  const jalonLabels = await milestoneLabelsForPost(post, "en");
+  const jalon = jalonLabels.join(", ") || "(none)";
 
   return {
     text: [
