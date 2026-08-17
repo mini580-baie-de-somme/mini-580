@@ -203,27 +203,57 @@ export function TimelineContent({
                 )}
 
                 {block.steps.length > 0 && (
-                  <ul className="mt-4 space-y-2 border-l-2 border-[#495867] pl-4">
-                    {block.steps.map(({ post, date }) => (
-                      <li key={post.id} className="relative">
-                        <span className="absolute -left-[1.3rem] top-2 h-2 w-2 rounded-full bg-[#495867]" />
-                        <time className="text-[10px] uppercase text-[#6b7a8a]">
-                          {fmtDate(date)}
-                        </time>
-                        <Link
-                          href={`/blog/${post.slug}`}
-                          className="mt-0.5 block text-sm font-medium text-[#0D131A] hover:text-[#495867]"
-                        >
-                          {titleForPost(post)}
-                          {post.workDays != null && (
-                            <span className="ml-2 text-xs font-normal text-[#495867]">
-                              ({post.workDays} {t("timeline.days")})
+                  <div className="mt-5 rounded-lg border border-[#d4dde6] bg-[#f4f7fa]/90 p-4">
+                    <div className="mb-3 flex items-center gap-2">
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-[#495867]">
+                        {t("timeline.milestoneSteps")}
+                      </h3>
+                      <span
+                        className="rounded-full bg-[#495867]/10 px-2 py-0.5 text-[10px] font-medium text-[#495867]"
+                        aria-hidden
+                      >
+                        {block.steps.length}
+                      </span>
+                    </div>
+                    <ol className="space-y-2">
+                      {block.steps.map(({ post, date }, stepIndex) => (
+                        <li key={post.id}>
+                          <Link
+                            href={`/blog/${post.slug}`}
+                            aria-label={`${t("timeline.step")} ${stepIndex + 1} — ${titleForPost(post)}`}
+                            className="group flex gap-3 rounded-md border border-[#d4dde6] bg-white p-3 transition hover:border-[#495867] hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#495867]"
+                          >
+                            <span
+                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#495867] text-xs font-bold text-white"
+                              aria-hidden
+                            >
+                              {stepIndex + 1}
                             </span>
-                          )}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[10px] font-medium uppercase tracking-wide text-[#6b7a8a]">
+                                {t("timeline.step")} {stepIndex + 1}
+                                <span className="mx-1.5 text-[#b8c5d0]">·</span>
+                                <time dateTime={date.toISOString()}>{fmtDate(date)}</time>
+                              </p>
+                              <p className="mt-0.5 text-sm font-semibold leading-snug text-[#0D131A] group-hover:text-[#495867]">
+                                {titleForPost(post)}
+                              </p>
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                {post.workDays != null && (
+                                  <span className="rounded bg-[#eef3f7] px-1.5 py-0.5 text-[10px] font-medium text-[#495867]">
+                                    {post.workDays} {t("timeline.days")}
+                                  </span>
+                                )}
+                                <span className="text-xs font-medium text-[#495867] group-hover:underline">
+                                  {t("timeline.readArticle")} →
+                                </span>
+                              </div>
+                            </div>
+                          </Link>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
                 )}
               </article>
             </div>

@@ -171,6 +171,12 @@ const messages = {
     fr: "Articles hors jalon",
     en: "Posts outside milestones",
   },
+  "timeline.milestoneSteps": {
+    fr: "Étapes du jalon",
+    en: "Milestone steps",
+  },
+  "timeline.step": { fr: "Étape", en: "Step" },
+  "timeline.readArticle": { fr: "Lire l'article", en: "Read article" },
 
   "login.title": { fr: "Connexion éditeur", en: "Editor sign-in" },
   "login.subtitle": {
