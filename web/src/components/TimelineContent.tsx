@@ -93,12 +93,12 @@ export function TimelineContent({
         </div>
       </div>
 
-      <div className="relative mt-12 space-y-0">
+      <div className="relative mt-12 space-y-6">
         {blocks.length === 0 && standalone.length === 0 && (
           <p className="text-center text-[#495867]">{t("timeline.empty")}</p>
         )}
 
-        {blocks.map((block, index) => {
+        {blocks.map((block) => {
           const m = block.milestone;
           const title = titleForMilestone(m);
           const description = lang === "fr" ? m.descriptionFr : m.descriptionEn;
@@ -115,27 +115,13 @@ export function TimelineContent({
             block.isPunctual
           );
 
-          const prevEnd = index > 0 ? (blocks[index - 1].end ?? blocks[index - 1].start) : null;
-          const showGap =
-            prevEnd &&
-            block.start.getTime() > prevEnd.getTime() + 24 * 60 * 60 * 1000;
-
           return (
             <div key={m.id}>
-              {showGap && (
-                <div
-                  className="my-6 border-t-2 border-dashed border-[#b8c5d0]"
-                  aria-hidden
-                />
-              )}
-
               <article
-                className={`relative pb-10 ${
-                  block.steps.length > 0 ? "mb-8" : ""
-                } ${
+                className={`relative rounded-lg border p-4 ${
                   isCurrent
-                    ? "-mx-3 rounded-lg border border-[#495867] bg-[#eef3f7] px-3 pt-3 ring-1 ring-[#495867]/20"
-                    : ""
+                    ? "border-[#495867] bg-[#eef3f7] ring-1 ring-[#495867]/20"
+                    : "border-[#d4dde6] bg-white"
                 }`}
               >
                 <div className="relative mb-3 h-3 rounded-full bg-[#eef3f7]">
@@ -157,7 +143,7 @@ export function TimelineContent({
                     }
                     title={
                       block.isPunctual
-                        ? `${t("timeline.punctual")} — ${fmtDate(block.start)}`
+                        ? fmtDate(block.start)
                         : `${fmtDate(block.start)} → ${fmtDate(barEnd)}`
                     }
                   />
@@ -168,11 +154,6 @@ export function TimelineContent({
                     {fmtDate(block.start)}
                     {block.end ? ` → ${fmtDate(block.end)}` : ""}
                   </time>
-                  {block.isPunctual && (
-                    <span className="rounded-full bg-[#eef3f7] px-2 py-0.5 text-[10px] font-medium uppercase text-[#495867]">
-                      {t("timeline.punctual")}
-                    </span>
-                  )}
                   {isCurrent && (
                     <span className="rounded-full bg-[#495867] px-2 py-0.5 text-[10px] font-medium uppercase text-white">
                       {t("timeline.current")}
@@ -204,7 +185,7 @@ export function TimelineContent({
                 )}
 
                 {block.steps.length > 0 && (
-                  <div className="mt-5 rounded-lg border border-[#d4dde6] bg-[#f4f7fa]/90 p-4">
+                  <div className="mt-5 border-t border-[#d4dde6] pt-4">
                     <ol className="space-y-2">
                       {block.steps.map(({ post, date }, stepIndex) => (
                         <li key={post.id}>
