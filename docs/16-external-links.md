@@ -150,7 +150,7 @@ Prompt agent : `web/src/lib/telegram/agent.ts` · catalogue : `web/src/lib/ai-to
 | Env | Version | Statut |
 |-----|---------|--------|
 | **TEST** | **v1.2.118** | ✅ Déployé (main) |
-| **PROD** | v1.2.91 | ⏳ Promotion après validation Hammed sur TEST |
+| **PROD** | **v1.2.118** | ✅ Promu 2026-08-19 |
 
 Checklist opérateur :
 

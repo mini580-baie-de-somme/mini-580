@@ -1,6 +1,6 @@
 # TODO — Class Mini 5.80 Baie de Somme
 
-> Dernière mise à jour : 2026-08-19 · prod **v1.2.91** · test **v1.2.118**
+> Dernière mise à jour : 2026-08-19 · prod **v1.2.118** · test **v1.2.118**
 
 ## 🚧 En cours — validation deploy (août 2026)
 
@@ -19,7 +19,7 @@ Spec : `docs/16-external-links.md`
 - [x] Tests — external-links, token, segments, sync, ai-tools (**365** local)
 - [x] Ship TEST ✓ **v1.2.118**
 - [ ] Validation Hammed TEST (CRUD liens, insertion article, sync catalogue, bot)
-- [ ] Deploy PROD — promotion `:v1.2.118` → `:prod` (`expected_version: 1.2.118`)
+- [x] Deploy PROD ✓ **v1.2.118** (2026-08-19)
 
 ### Phase 1f — timeline & métriques (TEST v1.2.93+)
 
