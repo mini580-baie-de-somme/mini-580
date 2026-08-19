@@ -120,6 +120,20 @@ const catalogSchema = z.object({
       createdAt: z.string(),
     })
   ),
+  externalLinks: z
+    .array(
+      z.object({
+        id: z.string(),
+        labelFr: z.string(),
+        labelEn: z.string(),
+        url: z.string().nullable(),
+        urlFr: z.string().nullable(),
+        urlEn: z.string().nullable(),
+        createdAt: z.string(),
+      })
+    )
+    .optional()
+    .default([]),
 });
 
 /**
