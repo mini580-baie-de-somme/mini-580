@@ -213,6 +213,7 @@ describe("API integration — Sync PROD↔TEST", () => {
           createdAt: new Date().toISOString(),
         },
       ],
+      externalLinks: [],
     };
 
     vi.doMock("@/lib/sync-crypto", async () => {
@@ -359,7 +360,7 @@ describe("API integration — Sync PROD↔TEST", () => {
       .mockImplementation(async (path: string) => {
         if (path.includes("resource=catalog")) {
           return new Response(
-            JSON.stringify({ tags: [], themes: [], milestones: [] }),
+            JSON.stringify({ tags: [], themes: [], milestones: [], externalLinks: [] }),
             { status: 200 }
           );
         }

@@ -13,10 +13,13 @@ import {
   cleanMediaGroupTokens,
   mediaGroupPlaceholder,
 } from "@/lib/media-group-token";
+import { externalLinkPlaceholder } from "@/lib/external-link-token";
 import { shouldApplyParentMarkdownToVisualEditor } from "@/lib/visual-editor-markdown-sync";
 import { useMediaGroupBodyEnrichment } from "@/hooks/useMediaGroupBodyEnrichment";
+import { ExternalLinkBlock } from "@/lib/tiptap/external-link-block";
 import { MediaGroupBlock } from "@/lib/tiptap/media-group-block";
 import { ArticleBody } from "./ArticleBody";
+import { ExternalLinkPicker } from "./ExternalLinkPicker";
 import { MediaGroupPicker } from "./MediaGroupPicker";
 
 type BodyEditorMode = "markdown" | "visual";
@@ -33,10 +36,12 @@ function VisualToolbar({
   editor,
   lang,
   onInsertGroup,
+  onInsertLink,
 }: {
   editor: Editor | null;
   lang: "fr" | "en";
   onInsertGroup: () => void;
+  onInsertLink: () => void;
 }) {
   if (!editor) return null;
 
@@ -97,6 +102,14 @@ function VisualToolbar({
       >
         📷 {lang === "fr" ? "Groupe" : "Group"}
       </button>
+      <button
+        type="button"
+        className="rounded border border-[#495867] bg-white px-2 py-1 text-xs text-[#495867] hover:bg-[#495867] hover:text-white"
+        onClick={onInsertLink}
+        title={lang === "fr" ? "Insérer un lien" : "Insert link"}
+      >
+        🔗 {lang === "fr" ? "Lien" : "Link"}
+      </button>
     </div>
   );
 }
@@ -108,7 +121,10 @@ function VisualEditorPane({
   onEditGroup,
   pickerOpen,
   onPickerOpenChange,
+  linkPickerOpen,
+  onLinkPickerOpenChange,
   pendingInsertRef,
+  pendingLinkInsertRef,
 }: {
   markdown: string;
   onMarkdownChange: (md: string) => void;
@@ -116,7 +132,10 @@ function VisualEditorPane({
   onEditGroup?: (groupId: string) => void;
   pickerOpen: boolean;
   onPickerOpenChange: (open: boolean) => void;
+  linkPickerOpen: boolean;
+  onLinkPickerOpenChange: (open: boolean) => void;
   pendingInsertRef: MutableRefObject<((groupId: string) => void) | null>;
+  pendingLinkInsertRef: MutableRefObject<((linkId: string) => void) | null>;
 }) {
   const syncingRef = useRef(false);
   const lastExternalRef = useRef(markdown);
@@ -129,6 +148,7 @@ function VisualEditorPane({
       MediaGroupBlock.configure({
         onEditGroup,
       }),
+      ExternalLinkBlock,
     ],
     content: markdownToHtml(markdown),
     immediatelyRender: false,
@@ -153,10 +173,14 @@ function VisualEditorPane({
     pendingInsertRef.current = (groupId: string) => {
       editor.chain().focus().insertMediaGroup(groupId).run();
     };
+    pendingLinkInsertRef.current = (linkId: string) => {
+      editor.chain().focus().insertExternalLink(linkId).run();
+    };
     return () => {
       pendingInsertRef.current = null;
+      pendingLinkInsertRef.current = null;
     };
-  }, [editor, pendingInsertRef]);
+  }, [editor, pendingInsertRef, pendingLinkInsertRef]);
 
   useEffect(() => {
     if (!editor) return;
@@ -176,6 +200,7 @@ function VisualEditorPane({
           editor={editor}
           lang={lang}
           onInsertGroup={() => onPickerOpenChange(true)}
+          onInsertLink={() => onLinkPickerOpenChange(true)}
         />
         <EditorContent editor={editor} />
       </div>
@@ -183,6 +208,11 @@ function VisualEditorPane({
         open={pickerOpen}
         onClose={() => onPickerOpenChange(false)}
         onSelect={(groupId) => pendingInsertRef.current?.(groupId)}
+      />
+      <ExternalLinkPicker
+        open={linkPickerOpen}
+        onClose={() => onLinkPickerOpenChange(false)}
+        onSelect={(linkId) => pendingLinkInsertRef.current?.(linkId)}
       />
     </>
   );
@@ -198,9 +228,11 @@ export function ArticleBodyEditor({
   const [mode, setMode] = useState<BodyEditorMode>("markdown");
   const [showPreview, setShowPreview] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [linkPickerOpen, setLinkPickerOpen] = useState(false);
   const visualSnapshotRef = useRef(value);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pendingInsertRef = useRef<((groupId: string) => void) | null>(null);
+  const pendingLinkInsertRef = useRef<((linkId: string) => void) | null>(null);
 
   const switchMode = useCallback(
     (next: BodyEditorMode) => {
@@ -244,6 +276,27 @@ export function ArticleBodyEditor({
     [onChange, value]
   );
 
+  const insertLinkInMarkdown = useCallback(
+    (linkId: string) => {
+      const token = `\n\n${externalLinkPlaceholder(linkId)}\n\n`;
+      const el = textareaRef.current;
+      if (!el) {
+        onChange(`${value.trim()}${token}`.trim());
+        return;
+      }
+      const start = el.selectionStart ?? value.length;
+      const end = el.selectionEnd ?? value.length;
+      const next = `${value.slice(0, start)}${token}${value.slice(end)}`;
+      onChange(next);
+      requestAnimationFrame(() => {
+        const pos = start + token.length;
+        el.focus();
+        el.setSelectionRange(pos, pos);
+      });
+    },
+    [onChange, value]
+  );
+
   const handlePickerSelect = useCallback(
     (groupId: string) => {
       if (mode === "visual") {
@@ -253,6 +306,17 @@ export function ArticleBodyEditor({
       }
     },
     [insertGroupInMarkdown, mode]
+  );
+
+  const handleLinkPickerSelect = useCallback(
+    (linkId: string) => {
+      if (mode === "visual") {
+        pendingLinkInsertRef.current?.(linkId);
+      } else {
+        insertLinkInMarkdown(linkId);
+      }
+    },
+    [insertLinkInMarkdown, mode]
   );
 
   const handleBodyEnriched = useCallback(
@@ -305,6 +369,13 @@ export function ArticleBodyEditor({
             className="rounded border border-[#495867] bg-white px-2 py-1 text-xs text-[#495867] hover:bg-[#495867] hover:text-white"
           >
             📷 {lang === "fr" ? "Insérer un groupe" : "Insert group"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setLinkPickerOpen(true)}
+            className="rounded border border-[#495867] bg-white px-2 py-1 text-xs text-[#495867] hover:bg-[#495867] hover:text-white"
+          >
+            🔗 {lang === "fr" ? "Insérer un lien" : "Insert link"}
           </button>
           {mode === "markdown" && (
             <button
@@ -367,6 +438,11 @@ export function ArticleBodyEditor({
             onClose={() => setPickerOpen(false)}
             onSelect={handlePickerSelect}
           />
+          <ExternalLinkPicker
+            open={linkPickerOpen}
+            onClose={() => setLinkPickerOpen(false)}
+            onSelect={handleLinkPickerSelect}
+          />
         </>
       ) : (
         <VisualEditorPane
@@ -376,7 +452,10 @@ export function ArticleBodyEditor({
           onEditGroup={onEditGroup}
           pickerOpen={pickerOpen}
           onPickerOpenChange={setPickerOpen}
+          linkPickerOpen={linkPickerOpen}
+          onLinkPickerOpenChange={setLinkPickerOpen}
           pendingInsertRef={pendingInsertRef}
+          pendingLinkInsertRef={pendingLinkInsertRef}
         />
       )}
     </div>

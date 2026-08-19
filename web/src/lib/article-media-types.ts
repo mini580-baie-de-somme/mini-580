@@ -34,10 +34,20 @@ export type PublicMediaGroup = {
   members: ArticleManifestMedia[];
 };
 
+export type PublicExternalLink = {
+  id: string;
+  labelFr: string;
+  labelEn: string;
+  url: string | null;
+  urlFr: string | null;
+  urlEn: string | null;
+};
+
 export type ArticleMediaPageData = {
   manifestFr: ArticleManifestMedia[];
   manifestEn: ArticleManifestMedia[];
   manifestIndexByGroupIdFr: Record<string, number>;
   manifestIndexByGroupIdEn: Record<string, number>;
   mediaGroups: Record<string, PublicMediaGroup>;
+  externalLinks: Record<string, PublicExternalLink>;
 };

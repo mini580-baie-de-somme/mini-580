@@ -1,6 +1,12 @@
 import { marked } from "marked";
 import TurndownService from "turndown";
 import { parseArticleBodySegments } from "@/lib/article-body-segments";
+import { externalLinkPlaceholder } from "@/lib/external-link-token";
+import {
+  externalLinkHtml,
+  EXTERNAL_LINK_HTML_ATTR,
+  EXTERNAL_LINK_HTML_INNER,
+} from "@/lib/external-link-html";
 import { mediaGroupPlaceholder } from "@/lib/media-group-token";
 import {
   mediaGroupHtml,
@@ -54,6 +60,20 @@ turndown.addRule("mediaGroupBlock", {
     return `\n\n${mediaGroupPlaceholder(id)}\n\n`;
   },
 });
+
+turndown.addRule("externalLinkBlock", {
+  filter(node) {
+    return (
+      node.nodeName === "DIV" &&
+      (node as HTMLElement).getAttribute(EXTERNAL_LINK_HTML_ATTR) != null
+    );
+  },
+  replacement(_content, node) {
+    const id = (node as HTMLElement).getAttribute(EXTERNAL_LINK_HTML_ATTR);
+    if (!id) return "";
+    return `\n\n${externalLinkPlaceholder(id)}\n\n`;
+  },
+});
 marked.setOptions({
   gfm: true,
   breaks: false,
@@ -65,8 +85,10 @@ export function markdownToHtml(markdown: string): string {
   if (!source) return "";
 
   const segments = parseArticleBodySegments(source);
-  const hasGroups = segments.some((segment) => segment.type === "media-group");
-  if (!hasGroups) {
+  const hasInlineBlocks = segments.some(
+    (segment) => segment.type === "media-group" || segment.type === "external-link"
+  );
+  if (!hasInlineBlocks) {
     const html = marked.parse(source, { async: false }) as string;
     return html.trim();
   }
@@ -75,6 +97,9 @@ export function markdownToHtml(markdown: string): string {
     .map((segment) => {
       if (segment.type === "media-group") {
         return mediaGroupHtml(segment.groupId);
+      }
+      if (segment.type === "external-link") {
+        return externalLinkHtml(segment.linkId);
       }
       const text = segment.content.trim();
       if (!text) return "";
@@ -86,12 +111,18 @@ export function markdownToHtml(markdown: string): string {
 }
 
 /** Ensure empty media-group divs are not treated as blank by Turndown. */
-function normalizeMediaGroupHtml(html: string): string {
-  const emptyDivRe = new RegExp(
+function normalizeInlineBlockHtml(html: string): string {
+  const emptyMediaGroupRe = new RegExp(
     `(<div\\s+[^>]*${MEDIA_GROUP_HTML_ATTR}="[^"]+"[^>]*>)\\s*</div>`,
     "gi"
   );
-  return html.replace(emptyDivRe, `$1${MEDIA_GROUP_HTML_INNER}</div>`);
+  const emptyExternalLinkRe = new RegExp(
+    `(<div\\s+[^>]*${EXTERNAL_LINK_HTML_ATTR}="[^"]+"[^>]*>)\\s*</div>`,
+    "gi"
+  );
+  return html
+    .replace(emptyMediaGroupRe, `$1${MEDIA_GROUP_HTML_INNER}</div>`)
+    .replace(emptyExternalLinkRe, `$1${EXTERNAL_LINK_HTML_INNER}</div>`);
 }
 
 /** Convert visual editor HTML back to Markdown for storage. */
@@ -99,7 +130,7 @@ export function htmlToMarkdown(html: string): string {
   const source = html.trim();
   if (!source) return "";
   return turndown
-    .turndown(normalizeMediaGroupHtml(source))
+    .turndown(normalizeInlineBlockHtml(source))
     .replace(/\n{3,}/g, "\n\n")
     .replace(/^(\s*-\s+)\s+/gm, "- ")
     .replace(/^(\d+\.)\s+/gm, "$1 ")

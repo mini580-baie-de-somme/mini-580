@@ -1,10 +1,11 @@
 "use client";
 
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { parseArticleBodySegments } from "@/lib/article-body-segments";
 import { normalizeLegacyBodyText } from "@/lib/article-markdown";
-import type { PublicMediaGroup } from "@/lib/article-media-types";
+import type { PublicExternalLink, PublicMediaGroup } from "@/lib/article-media-types";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { InlineExternalLink } from "./InlineExternalLink";
 import { InlineMediaGroup } from "./InlineMediaGroup";
 
 const proseClassName =
@@ -14,12 +15,14 @@ export function ArticleBody({
   content,
   locale = "fr",
   mediaGroups = {},
+  externalLinks = {},
   manifestIndexByGroupId = {},
   onOpenMediaGroup,
 }: {
   content: string;
   locale?: "fr" | "en";
   mediaGroups?: Record<string, PublicMediaGroup>;
+  externalLinks?: Record<string, PublicExternalLink>;
   manifestIndexByGroupId?: Record<string, number>;
   onOpenMediaGroup?: (groupId: string) => void;
 }) {
@@ -27,9 +30,11 @@ export function ArticleBody({
   if (!normalized.trim()) return null;
 
   const segments = parseArticleBodySegments(normalized);
-  const hasGroups = segments.some((segment) => segment.type === "media-group");
+  const hasInlineBlocks = segments.some(
+    (segment) => segment.type !== "text"
+  );
 
-  if (!hasGroups) {
+  if (!hasInlineBlocks) {
     return (
       <div className={proseClassName}>
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{normalized}</ReactMarkdown>
@@ -51,14 +56,24 @@ export function ArticleBody({
           );
         }
 
-        const group = mediaGroups[segment.groupId] ?? null;
+        if (segment.type === "media-group") {
+          const group = mediaGroups[segment.groupId] ?? null;
+          return (
+            <InlineMediaGroup
+              key={`group-${segment.groupId}-${index}`}
+              group={group}
+              locale={locale}
+              onOpen={() => onOpenMediaGroup?.(segment.groupId)}
+            />
+          );
+        }
 
+        const link = externalLinks[segment.linkId] ?? null;
         return (
-          <InlineMediaGroup
-            key={`group-${segment.groupId}-${index}`}
-            group={group}
+          <InlineExternalLink
+            key={`link-${segment.linkId}-${index}`}
+            link={link}
             locale={locale}
-            onOpen={() => onOpenMediaGroup?.(segment.groupId)}
           />
         );
       })}

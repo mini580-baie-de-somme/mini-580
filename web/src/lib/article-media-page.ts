@@ -5,7 +5,12 @@ import {
   buildArticleMediaManifest,
   type ArticleMediaManifestInput,
 } from "@/lib/article-media-manifest";
-import type { ArticleMediaPageData, PublicMediaGroup } from "@/lib/article-media-types";
+import type {
+  ArticleMediaPageData,
+  PublicExternalLink,
+  PublicMediaGroup,
+} from "@/lib/article-media-types";
+import { parseExternalLinkIds } from "@/lib/external-link-token";
 import { mediaAsPostImage } from "@/lib/media-library";
 import { parseMediaGroupIds } from "@/lib/media-group-token";
 
@@ -34,9 +39,16 @@ export async function prepareArticleMediaPageData(
     ]),
   ];
 
-  const groups =
+  const linkIds = [
+    ...new Set([
+      ...parseExternalLinkIds(post.bodyFr),
+      ...parseExternalLinkIds(post.bodyEn),
+    ]),
+  ];
+
+  const [groups, links] = await Promise.all([
     groupIds.length > 0
-      ? await prisma.mediaGroup.findMany({
+      ? prisma.mediaGroup.findMany({
           where: { id: { in: groupIds } },
           include: {
             members: {
@@ -45,7 +57,11 @@ export async function prepareArticleMediaPageData(
             },
           },
         })
-      : [];
+      : Promise.resolve([]),
+    linkIds.length > 0
+      ? prisma.externalLink.findMany({ where: { id: { in: linkIds } } })
+      : Promise.resolve([]),
+  ]);
 
   const manifestFr = await buildArticleMediaManifest(post, "fr");
   const manifestEn = await buildArticleMediaManifest(post, "en");
@@ -67,11 +83,24 @@ export async function prepareArticleMediaPageData(
     };
   }
 
+  const externalLinks: Record<string, PublicExternalLink> = {};
+  for (const link of links) {
+    externalLinks[link.id] = {
+      id: link.id,
+      labelFr: link.labelFr,
+      labelEn: link.labelEn,
+      url: link.url,
+      urlFr: link.urlFr,
+      urlEn: link.urlEn,
+    };
+  }
+
   return {
     manifestFr: manifestFr.map((item) => item.media),
     manifestEn: manifestEn.map((item) => item.media),
     manifestIndexByGroupIdFr: buildGroupIndexMap(manifestFr),
     manifestIndexByGroupIdEn: buildGroupIndexMap(manifestEn),
     mediaGroups,
+    externalLinks,
   };
 }

@@ -9,9 +9,9 @@ describe("parseArticleBodySegments", () => {
     ]);
   });
 
-  it("splits text and media-group placeholders in document order", () => {
+  it("splits text, media-group, and external-link placeholders in document order", () => {
     const groupA = "clgroupaaa111";
-    const groupB = "clgroupbbb222";
+    const linkB = "cllinkbbb222";
     const body = [
       "Intro paragraph.",
       "",
@@ -19,7 +19,7 @@ describe("parseArticleBodySegments", () => {
       "",
       "Middle text.",
       "",
-      mediaGroupPlaceholder(groupB),
+      `{{external-link:${linkB}}}`,
       "",
       "Outro.",
     ].join("\n");
@@ -29,7 +29,7 @@ describe("parseArticleBodySegments", () => {
       { type: "text", content: "Intro paragraph.\n\n" },
       { type: "media-group", groupId: groupA },
       { type: "text", content: "\n\nMiddle text.\n\n" },
-      { type: "media-group", groupId: groupB },
+      { type: "external-link", linkId: linkB },
       { type: "text", content: "\n\nOutro." },
     ]);
   });

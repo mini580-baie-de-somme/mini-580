@@ -51,6 +51,7 @@ describe("API integration — IA tools full capacity (Bearer)", () => {
       "photos",
       "media",
       "media_groups",
+      "external_links",
       "tags",
       "themes",
       "milestones",
@@ -386,5 +387,22 @@ describe("API integration — IA tools full capacity (Bearer)", () => {
     expect(insert?.description).toMatch(/never paste/i);
     const manifest = AI_TOOLS.find((t) => t.name === "posts.media_manifest");
     expect(manifest?.path).toBe("/api/posts/:id/media-manifest");
+  });
+
+  it("external_links tools cover CRUD, references, and insert placeholder", () => {
+    const names = aiToolsByCategory("external_links").map((t) => t.name);
+    for (const name of [
+      "external_links.list",
+      "external_links.get",
+      "external_links.create",
+      "external_links.update",
+      "external_links.delete",
+      "external_links.references",
+    ]) {
+      expect(names).toContain(name);
+    }
+    const insert = AI_TOOLS.find((t) => t.name === "posts.insert_external_link");
+    expect(insert?.path).toBe("/api/posts/:id/insert-external-link");
+    expect(insert?.description).toMatch(/never paste/i);
   });
 });

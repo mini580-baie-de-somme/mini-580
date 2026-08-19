@@ -17,6 +17,15 @@ export type SyncCatalogPayload = {
     milestoneDate: string;
     createdAt: string;
   }[];
+  externalLinks: {
+    id: string;
+    labelFr: string;
+    labelEn: string;
+    url: string | null;
+    urlFr: string | null;
+    urlEn: string | null;
+    createdAt: string;
+  }[];
 };
 
 export type SyncPostPayload = {
@@ -128,12 +137,13 @@ function serializePost(post: PostWithRelations): SyncPostPayload {
 }
 
 export async function exportCatalog(): Promise<SyncCatalogPayload> {
-  const [tags, themes, milestones] = await Promise.all([
+  const [tags, themes, milestones, externalLinks] = await Promise.all([
     prisma.tag.findMany({ orderBy: { name: "asc" } }),
     prisma.theme.findMany({ orderBy: { slug: "asc" } }),
     prisma.milestone.findMany({
       orderBy: [{ milestoneDate: "asc" }, { titleFr: "asc" }],
     }),
+    prisma.externalLink.findMany({ orderBy: { labelFr: "asc" } }),
   ]);
 
   return {
@@ -159,6 +169,15 @@ export async function exportCatalog(): Promise<SyncCatalogPayload> {
       descriptionEn: m.descriptionEn,
       milestoneDate: m.milestoneDate.toISOString(),
       createdAt: m.createdAt.toISOString(),
+    })),
+    externalLinks: externalLinks.map((link) => ({
+      id: link.id,
+      labelFr: link.labelFr,
+      labelEn: link.labelEn,
+      url: link.url,
+      urlFr: link.urlFr,
+      urlEn: link.urlEn,
+      createdAt: link.createdAt.toISOString(),
     })),
   };
 }
@@ -314,6 +333,28 @@ export async function upsertCatalog(payload: SyncCatalogPayload) {
       },
     });
   }
+
+  for (const link of payload.externalLinks ?? []) {
+    await prisma.externalLink.upsert({
+      where: { id: link.id },
+      create: {
+        id: link.id,
+        labelFr: link.labelFr,
+        labelEn: link.labelEn,
+        url: link.url,
+        urlFr: link.urlFr,
+        urlEn: link.urlEn,
+        createdAt: new Date(link.createdAt),
+      },
+      update: {
+        labelFr: link.labelFr,
+        labelEn: link.labelEn,
+        url: link.url,
+        urlFr: link.urlFr,
+        urlEn: link.urlEn,
+      },
+    });
+  }
 }
 
 /** Full overwrite of a post by id (PROD → TEST or publish TEST → PROD). */
@@ -326,6 +367,7 @@ export async function upsertPostFromSync(payload: SyncPostPayload) {
     })),
     themes: payload.themes,
     milestones: [],
+    externalLinks: [],
   });
 
   const authorId = await ensureAuthor(payload.authorEmail);

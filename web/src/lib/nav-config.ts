@@ -20,10 +20,11 @@ export const editorNav: NavItem[] = [
   { href: "/editeur/jalons", key: "nav.milestones" },
   { href: "/editeur/themes", key: "nav.themes" },
   { href: "/editeur/tags", key: "nav.tags" },
+  { href: "/editeur/liens", key: "nav.externalLinks" },
   { href: "/editeur/sync", key: "nav.sync" },
 ];
 
-const editorSubRoutes = new Set(["jalons", "sync", "themes", "tags", "galerie"]);
+const editorSubRoutes = new Set(["jalons", "sync", "themes", "tags", "liens", "galerie"]);
 
 /** Active state for sidebar links (handles /editeur vs sub-routes). */
 export function isNavActive(pathname: string, href: string): boolean {

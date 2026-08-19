@@ -177,6 +177,7 @@ export function ArticleView({
           content={body}
           locale={locale}
           mediaGroups={mediaPage?.mediaGroups}
+          externalLinks={mediaPage?.externalLinks}
           onOpenMediaGroup={(groupId) => {
             const groups = mediaPage?.mediaGroups ?? {};
             slideshow.openAtGroup(groupId, groups, manifestIndexByGroupId);

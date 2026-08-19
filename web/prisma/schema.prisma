@@ -149,6 +149,18 @@ model PostTag {
   @@id([postId, tagId])
 }
 
+/// Reusable external link resource for inline article blocks (bilingual labels + URL).
+model ExternalLink {
+  id        String   @id @default(cuid())
+  labelFr   String
+  labelEn   String
+  /// Single URL for both locales (optional when urlFr + urlEn are set)
+  url       String?
+  urlFr     String?
+  urlEn     String?
+  createdAt DateTime @default(now())
+}
+
 model Theme {
   id     String      @id @default(cuid())
   slug   String      @unique

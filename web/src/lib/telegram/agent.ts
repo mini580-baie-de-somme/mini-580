@@ -82,7 +82,8 @@ async function rememberActiveIds(
     toolName === "posts.publish" ||
     toolName === "posts.archive" ||
     toolName === "posts.delete" ||
-    toolName === "posts.insert_media_group"
+    toolName === "posts.insert_media_group" ||
+    toolName === "posts.insert_external_link"
   ) {
     if (params?.id) patch.activePostId = params.id;
   } else if (
@@ -259,11 +260,12 @@ Tu aides les comptes autorisés à :
 - gérer la médiathèque indépendante (IMAGE|DOCUMENT|VIDEO) : media.create, media.update, media.delete
 - associer/détacher des médias à 0–N articles : media.attach, media.detach, media.reorder, media.set_cover
 - **groupes de médias inline** : media_groups_* (CRUD médiathèque, ordre membres) + posts_insert_media_group (insertion assistée dans le corps — jamais coller {{media-group:…}} à la main)
+- **liens externes inline** : external_links_* (CRUD liens réutilisables) + posts_insert_external_link (insertion assistée — jamais coller {{external-link:…}} à la main)
 - partager des liens de prévisualisation (preview_create)
 - mémoriser des règles et connaissances importantes entre sessions (agent_memory_*)
 
 Règles :
-- Utilise les tools HTTP (posts_*, media_*, media_groups_*, tags_*, themes_*, milestones_*, agent_memory_*, gallery_list, translate, preview_create). photos_* restent disponibles (compat).
+- Utilise les tools HTTP (posts_*, media_*, media_groups_*, external_links_*, tags_*, themes_*, milestones_*, agent_memory_*, gallery_list, translate, preview_create). photos_* restent disponibles (compat).
 - Réponds en français, concis, adapté à Telegram (Markdown simple).
 - Mémoire long terme : au bootstrap tu reçois les règles actives ; ensuite utilise agent_memory_list / create / update / delete. Ne jamais mentionner les id techniques à l'utilisateur (utilise le titre).
 - Avant de publier ou supprimer, confirme clairement avec l'utilisateur.
@@ -271,6 +273,7 @@ Règles :
 - Médias Telegram (/media/...) : media.create puis media.attach, ou photos_upload (compat).
 - media.detach enlève le lien article ; media.delete supprime de la médiathèque (force=1 si lié).
 - **Groupes de médias** : workflow médiathèque → media_groups_create + add_media/reorder → posts_insert_media_group sur le brouillon actif. Les médias d'un groupe inline n'ont pas besoin de media.attach pour apparaître sur l'article public (manifeste unifié). Avant media_groups_delete : media_groups_references ou media_groups_get pour vérifier les articles liés (409 si encore référencé).
+- **Liens externes** : external_links_create (labelFr/labelEn + url unique ou urlFr+urlEn) → posts_insert_external_link sur le brouillon actif. Avant external_links_delete : external_links_references (409 si encore référencé dans un corps d'article).
 - **Timeline / charge** : posts.workDays (jours produits, entier optionnel) ; milestones avec milestoneDate (début), endDate optionnel (fin période ; absent = jalon ponctuel), workloadForecast (jours prévus). Articles liés à un jalon comptent dans sa période si publishedAt ∈ [début, fin]. Métriques publiques : jours écoulés depuis début projet + somme workDays articles publiés.
 - **Crop images** : cropAspectFormat SQUARE (défaut nouveaux uploads) | LANDSCAPE_16_9 | LANDSCAPE_4_3 | PORTRAIT_3_4 | CIRCLE (+ champs layout offset/scale/rotation). Anciens médias souvent PORTRAIT_3_4.
 - Ne invente pas d'IDs : utilise le contexte actif, ou liste d'abord.

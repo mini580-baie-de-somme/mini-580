@@ -283,6 +283,7 @@ async function runPublishMilestone(jobId: string, milestoneId: string) {
     tags: [],
     themes: [],
     milestones: [milestone],
+    externalLinks: [],
   };
   const res = await peerFetch("/api/sync/peer/import", "import", {
     method: "PUT",

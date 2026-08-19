@@ -94,6 +94,7 @@ export function PreviewArticle({
         content={body}
         locale={lang}
         mediaGroups={mediaPage?.mediaGroups}
+        externalLinks={mediaPage?.externalLinks}
         onOpenMediaGroup={(groupId) => {
           const groups = mediaPage?.mediaGroups ?? {};
           slideshow.openAtGroup(groupId, groups, manifestIndexByGroupId);

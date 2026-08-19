@@ -16,6 +16,7 @@ export type AiToolDef = {
     | "photos"
     | "media"
     | "media_groups"
+    | "external_links"
     | "tags"
     | "themes"
     | "milestones"
@@ -95,6 +96,15 @@ export const AI_TOOLS: AiToolDef[] = [
       "Insert a media group placeholder into post bodyFr/bodyEn — never paste {{media-group:…}} manually. Body: { groupId, lang?: fr|en|both (default both), position?: end|start (default end) }. Group media appear inline on the public article without media.attach.",
     method: "POST",
     path: "/api/posts/:id/insert-media-group",
+    auth: "bearer_or_session",
+    category: "posts",
+  },
+  {
+    name: "posts.insert_external_link",
+    description:
+      "Insert an external link placeholder into post bodyFr/bodyEn — never paste {{external-link:…}} manually. Body: { linkId, lang?: fr|en|both (default both), position?: end|start (default end) }.",
+    method: "POST",
+    path: "/api/posts/:id/insert-external-link",
     auth: "bearer_or_session",
     category: "posts",
   },
@@ -353,6 +363,61 @@ export const AI_TOOLS: AiToolDef[] = [
     path: "/api/posts/:id/images/:imageId",
     auth: "bearer_or_session",
     category: "photos",
+  },
+
+  // External links (reusable inline article links)
+  {
+    name: "external_links.list",
+    description:
+      "List external links (paginated). Query: q, limit, offset. Returns { items, total, totalAll } when paginated.",
+    method: "GET",
+    path: "/api/external-links",
+    auth: "bearer_or_session",
+    category: "external_links",
+  },
+  {
+    name: "external_links.get",
+    description:
+      "Get external link detail: bilingual labels, url or urlFr/urlEn, referencedByPostIds.",
+    method: "GET",
+    path: "/api/external-links/:id",
+    auth: "bearer_or_session",
+    category: "external_links",
+  },
+  {
+    name: "external_links.create",
+    description:
+      "Create external link. Body: { labelFr, labelEn, url? } OR { labelFr, labelEn, urlFr, urlEn } — single url takes precedence.",
+    method: "POST",
+    path: "/api/external-links",
+    auth: "bearer_or_session",
+    category: "external_links",
+  },
+  {
+    name: "external_links.update",
+    description:
+      "Patch external link labels and/or URLs. Same url vs urlFr/urlEn rules as create.",
+    method: "PATCH",
+    path: "/api/external-links/:id",
+    auth: "bearer_or_session",
+    category: "external_links",
+  },
+  {
+    name: "external_links.delete",
+    description:
+      "Delete link if not referenced in any article body. Returns 409 + referencedByPosts if still used.",
+    method: "DELETE",
+    path: "/api/external-links/:id",
+    auth: "bearer_or_session",
+    category: "external_links",
+  },
+  {
+    name: "external_links.references",
+    description: "List posts whose bodyFr/bodyEn contain this link's inline placeholder.",
+    method: "GET",
+    path: "/api/external-links/:id/references",
+    auth: "bearer_or_session",
+    category: "external_links",
   },
 
   // Tags
