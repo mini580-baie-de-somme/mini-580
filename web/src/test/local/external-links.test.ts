@@ -38,6 +38,28 @@ describe("API integration — External links", () => {
     });
   });
 
+  it("POST accepts explicit null urlFr/urlEn with single url (legacy UI payload)", async () => {
+    const { POST } = await import("@/app/api/external-links/route");
+
+    const createRes = await POST(
+      jsonRequest("http://localhost/api/external-links", {
+        method: "POST",
+        headers: bearerHeaders(),
+        body: JSON.stringify({
+          labelFr: `${LINK_P} legacy`,
+          labelEn: `${LINK_P} legacy EN`,
+          url: "https://example.com/legacy",
+          urlFr: null,
+          urlEn: null,
+        }),
+      })
+    );
+    expect(createRes.status).toBe(201);
+    const created = await createRes.json();
+    expect(created.url).toBe("https://example.com/legacy");
+    await prisma.externalLink.delete({ where: { id: created.id } });
+  });
+
   it("CRUD external links with Bearer", async () => {
     const { POST, GET } = await import("@/app/api/external-links/route");
 

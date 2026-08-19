@@ -34,7 +34,7 @@ export function normalizeExternalLinkUrls(input: {
   return { url: null, urlFr: null, urlEn: null };
 }
 
-const urlField = z.string().optional();
+const urlField = z.string().nullish();
 
 export const createExternalLinkSchema = z
   .object({

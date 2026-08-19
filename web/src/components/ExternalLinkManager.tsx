@@ -68,9 +68,23 @@ function payloadFromForm(form: FormState) {
     labelEn: form.labelEn.trim(),
   };
   if (form.urlMode === "single") {
-    return { ...base, url: form.url.trim(), urlFr: null, urlEn: null };
+    return { ...base, url: form.url.trim() };
   }
-  return { ...base, url: null, urlFr: form.urlFr.trim(), urlEn: form.urlEn.trim() };
+  return { ...base, urlFr: form.urlFr.trim(), urlEn: form.urlEn.trim() };
+}
+
+function apiErrorMessage(error: unknown, fallback: string): string {
+  if (typeof error === "string" && error.trim()) return error;
+  if (error && typeof error === "object" && "formErrors" in error) {
+    const formErrors = (error as { formErrors?: string[] }).formErrors;
+    if (formErrors?.length) return formErrors.join(" · ");
+    const fieldErrors = (error as { fieldErrors?: Record<string, string[]> }).fieldErrors;
+    if (fieldErrors) {
+      const messages = Object.values(fieldErrors).flat().filter(Boolean);
+      if (messages.length) return messages.join(" · ");
+    }
+  }
+  return fallback;
 }
 
 function isFormValid(form: FormState): boolean {
@@ -140,8 +154,10 @@ export function ExternalLinkManager() {
               body: JSON.stringify(payload),
             });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? t("externalLinks.saveError"));
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(apiErrorMessage(data.error, t("externalLinks.saveError")));
+      }
       cancelEdit();
       await reload();
     } catch (e) {
@@ -158,11 +174,13 @@ export function ExternalLinkManager() {
     setError(null);
     try {
       const res = await fetch(`/api/external-links/${link.id}`, { method: "DELETE" });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (res.status === 409) {
         throw new Error(t("externalLinks.deleteInUse"));
       }
-      if (!res.ok) throw new Error(t("externalLinks.deleteError"));
+      if (!res.ok) {
+        throw new Error(apiErrorMessage(data.error, t("externalLinks.deleteError")));
+      }
       await reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("externalLinks.deleteError"));
