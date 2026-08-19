@@ -1,6 +1,10 @@
 import "server-only";
 
 import { createHash } from "crypto";
+import {
+  formatTelegramInboundMediaBlock,
+  type TelegramInboundMedia,
+} from "@/lib/telegram/inbound-media";
 
 /** Default context window when the runtime does not report usage (Composer-class models). */
 export const DEFAULT_CONTEXT_MAX_TOKENS = 128_000;
@@ -74,13 +78,16 @@ Session initialisée. Les prochains messages utilisateur arriveront seuls (sans 
 
 export function buildTurnUserMessage(input: {
   userMessage: string;
+  inboundMedia?: TelegramInboundMedia[];
+  /** @deprecated prefer inboundMedia */
   mediaUrls?: string[];
   activeContext: string;
   memoryBrief?: string | null;
 }): string {
-  const mediaBlock =
-    input.mediaUrls && input.mediaUrls.length
-      ? `\n\nMédias Telegram (URLs publiques):\n${input.mediaUrls.map((u, i) => `${i + 1}. ${u}`).join("\n")}`
+  const mediaBlock = input.inboundMedia?.length
+    ? formatTelegramInboundMediaBlock(input.inboundMedia)
+    : input.mediaUrls && input.mediaUrls.length
+      ? `\n\nMédias Telegram (URLs locales /media/...) :\n${input.mediaUrls.map((u, i) => `${i + 1}. ${u}`).join("\n")}`
       : "";
 
   const memoryRefresh = input.memoryBrief?.trim()

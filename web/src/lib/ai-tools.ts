@@ -227,7 +227,7 @@ export const AI_TOOLS: AiToolDef[] = [
   {
     name: "media.create",
     description:
-      "Create media in the library (multipart file OR JSON { urlOrigin, kind?, titleFr/En }). IMAGE → variants; DOCUMENT/VIDEO → origin only. Does not attach to a post.",
+      "Create media in the library (multipart file OR JSON { urlOrigin, kind?, titleFr/En }). Local IMAGE urlOrigin auto-resolves sibling variants on disk. Does not attach to a post.",
     method: "POST",
     path: "/api/media-library",
     auth: "bearer_or_session",

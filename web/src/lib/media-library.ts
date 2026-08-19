@@ -8,17 +8,22 @@ import {
   normalizeContentType,
 } from "@/lib/media-bucket";
 import {
+  DEFAULT_IMAGE_LAYOUT,
+  layoutForRebake,
+  type ImageLayoutParams,
+  type LegacyMediaTransform,
+} from "@/lib/image-layout";
+import {
+  imageBundleComplete,
+  resolveLocalMediaBundleFromUrl,
+} from "@/lib/media-local-bundle";
+import {
   bakeVariantsFromOrigin,
   deleteMediaUrls,
   storeOriginAndVariants,
   type MediaVariantUrls,
   type RebakedVariantUrls,
 } from "@/lib/media-variants";
-import {
-  layoutForRebake,
-  type ImageLayoutParams,
-  type LegacyMediaTransform,
-} from "@/lib/image-layout";
 import {
   mediaTrace,
   newMediaTraceId,
@@ -281,7 +286,7 @@ export async function createMediaFromUpload(opts: {
   });
 }
 
-export async function createMediaFromUrls(data: {
+type CreateMediaFromUrlsInput = {
   kind?: MediaKind;
   mimeType?: string;
   urlOrigin: string;
@@ -302,8 +307,71 @@ export async function createMediaFromUrls(data: {
   cropY?: number;
   cropW?: number;
   cropH?: number;
-}) {
-  const trimmedOrigin = data.urlOrigin.trim();
+};
+
+async function enrichImageUrlsFromLocalStorage(
+  data: CreateMediaFromUrlsInput
+): Promise<CreateMediaFromUrlsInput> {
+  const mimeType = data.mimeType ?? "image/jpeg";
+  const kind =
+    data.kind ??
+    (kindFromContentType(mimeType) === "DOCUMENT"
+      ? MediaKind.DOCUMENT
+      : kindFromContentType(mimeType) === "VIDEO"
+        ? MediaKind.VIDEO
+        : MediaKind.IMAGE);
+
+  if (kind !== MediaKind.IMAGE) return data;
+  if (imageBundleComplete(data)) return data;
+
+  const seed =
+    data.urlOrigin?.trim() ||
+    data.urlMoyenne?.trim() ||
+    data.urlGrande?.trim() ||
+    data.urlPetite?.trim() ||
+    data.urlPicto?.trim() ||
+    "";
+  if (!seed) return data;
+
+  const bundle = await resolveLocalMediaBundleFromUrl(seed);
+  if (bundle) {
+    return {
+      ...data,
+      urlOrigin: bundle.urlOrigin,
+      urlPicto: data.urlPicto ?? bundle.urlPicto,
+      urlPetite: data.urlPetite ?? bundle.urlPetite,
+      urlMoyenne: data.urlMoyenne ?? bundle.urlMoyenne,
+      urlGrande: data.urlGrande ?? bundle.urlGrande,
+    };
+  }
+
+  const origin = data.urlOrigin?.trim();
+  if (origin && isLocalMediaUrl(origin)) {
+    try {
+      const baked = await bakeVariantsFromOrigin(
+        origin,
+        { ...DEFAULT_IMAGE_LAYOUT, cropAspectFormat: "SQUARE" },
+        [],
+        { traceId: newMediaTraceId() }
+      );
+      return {
+        ...data,
+        urlPicto: data.urlPicto ?? baked.urlPicto,
+        urlPetite: data.urlPetite ?? baked.urlPetite,
+        urlMoyenne: data.urlMoyenne ?? baked.urlMoyenne,
+        urlGrande: data.urlGrande ?? baked.urlGrande,
+      };
+    } catch {
+      // fall through — caller validation / integrity will surface the issue
+    }
+  }
+
+  return data;
+}
+
+export async function createMediaFromUrls(data: CreateMediaFromUrlsInput) {
+  const enriched = await enrichImageUrlsFromLocalStorage(data);
+  const trimmedOrigin = enriched.urlOrigin.trim();
   if (
     trimmedOrigin.startsWith("http://") ||
     trimmedOrigin.startsWith("https://")
@@ -316,9 +384,9 @@ export async function createMediaFromUrls(data: {
     throw new Error("urlOrigin must be a valid local /media/ path");
   }
 
-  const mimeType = data.mimeType ?? "image/jpeg";
+  const mimeType = enriched.mimeType ?? "image/jpeg";
   const kind =
-    data.kind ??
+    enriched.kind ??
     (kindFromContentType(mimeType) === "DOCUMENT"
       ? MediaKind.DOCUMENT
       : kindFromContentType(mimeType) === "VIDEO"
@@ -330,25 +398,58 @@ export async function createMediaFromUrls(data: {
       kind,
       mimeType,
       urlOrigin: trimmedOrigin,
-      urlPicto: data.urlPicto ?? null,
-      urlPetite: data.urlPetite ?? null,
-      urlMoyenne: data.urlMoyenne ?? (kind === MediaKind.IMAGE ? data.urlOrigin : null),
-      urlGrande: data.urlGrande ?? null,
-      titleFr: data.titleFr ?? "",
-      titleEn: data.titleEn ?? "",
-      descriptionFr: data.descriptionFr ?? "",
-      descriptionEn: data.descriptionEn ?? "",
-      takenAt: data.takenAt ?? null,
-      focusX: data.focusX ?? 0.5,
-      focusY: data.focusY ?? 0.5,
-      zoom: data.zoom ?? 1,
-      rotation: data.rotation ?? 0,
-      cropX: data.cropX ?? 0,
-      cropY: data.cropY ?? 0,
-      cropW: data.cropW ?? 1,
-      cropH: data.cropH ?? 1,
+      urlPicto: enriched.urlPicto ?? null,
+      urlPetite: enriched.urlPetite ?? null,
+      urlMoyenne:
+        enriched.urlMoyenne ??
+        (kind === MediaKind.IMAGE ? trimmedOrigin : null),
+      urlGrande: enriched.urlGrande ?? null,
+      titleFr: enriched.titleFr ?? "",
+      titleEn: enriched.titleEn ?? "",
+      descriptionFr: enriched.descriptionFr ?? "",
+      descriptionEn: enriched.descriptionEn ?? "",
+      takenAt: enriched.takenAt ?? null,
+      focusX: enriched.focusX ?? 0.5,
+      focusY: enriched.focusY ?? 0.5,
+      zoom: enriched.zoom ?? 1,
+      rotation: enriched.rotation ?? 0,
+      cropX: enriched.cropX ?? 0,
+      cropY: enriched.cropY ?? 0,
+      cropW: enriched.cropW ?? 1,
+      cropH: enriched.cropH ?? 1,
     },
     include: mediaInclude,
+  });
+}
+
+/** Register a Telegram/web local bundle in the library, reusing an existing row when found. */
+export async function findOrCreateMediaFromLocalBundle(
+  urls: MediaVariantUrls,
+  meta?: Pick<
+    CreateMediaFromUrlsInput,
+    "titleFr" | "titleEn" | "descriptionFr" | "descriptionEn" | "takenAt"
+  >
+): Promise<MediaWithPosts> {
+  for (const url of [
+    urls.urlOrigin,
+    urls.urlPicto,
+    urls.urlPetite,
+    urls.urlMoyenne,
+    urls.urlGrande,
+  ]) {
+    const existing = await findMediaByStoredUrl(url);
+    if (existing) return existing;
+  }
+
+  return createMediaFromUrls({
+    urlOrigin: urls.urlOrigin,
+    urlPicto: urls.urlPicto,
+    urlPetite: urls.urlPetite,
+    urlMoyenne: urls.urlMoyenne,
+    urlGrande: urls.urlGrande,
+    mimeType: "image/jpeg",
+    kind: MediaKind.IMAGE,
+    ...meta,
   });
 }
 

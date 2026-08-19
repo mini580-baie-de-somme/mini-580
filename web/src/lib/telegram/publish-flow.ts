@@ -14,6 +14,7 @@ import {
   translateImagesToEn,
 } from "@/lib/translate";
 import { resolveTelegramAuthorUser } from "@/lib/telegram-auth";
+import { findOrCreateMediaFromLocalBundle } from "@/lib/media-library";
 
 export type DraftMediaItem = {
   urlOrigin: string;
@@ -220,17 +221,7 @@ export async function appendContent(
     draft.mediaUrls.push(mediaItem.urlOrigin);
 
     if (session.postId) {
-      const media = await prisma.media.create({
-        data: {
-          kind: "IMAGE",
-          mimeType: "image/jpeg",
-          urlOrigin: mediaItem.urlOrigin,
-          urlPicto: mediaItem.urlPicto || null,
-          urlPetite: mediaItem.urlPetite || null,
-          urlMoyenne: mediaItem.urlMoyenne || mediaItem.urlOrigin,
-          urlGrande: mediaItem.urlGrande || null,
-        },
-      });
+      const media = await findOrCreateMediaFromLocalBundle(mediaItem);
       const max = await prisma.postMedia.aggregate({
         where: { postId: session.postId },
         _max: { sortOrder: true },
@@ -246,7 +237,9 @@ export async function appendContent(
       if (draft.mediaItems.length === 1) {
         await prisma.post.update({
           where: { id: session.postId },
-          data: { coverImageUrl: mediaItem.urlOrigin },
+          data: {
+            coverImageUrl: media.urlMoyenne ?? mediaItem.urlOrigin,
+          },
         });
       }
     }
@@ -436,21 +429,10 @@ export async function finalizeContentCollection(
   if (existingLinks.length === 0 && draft.mediaItems.length) {
     for (let i = 0; i < draft.mediaItems.length; i++) {
       const item = draft.mediaItems[i]!;
-      const media = await prisma.media.create({
-        data: {
-          kind: "IMAGE",
-          mimeType: "image/jpeg",
-          urlOrigin: item.urlOrigin,
-          urlPicto: item.urlPicto || null,
-          urlPetite: item.urlPetite || null,
-          urlMoyenne: item.urlMoyenne || item.urlOrigin,
-          urlGrande: item.urlGrande || null,
-          titleFr: parsed.imageTitlesFr[i] ?? "",
-          titleEn: "",
-          descriptionFr: parsed.imageCaptionsFr[i] ?? "",
-          descriptionEn: "",
-          takenAt: publishedAt,
-        },
+      const media = await findOrCreateMediaFromLocalBundle(item, {
+        titleFr: parsed.imageTitlesFr[i] ?? "",
+        descriptionFr: parsed.imageCaptionsFr[i] ?? "",
+        takenAt: publishedAt,
       });
       await prisma.postMedia.create({
         data: {

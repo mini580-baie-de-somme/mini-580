@@ -36,6 +36,26 @@ describe("telegram session-context", () => {
     expect(msg).toContain("Salut");
   });
 
+  it("turn message includes inbound media block", () => {
+    const msg = buildTurnUserMessage({
+      userMessage: "Photo reçue",
+      activeContext: "CTX",
+      inboundMedia: [
+        {
+          mediaId: "med-1",
+          urlOrigin: "/media/2026/08/x/origin.jpg",
+          urlPicto: "/media/2026/08/x/picto.webp",
+          urlPetite: "/media/2026/08/x/petite.webp",
+          urlMoyenne: "/media/2026/08/x/moyenne.webp",
+          urlGrande: "/media/2026/08/x/grande.webp",
+        },
+      ],
+    });
+    expect(msg).toContain("mediaId=med-1");
+    expect(msg).toContain("NE PAS rappeler media.create");
+    expect(msg).toContain("urlOrigin=/media/2026/08/x/origin.jpg");
+  });
+
   it("compact trigger respects env overrides", () => {
     const prevMax = process.env.TELEGRAM_AGENT_CONTEXT_MAX_TOKENS;
     const prevRatio = process.env.TELEGRAM_AGENT_COMPACT_HIGH_RATIO;

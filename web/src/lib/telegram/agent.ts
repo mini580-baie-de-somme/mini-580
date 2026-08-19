@@ -25,6 +25,10 @@ import {
   buildAgentWebCustomTools,
   isTelegramAgentWebEnabled,
 } from "@/lib/agent-web";
+import {
+  formatTelegramInboundMediaBlock,
+  type TelegramInboundMedia,
+} from "@/lib/telegram/inbound-media";
 
 function getCursorApiKey(): string | null {
   return process.env.CURSOR_API_KEY?.trim() || null;
@@ -270,7 +274,7 @@ Règles :
 - Mémoire long terme : au bootstrap tu reçois les règles actives ; ensuite utilise agent_memory_list / create / update / delete. Ne jamais mentionner les id techniques à l'utilisateur (utilise le titre).
 - Avant de publier ou supprimer, confirme clairement avec l'utilisateur.
 - Créer un article : posts_create puis réutilise son id pour patchs et media.attach.
-- Médias Telegram (/media/...) : media.create puis media.attach, ou photos_upload (compat).
+- Médias Telegram : déjà enregistrés côté serveur avec mediaId — utilise media.attach (mediaIds) ; ne rappelle pas media.create sauf upload URL externe.
 - media.detach enlève le lien article ; media.delete supprime de la médiathèque (force=1 si lié).
 - **Groupes de médias** : workflow médiathèque → media_groups_create + add_media/reorder → posts_insert_media_group sur le brouillon actif. Les médias d'un groupe inline n'ont pas besoin de media.attach pour apparaître sur l'article public (manifeste unifié). Avant media_groups_delete : media_groups_references ou media_groups_get pour vérifier les articles liés (409 si encore référencé).
 - **Liens externes** : external_links_create (labelFr/labelEn + url unique ou urlFr+urlEn) → posts_insert_external_link sur le brouillon actif. La réponse inclut labelFr/labelEn, displayNameFr/En et url — utilise-les pour confirmer à l'utilisateur (ne pas coller {{external-link:…}} à la main). Avant external_links_delete : external_links_references (409 si encore référencé dans un corps d'article).
@@ -587,6 +591,8 @@ export async function runTelegramAgentTurn(input: {
   telegramUserId: string;
   telegramChatId: string;
   userMessage: string;
+  inboundMedia?: TelegramInboundMedia[];
+  /** @deprecated prefer inboundMedia */
   mediaUrls?: string[];
 }): Promise<string> {
   return withThreadTurnLock(input.telegramUserId, input.telegramChatId, () =>
@@ -598,6 +604,7 @@ async function runTelegramAgentTurnUnlocked(input: {
   telegramUserId: string;
   telegramChatId: string;
   userMessage: string;
+  inboundMedia?: TelegramInboundMedia[];
   mediaUrls?: string[];
 }): Promise<string> {
   const apiKey = getCursorApiKey();
@@ -612,7 +619,7 @@ async function runTelegramAgentTurnUnlocked(input: {
     telegramUserId: input.telegramUserId,
     telegramChatId: input.telegramChatId,
     messageChars: input.userMessage.length,
-    mediaCount: input.mediaUrls?.length ?? 0,
+    mediaCount: input.inboundMedia?.length ?? input.mediaUrls?.length ?? 0,
   });
 
   const thread = await getOrCreateThread(
@@ -635,9 +642,10 @@ async function runTelegramAgentTurnUnlocked(input: {
   const memoryChanged = thread.memoryBriefHash !== memoryHash;
   const isBootstrap = !thread.cursorAgentId;
 
-  const mediaBlock =
-    input.mediaUrls && input.mediaUrls.length
-      ? `\n\nMédias Telegram (URLs publiques):\n${input.mediaUrls.map((u, i) => `${i + 1}. ${u}`).join("\n")}`
+  const mediaBlock = input.inboundMedia?.length
+    ? formatTelegramInboundMediaBlock(input.inboundMedia)
+    : input.mediaUrls && input.mediaUrls.length
+      ? `\n\nMédias Telegram (URLs locales /media/...) :\n${input.mediaUrls.map((u, i) => `${i + 1}. ${u}`).join("\n")}`
       : "";
 
   const message = isBootstrap
@@ -650,6 +658,7 @@ async function runTelegramAgentTurnUnlocked(input: {
       })}\n\n---\nMessage utilisateur:\n${input.userMessage}${mediaBlock}`
     : buildTurnUserMessage({
         userMessage: input.userMessage,
+        inboundMedia: input.inboundMedia,
         mediaUrls: input.mediaUrls,
         activeContext,
         memoryBrief: memoryChanged ? memoryBrief : null,

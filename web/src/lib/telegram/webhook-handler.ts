@@ -1,6 +1,7 @@
 import "server-only";
 
 import { storeOriginAndVariants, type MediaVariantUrls } from "@/lib/media-variants";
+import { findOrCreateMediaFromLocalBundle } from "@/lib/media-library";
 import { isTelegramUserAllowed } from "@/lib/service-auth";
 import {
   answerCallbackQuery,
@@ -22,6 +23,7 @@ import {
   type BotReply,
 } from "@/lib/telegram/publish-flow";
 import { resolveInboundTelegramContent } from "@/lib/telegram/speech/inbound";
+import type { TelegramInboundMedia } from "@/lib/telegram/inbound-media";
 import { buildUnauthorizedWelcome } from "@/lib/telegram/unauthorized-message";
 import { redeemUserInvite } from "@/lib/user-invite";
 
@@ -270,12 +272,15 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<voi
   // Free-form agent
   await sendTelegramPlainText(message.chat.id, "⏳ …");
 
-  const mediaUrls: string[] = [];
+  const inboundMedia: TelegramInboundMedia[] = [];
   if (message.photo?.length) {
     try {
       const stored = await storeTelegramPhoto(largestPhoto(message.photo).file_id);
-      mediaUrls.push(stored.urlOrigin);
-      if (stored.urlMoyenne) mediaUrls.push(stored.urlMoyenne);
+      const media = await findOrCreateMediaFromLocalBundle(stored);
+      inboundMedia.push({
+        mediaId: media.id,
+        ...stored,
+      });
     } catch (err) {
       await sendTelegramReply(message.chat.id, {
         text: `Échec upload photo: ${err instanceof Error ? err.message : String(err)}`,
@@ -286,7 +291,7 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<voi
 
   const userMessage =
     text ||
-    (mediaUrls.length
+    (inboundMedia.length
       ? "Voici une photo. Propose de la rattacher à un article existant ou de créer un brouillon."
       : "(message vide)");
 
@@ -295,7 +300,7 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<voi
       telegramUserId: userId,
       telegramChatId: chatId,
       userMessage,
-      mediaUrls,
+      inboundMedia: inboundMedia.length ? inboundMedia : undefined,
     });
     await sendTelegramReply(message.chat.id, { text: answer }, { inboundVoice });
     void maybeCompactTelegramSessionAfterTurn({
