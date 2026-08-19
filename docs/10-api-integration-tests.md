@@ -23,6 +23,7 @@ Couvre :
 - **Clipboard** (`media-clipboard`, blob image uniquement)
 - **Versioning build** (`build-version`, `build-counter.json`)
 - CRUD Tags / Themes / Jalons
+- **External links** (`external-links.test.ts`, `external-link-token.test.ts` — CRUD, delete 409, insert, token enrich/clean, bilingual URLs)
 - **Media groups** (`media-groups.test.ts` — CRUD, delete 409, manifest, slug 301, filtre `groupId`, insert placeholder, member mutations)
 - Galerie publique (`/api/gallery` — published only + search)
 - Sync (OTP peer, apply pull, gardes, jobs async 202/409, peer média + checksum)
@@ -159,10 +160,13 @@ Spec complète : **`docs/12-photo-editor-medias.md`**
 
 Variants rebakés (pas de double CSS). Galerie / diaporama : ratio 3:4 ou cercle selon `cropShape`.
 
-### Tests locaux dédiés (25 fichiers)
+### Tests locaux dédiés (61 fichiers · 365 tests)
 
 | Fichier | Sujet |
 |---------|-------|
+| `external-links.test.ts` | CRUD API, delete 409, insert-external-link, draft create |
+| `external-link-token.test.ts` | Placeholder, enrich/clean, parse ids, resolve URL |
+| `article-body-segments.test.ts` | Segments media-group + external-link |
 | `image-layout.test.ts` | Layout, crop window, pivot scale, cercle |
 | `photo-gestures.test.ts` | Pinch, pan, rotation |
 | `virtual-url.test.ts` | Query params modales |

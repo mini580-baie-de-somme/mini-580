@@ -155,6 +155,8 @@ Les pushes sur `main` qui ne touchent que `.github/` ou `docs/` **ne déclenchen
 
 **Ne jamais** livrer PROD avec une version différente de celle testée en recette.
 
+> **En attente (2026-08-19) :** Phase 1e liens externes déployée TEST **v1.2.118** — promotion PROD avec `expected_version: 1.2.118` après validation Hammed. Checklist : `docs/16-external-links.md` § Déploiement.
+
 ## TLS (après DNS propagé)
 
 ```bash

@@ -36,12 +36,12 @@
                           │
 ┌─────────────────────────────────────────────────────────┐
 │  API Next.js (App Router)                               │
-│  /api/posts · /api/tags · /api/milestones · /api/auth   │
+│  /api/posts · /api/tags · /api/milestones · /api/external-links · /api/auth   │
 └─────────────────────────────────────────────────────────┘
                           │
 ┌─────────────────────────────────────────────────────────┐
 │  PostgreSQL                                             │
-│  posts · tags · themes · milestones · users · images    │
+│  posts · tags · themes · milestones · externalLinks · users · images    │
 └─────────────────────────────────────────────────────────┘
 
 Phase 2 (VM dédiée) :
@@ -80,6 +80,12 @@ Phase 2 (VM dédiée) :
 - **Manifeste article** : algorithme unifié couverture → groupes inline (ordre body) → standalone — bandeau bas + diaporama + indices lightbox
 - Spec complète : **`docs/13-article-image-groups.md`**
 
+### ExternalLink (Phase 1e — liens inline)
+- Entité catalogue indépendante — labels bilingues + URL unique ou paire `urlFr`/`urlEn`
+- Référencée dans `Post.bodyFr` / `bodyEn` par token assisté `{{external-link:<id>}}`
+- Suppression interdite (409) si référencée dans un corps d’article
+- Spec complète : **`docs/16-external-links.md`**
+
 ### Milestone (jalon)
 - `titleFr/En`, `descriptionFr/En`, `milestoneDate`, `sortOrder`
 - Gestion libre — positionné par date sur `/timeline`
@@ -102,7 +108,7 @@ Phase 2 (VM dédiée) :
 | `/editeur/nouveau` | Auth | Créer article |
 | `/editeur/[id]` | Auth | Édition + autosave + publier |
 | `/editeur/galerie` | Auth | Médiathèque (CRUD médias) |
-| `/editeur/tags` · `/themes` · `/jalons` | Auth | CRUD listes (même design system) |
+| `/editeur/tags` · `/themes` · `/jalons` · `/liens` | Auth | CRUD listes (même design system) |
 | `/apercu/[id]` | Auth | Prévisualisation brouillon |
 
 Listes éditeur (recherche, actions, clic ligne, infinite scroll, compteurs) : voir **[Design system listes éditeur](11-design-system-editeur.md)**.
@@ -153,6 +159,7 @@ Voir **[Déploiement & CI/CD](07-deploy-cicd.md)** :
 | **1b** | Auth + éditeur + autosave + preview + médiathèque + galerie publique + sync TEST↔PROD | ✅ Livré |
 | **1c** | Éditeur photo mobile, intégrité media, rebake strict, URLs virtuelles, CI/CD promotion package | ✅ Livré (**v1.2.66** — upload mobile, refresh vignettes, origin full-res) |
 | **1d** | Groupes inline + manifeste médias unifié + mosaïque carrée + lightbox groupe/article + slug auto + swipe mobile + footer Simohra | ✅ Livré (**v1.2.88** — TEST validé, PROD promu) — voir `docs/13-article-image-groups.md` |
+| **1e** | Liens externes réutilisables + insertion TipTap + admin `/editeur/liens` + sync catalogue + tools Telegram | ✅ Livré (**v1.2.118** TEST) — voir `docs/16-external-links.md` |
 | **2** | VM OpenClaw Class Mini 5.80 Baie de Somme + Telegram publish (production équipe) | En cours |
 | **3** | Google Drive, newsletter, commentaires | À faire |
 

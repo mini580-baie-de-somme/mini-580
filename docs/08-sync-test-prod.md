@@ -9,7 +9,7 @@
 |--------|----------------|
 | **Tirer depuis PROD** (sur TEST) | Job async : catalogue + articles + **binaires médias**. Upsert par même `id`. Posts TEST-only conservés. |
 | **Publier sur PROD** (depuis TEST) | Job async : push médias puis import article (même id). |
-| **Catalogue** | Tags / Thèmes / Jalons — pull ou push (async). |
+| **Catalogue** | Tags / Thèmes / Jalons / **Liens externes** — pull ou push (async). |
 | **Verrou** | Un seul job `PENDING`/`RUNNING` à la fois → HTTP **409** si une sync est déjà en cours. |
 
 ## Flux async
@@ -57,3 +57,5 @@ Les clés objet restent les mêmes (`/media/{yyyy}/{mm}/{uuid}/…`) sur les deu
 ## UI
 
 `/editeur/sync` — boutons désactivés tant qu’un job tourne ; progression affichée (étape médias `current/total`).
+
+Le payload catalogue inclut `tags`, `themes`, `milestones` et `externalLinks` (upsert par `id` côté peer). Voir `web/src/lib/sync.ts` et **`docs/16-external-links.md`** § Sync.

@@ -34,6 +34,7 @@ Ce dépôt part de zéro pour reconstruire le site web, la documentation et la c
 | [Design system listes éditeur](docs/11-design-system-editeur.md) | Recherche, actions, clic ligne, infinite scroll, compteurs, médiathèque |
 | [Éditeur photo & médiathèque](docs/12-photo-editor-medias.md) | Layout mobile, intégrité stockage, rebake, URLs virtuelles, logging |
 | [Groupes de médias inline](docs/13-article-image-groups.md) | Phase 1d — groupes médiathèque M:N, manifeste unifié, mosaïque inline, `MediaSlideshow` partagé, SEO slugs |
+| [Liens externes inline](docs/16-external-links.md) | Phase 1e — catalogue réutilisable, token `{{external-link:id}}`, insertion TipTap, sync catalogue, tools Telegram |
 
 ## Application web (`web/`)
 
@@ -66,8 +67,9 @@ cp web/.env.example web/.env
 3. ~~Provisionner VPS Hostinger + domaine + CI/CD~~ → TEST/PROD live, promotion package (`docs/07-deploy-cicd.md`)
 4. ~~Éditeur photo mobile + intégrité media + rebake strict~~ → **v1.2.66** (`docs/12-photo-editor-medias.md`)
 5. ~~Groupes de médias inline~~ → **Phase 1d livrée v1.2.88** (`docs/13-article-image-groups.md`, `TODO.md`)
-6. Migrer médias Blogger non conformes (re-upload originale locale)
-7. Installer OpenClaw sur VM dédiée + bot Telegram Class Mini 5.80 Baie de Somme (Phase 2)
-8. ~~Développer le skill `mini580-ingest`~~ → webhook + FSM review (`docs/09-telegram-publish.md`)
-9. Brancher `TELEGRAM_*` + `CURSOR_API_KEY` sur TEST et valider un post bout-en-bout équipe
-10. Enrichir contenu équipe + jalons
+6. ~~Liens externes inline~~ → **Phase 1e livrée v1.2.118 TEST** (`docs/16-external-links.md`) — validation → PROD
+7. Migrer médias Blogger non conformes (re-upload originale locale)
+8. Installer OpenClaw sur VM dédiée + bot Telegram Class Mini 5.80 Baie de Somme (Phase 2)
+9. ~~Développer le skill `mini580-ingest`~~ → webhook + FSM review (`docs/09-telegram-publish.md`)
+10. Brancher `TELEGRAM_*` + `CURSOR_API_KEY` sur TEST et valider un post bout-en-bout équipe
+11. Enrichir contenu équipe + jalons

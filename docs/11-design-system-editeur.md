@@ -9,7 +9,7 @@ Règles UI obligatoires pour **toutes** les listes CRUD de l’espace éditeur :
 - Table HTML réelle : un `<th>` / `<td>` par colonne (pas de `colSpan` + grille CSS pour simuler les colonnes)
 - Colonnes secondaires masquées en responsive (`hidden sm:table-cell` / `md:table-cell`) de façon **identique** entre en-tête et cellules
 - Formulaires inline au-dessus de la liste (tags, thématiques, galerie) ou pages dédiées (articles, **jalons**)
-- Modules : Articles, **Galerie (médiathèque + groupes intégrés Phase 1d)**, Jalons, Thématiques, Tags, Sync
+- Modules : Articles, **Galerie (médiathèque + groupes intégrés Phase 1d)**, **Liens externes (Phase 1e)**, Jalons, Thématiques, Tags, Sync
 - i18n FR/EN via `web/src/lib/i18n.ts`
 
 ## Médiathèque (`/editeur/galerie`)
@@ -54,6 +54,18 @@ Règles UI obligatoires pour **toutes** les listes CRUD de l’espace éditeur :
 - Header centré, retour « ← Posts » séparé, CTAs grille 2 colonnes (Nouveau groupe · Ajouter un média)
 - Liste mobile : cartes horizontales compactes (`MediaLibraryMobileCard`) — thumb 72px, meta, badges, actions icônes discrètes
 - Filtres synchronisés URL (`groupId`, `kind`, `visibility`, `q`) — re-clic chip groupe actif = désélection
+
+## Liens externes (Phase 1e — `docs/16-external-links.md`)
+
+- Entité **`ExternalLink`** indépendante (catalogue) — référencée dans `bodyFr`/`bodyEn` via token assisté
+- **Route dédiée** `/editeur/liens` — pattern entité identique aux **jalons** :
+  - Liste (`ExternalLinkManager`) → clic ligne → consultation `/editeur/liens/[id]`
+  - Création `/editeur/liens/nouveau` · modification `/editeur/liens/[id]/modifier`
+  - Pas de colonne Actions — actions sur la fiche consultation (Modifier, Supprimer)
+  - Suppression disabled / 409 si référencé — section « Articles référents »
+- **Corps d’article (TipTap)** : bloc atomique chip `🔗 libellé ↗` — l’utilisateur **ne tape jamais** `{{external-link:…}}`
+- Toolbar corps : **« Insérer un lien »** → picker + **« Nouveau lien »** (crée brouillon + insert)
+- Token stocké id-only ; sur-charge éditeur `{{external-link:id|label|url}}` (nettoyée au save — même pattern que groupes médias)
 
 ## Règles listes (obligatoires)
 

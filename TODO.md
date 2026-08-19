@@ -1,8 +1,27 @@
 # TODO — Class Mini 5.80 Baie de Somme
 
-> Dernière mise à jour : 2026-08-15 · prod **v1.2.91** · test **v1.2.93**
+> Dernière mise à jour : 2026-08-19 · prod **v1.2.91** · test **v1.2.118**
 
-## 🚧 En cours — v1.2.92 (août 2026)
+## 🚧 En cours — validation deploy (août 2026)
+
+### Phase 1e — liens externes (TEST v1.2.118)
+
+Spec : `docs/16-external-links.md`
+
+- [x] Modèle `ExternalLink` — labels FR/EN + url unique ou urlFr/urlEn
+- [x] API CRUD + references + insert-external-link + delete 409 si référencé
+- [x] Token `{{external-link:id}}` + sur-charge éditeur label|url (id-only au save)
+- [x] TipTap bloc + picker « Insérer un lien » + « Nouveau lien » (brouillon + insert)
+- [x] Admin `/editeur/liens` — pattern jalons (liste → consult → edit)
+- [x] Rendu public `InlineExternalLink` + preview
+- [x] Sync catalogue TEST↔PROD inclut `externalLinks`
+- [x] Tools Telegram `external_links_*` + `posts.insert_external_link`
+- [x] Tests — external-links, token, segments, sync, ai-tools (**365** local)
+- [x] Ship TEST ✓ **v1.2.118**
+- [ ] Validation Hammed TEST (CRUD liens, insertion article, sync catalogue, bot)
+- [ ] Deploy PROD — promotion `:v1.2.118` → `:prod` (`expected_version: 1.2.118`)
+
+### Phase 1f — timeline & métriques (TEST v1.2.93+)
 
 Spec : `docs/15-timeline-metrics.md` · `docs/12-photo-editor-medias.md` (crop formats)
 
@@ -13,9 +32,9 @@ Spec : `docs/15-timeline-metrics.md` · `docs/12-photo-editor-medias.md` (crop f
 - [x] Timeline — barres jalons, traits discontinus entre périodes, étapes articles, métriques header
 - [x] Médiathèque — chips groupes plus lisibles (stack, break-words)
 - [x] Agent Telegram — brief + tools MAJ
-- [x] Tests — `timeline-metrics`, `crop-formats`, `auth-security` + milestones/posts workDays (326 local)
+- [x] Tests — `timeline-metrics`, `crop-formats`, `auth-security` + milestones/posts workDays
 - [x] Ship TEST ✓ v1.2.93
-- [ ] Validation Hammed TEST → deploy PROD
+- [ ] Validation Hammed TEST → deploy PROD (timeline bundle)
 - [ ] Port simohra.fr (clone)
 
 ## ✅ Terminé — Phase 1c éditeur photo (août 2026)
@@ -62,6 +81,18 @@ Spec : `docs/13-article-image-groups.md` · livré **v1.2.67 → v1.2.88** (TEST
 - [x] Footer Simohra FR/EN (v1.2.88)
 - [x] Pipeline commit → push → CI → deploy TEST → validation Hammed → **deploy PROD v1.2.88**
 
+## ✅ Terminé — Phase 1e liens externes inline (août 2026)
+
+Spec : `docs/16-external-links.md` · livré **v1.2.110 → v1.2.118** (TEST déployé · PROD en attente)
+
+- [x] Modèle `ExternalLink` + token `{{external-link:id}}` + sur-charge éditeur
+- [x] API CRUD + references + insert-external-link + delete 409
+- [x] Admin `/editeur/liens` (pattern jalons) + picker « Nouveau lien »
+- [x] TipTap bloc + rendu public `InlineExternalLink`
+- [x] Sync catalogue `externalLinks` + tools Telegram
+- [x] Tests 365 local ✓ · deploy TEST **v1.2.118**
+- [ ] Validation Hammed → **deploy PROD**
+
 ### Correctif bot Telegram prod (2026-08-14)
 
 - [x] Verrou thread + timeout 120s run.wait + after() webhook — **v1.2.89**
@@ -77,7 +108,7 @@ Spec : `docs/14-telegram-agent-compaction.md` · cible **v1.2.90**
 - [x] Échec compaction → pas de reset historique
 - [x] Tests `telegram-agent-compaction.test.ts` (local, mock Cursor SDK)
 - [x] Tests `compaction-regression.test.ts` (webhook wiring)
-- [ ] Commit → push → CI → deploy TEST → validation Hammed → deploy PROD **v1.2.90**
+- [x] Commit → push → CI → deploy TEST → validation Hammed → deploy PROD **v1.2.90** (supersédé par livraisons ultérieures)
 - [ ] Port aligné **simohra.fr** (clone mini580, branding Simohra)
 
 ## 📋 Backlog site (Phase 1)

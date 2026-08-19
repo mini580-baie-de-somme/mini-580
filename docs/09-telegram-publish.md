@@ -23,6 +23,7 @@ Par défaut, Telegram parle à un **agent Cursor** qui appelle les endpoints via
 - **messages vocaux** : STT via `transcribe-audio.sh` (Whisper local si dispo, sinon OpenAI Whisper API) ; ack texte immédiat « Transcription… » puis agent ; webhook **200 tout de suite** (traitement async, évite timeout Telegram ~60s) ; réponses **texte** ; **+ vocal TTS** (`node-edge-tts`) seulement si le message entrant était vocal (`TELEGRAM_TTS_AUTO=voice`, défaut) ou toujours si `always` — image Docker : copie explicite `node-edge-tts` + deps dans le runtime standalone (`web/Dockerfile`, `outputFileTracingIncludes` webhook)
 - médiathèque indépendante `Media` (IMAGE|DOCUMENT|VIDEO) : `media.*` tools — create/update/delete/attach/detach/reorder/set_cover
 - **groupes de médias** (Phase 1d) : `media_groups.*` — CRUD médiathèque, ordre membres, scan références ; `posts.insert_media_group` injecte le placeholder dans bodyFr/En **sans saisie manuelle** de `{{media-group:…}}` ; médias de groupe **sans** `media.attach` obligatoire — manifeste article unifié côté public (`docs/13-article-image-groups.md`)
+- **liens externes** (Phase 1e) : `external_links.*` — CRUD catalogue, scan références ; `posts.insert_external_link` injecte `{{external-link:…}}` **sans saisie manuelle** ; avant delete : `external_links.references` (409 si référencé) — voir `docs/16-external-links.md`
 - tools `photos.*` conservés en compat (même modèle sous-jacent)
 - liens d’aperçu `preview.create` → `/apercu/t/{token}`
 - traduction FR→EN (`translate`)
