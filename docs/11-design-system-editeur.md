@@ -103,12 +103,14 @@ Surfaces publiques : **Blog** (`BlogFilters`) · **Galerie** (`GalleryPageConten
 - Articles : navigation vers `/editeur/[id]`
 - Tags / thématiques : ouvre le formulaire d’édition inline (`startEdit`)
 - **Jalons** : navigation vers `/editeur/jalons/[id]` (consultation) ; création via `/editeur/jalons/nouveau` ; modification via `/editeur/jalons/[id]/modifier`
+- **Liens externes** : même pattern entité — `/editeur/liens/[id]`, `/editeur/liens/nouveau`, `/editeur/liens/[id]/modifier`
 - `cursor-pointer` + hover de fond sur `<tr>`
 
 ### 4. Actions dans les lignes
 
 - Colonne **Actions** : tags / thématiques — Éditer + Supprimer (+ `stopPropagation`)
 - **Jalons** : pas de colonne Actions — clic ligne uniquement ; actions (Modifier, Supprimer, Publier PROD) sur la page consultation
+- **Liens externes** : pas de colonne Actions — consultation avec articles référents ; suppression bloquée si référencé
 - Liste jalons : date de début + date de fin (si définie) sous la date de début
 
 ### 5. Infinite scroll
@@ -136,7 +138,7 @@ Surfaces publiques : **Blog** (`BlogFilters`) · **Galerie** (`GalleryPageConten
 | Helpers API | `web/src/lib/editor-list.ts` |
 | Articles | `web/src/components/EditorPostList.tsx` |
 | Médiathèque | `web/src/components/MediaLibraryManager.tsx` |
-| Tags / thèmes / jalons | `TagManager` / `ThemeManager` / `MilestoneManager` |
+| Tags / thèmes / jalons / liens | `TagManager` / `ThemeManager` / `MilestoneManager` / `ExternalLinkManager` |
 
 ## Checklist nouvelle liste éditeur
 

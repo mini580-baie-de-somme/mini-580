@@ -389,6 +389,21 @@ const messages = {
   "externalLinks.insertTitle": { fr: "Insérer un lien", en: "Insert link" },
   "externalLinks.emptyPicker": { fr: "Aucun lien trouvé.", en: "No links found." },
   "externalLinks.loadError": { fr: "Chargement impossible.", en: "Failed to load." },
+  "externalLinks.viewTitle": { fr: "Lien : {name}", en: "Link: {name}" },
+  "externalLinks.dangerHint": {
+    fr: "Suppression définitive — impossible tant que le lien est utilisé dans un article.",
+    en: "Permanent deletion — blocked while the link is used in an article.",
+  },
+  "externalLinks.referencesTitle": { fr: "Articles référents", en: "Referencing articles" },
+  "externalLinks.referencesEmpty": {
+    fr: "Ce lien n'est utilisé dans aucun article.",
+    en: "This link is not used in any article.",
+  },
+  "externalLinks.referencedIn": {
+    fr: "Utilisé dans {count} article(s).",
+    en: "Used in {count} article(s).",
+  },
+  "externalLinks.openArticle": { fr: "Ouvrir l'article", en: "Open article" },
 
   "externalLink.missingChip": {
     fr: "Lien externe introuvable",
