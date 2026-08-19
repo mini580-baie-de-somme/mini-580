@@ -1,0 +1,73 @@
+name: Ops — Backfill media variants
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Stack (test, prod, or both)"
+        required: true
+        type: choice
+        options:
+          - both
+          - prod
+          - test
+        default: both
+      dry_run:
+        description: "Dry run (count only, no DB writes)"
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  backfill-media-variants:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment == 'test' && 'test' || 'prod' }}
+    steps:
+      - name: Backfill incomplete IMAGE variant URLs
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          OPS_ENV: ${{ inputs.environment }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          timeout: 60s
+          command_timeout: 10m
+          envs: OPS_ENV,DRY_RUN
+          script: |
+            set -euo pipefail
+            backfill_one() {
+              local env="$1"
+              local port="3001"
+              [[ "$env" == "prod" ]] && port="3000"
+              local dir="/opt/mini580/${env}"
+              local envf="${dir}/.env"
+              local compose="${dir}/docker-compose.yml"
+              echo "===== ${env} ====="
+              if [[ ! -f "$envf" || ! -f "$compose" ]]; then
+                echo "missing stack files for $env"
+                exit 1
+              fi
+              local key
+              key="$(grep -E '^INGEST_API_KEY=' "$envf" | head -1 | cut -d= -f2- | tr -d '"')"
+              if [[ -z "$key" ]]; then
+                echo "INGEST_API_KEY missing in $envf"
+                exit 1
+              fi
+              local payload='{}'
+              if [[ "${DRY_RUN}" == "true" ]]; then
+                payload='{"dryRun":true}'
+              fi
+              curl -fsS -X POST "http://127.0.0.1:${port}/api/media/backfill-variants" \
+                -H "Authorization: Bearer ${key}" \
+                -H "Content-Type: application/json" \
+                -d "$payload"
+              echo
+            }
+            case "${OPS_ENV}" in
+              both) backfill_one test; backfill_one prod ;;
+              test|prod) backfill_one "$OPS_ENV" ;;
+              *) echo "bad env: $OPS_ENV"; exit 1 ;;
+            esac
+            echo "DONE"
