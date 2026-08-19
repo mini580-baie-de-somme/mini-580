@@ -50,8 +50,8 @@ export async function POST(request: NextRequest) {
 
     const link = await prisma.externalLink.create({
       data: {
-        labelFr: data.labelFr.trim(),
-        labelEn: data.labelEn.trim(),
+        labelFr: (data.labelFr ?? "").trim(),
+        labelEn: (data.labelEn ?? "").trim(),
         url: urls.url,
         urlFr: urls.urlFr,
         urlEn: urls.urlEn,

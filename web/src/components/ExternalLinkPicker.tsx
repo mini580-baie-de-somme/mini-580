@@ -28,6 +28,7 @@ export function ExternalLinkPicker({ open, onClose, onSelect }: Props) {
   const [q, setQ] = useState("");
   const [items, setItems] = useState<ExternalLinkPickerItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadItems = useCallback(
@@ -62,10 +63,49 @@ export function ExternalLinkPicker({ open, onClose, onSelect }: Props) {
     return () => clearTimeout(timer);
   }, [open, q, loadItems]);
 
+  async function createLink() {
+    setCreating(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/external-links", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ labelFr: "", labelEn: "" }),
+      });
+      const data = (await res.json()) as { id?: string; error?: string };
+      if (!res.ok || !data.id) {
+        throw new Error(
+          typeof data.error === "string" ? data.error : t("externalLinks.saveError")
+        );
+      }
+      onSelect(data.id);
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("externalLinks.saveError"));
+    } finally {
+      setCreating(false);
+    }
+  }
+
   if (!open) return null;
 
   return (
-    <FullscreenEditorModal title={t("externalLinks.insertTitle")} onClose={onClose}>
+    <FullscreenEditorModal
+      title={t("externalLinks.insertTitle")}
+      onClose={onClose}
+      busy={creating}
+      error={error}
+      footerLeft={
+        <button
+          type="button"
+          disabled={creating}
+          onClick={() => void createLink()}
+          className="rounded-md border border-[#495867] bg-white px-4 py-2 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
+        >
+          {t("externalLinks.new")}
+        </button>
+      }
+    >
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-4">
         <input
           type="search"
@@ -75,10 +115,6 @@ export function ExternalLinkPicker({ open, onClose, onSelect }: Props) {
           className="w-full rounded-md border border-[#d4dde6] px-3 py-2 text-sm"
           autoFocus
         />
-
-        {error && (
-          <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>
-        )}
 
         <div className="min-h-0 flex-1 overflow-y-auto rounded-md border border-[#d4dde6]">
           {loading ? (

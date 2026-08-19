@@ -38,6 +38,25 @@ describe("API integration — External links", () => {
     });
   });
 
+  it("POST accepts draft create with empty labels and no URL (picker create)", async () => {
+    const { POST } = await import("@/app/api/external-links/route");
+
+    const createRes = await POST(
+      jsonRequest("http://localhost/api/external-links", {
+        method: "POST",
+        headers: bearerHeaders(),
+        body: JSON.stringify({ labelFr: "", labelEn: "" }),
+      })
+    );
+    expect(createRes.status).toBe(201);
+    const created = await createRes.json();
+    expect(created.id).toBeTruthy();
+    expect(created.labelFr).toBe("");
+    expect(created.labelEn).toBe("");
+    expect(created.url).toBeNull();
+    await prisma.externalLink.delete({ where: { id: created.id } });
+  });
+
   it("POST accepts explicit null urlFr/urlEn with single url (legacy UI payload)", async () => {
     const { POST } = await import("@/app/api/external-links/route");
 

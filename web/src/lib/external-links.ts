@@ -38,14 +38,17 @@ const urlField = z.string().nullish();
 
 export const createExternalLinkSchema = z
   .object({
-    labelFr: z.string().min(1),
-    labelEn: z.string().min(1),
+    labelFr: z.string().optional(),
+    labelEn: z.string().optional(),
     url: urlField,
     urlFr: urlField,
     urlEn: urlField,
   })
   .superRefine((data, ctx) => {
     const normalized = normalizeExternalLinkUrls(data);
+    const hasAnyUrl = Boolean(normalized.url || normalized.urlFr || normalized.urlEn);
+    if (!hasAnyUrl) return;
+
     if (normalized.url) {
       if (!isValidHttpUrl(normalized.url)) {
         ctx.addIssue({ code: "custom", path: ["url"], message: "Invalid URL" });
