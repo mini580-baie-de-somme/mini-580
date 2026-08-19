@@ -23,6 +23,7 @@ import {
   parsePhotoModalState,
   serializeMediaGroupEditState,
 } from "@/lib/virtual-url";
+import { cleanExternalLinkTokens } from "@/lib/external-link-token";
 import { cleanMediaGroupTokens } from "@/lib/media-group-token";
 
 type Tag = { id: string; name: string; labelFr: string; labelEn: string };
@@ -125,8 +126,8 @@ export function PostEditor({
       titleEn: current.titleEn,
       excerptFr: current.excerptFr,
       excerptEn: current.excerptEn,
-      bodyFr: cleanMediaGroupTokens(current.bodyFr),
-      bodyEn: cleanMediaGroupTokens(current.bodyEn),
+      bodyFr: cleanExternalLinkTokens(cleanMediaGroupTokens(current.bodyFr)),
+      bodyEn: cleanExternalLinkTokens(cleanMediaGroupTokens(current.bodyEn)),
       coverImageUrl: current.coverImageUrl || null,
       publishedAt: fromDatetimeLocalValue(current.publishedAt),
       workDays:

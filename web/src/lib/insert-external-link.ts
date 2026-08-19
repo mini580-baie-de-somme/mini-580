@@ -2,7 +2,11 @@ import "server-only";
 
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { externalLinkPlaceholder } from "@/lib/external-link-token";
+import { resolveExternalLinkDisplayName } from "@/lib/external-link-display";
+import {
+  externalLinkPlaceholder,
+  resolveExternalLinkUrl,
+} from "@/lib/external-link-token";
 import { postInclude, serializePostForApi } from "@/lib/posts";
 
 export const insertExternalLinkSchema = z.object({
@@ -58,6 +62,13 @@ export async function insertExternalLinkInPost(
       lang: input.lang,
       position: input.position,
       placeholder: externalLinkPlaceholder(input.linkId),
+      labelFr: link.labelFr,
+      labelEn: link.labelEn,
+      url: resolveExternalLinkUrl(link, "fr") || resolveExternalLinkUrl(link, "en"),
+      urlFr: link.urlFr,
+      urlEn: link.urlEn,
+      displayNameFr: resolveExternalLinkDisplayName(link, "fr", link.id),
+      displayNameEn: resolveExternalLinkDisplayName(link, "en", link.id),
     },
   };
 }

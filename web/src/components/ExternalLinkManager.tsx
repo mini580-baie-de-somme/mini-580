@@ -6,6 +6,7 @@ import { useLocale } from "./LocaleProvider";
 import { EditorListCount } from "./EditorListCount";
 import { EditorListSearch } from "./EditorListSearch";
 import { EditorPageHeader } from "./EditorPageHeader";
+import { dispatchExternalLinkUpdated } from "@/lib/external-link-display";
 import { useEditorInfiniteList } from "./useEditorInfiniteList";
 
 type ExternalLink = {
@@ -158,6 +159,13 @@ export function ExternalLinkManager() {
       if (!res.ok) {
         throw new Error(apiErrorMessage(data.error, t("externalLinks.saveError")));
       }
+      const savedId =
+        editingId === "new" && data && typeof data === "object" && "id" in data
+          ? String((data as { id: string }).id)
+          : editingId !== "new"
+            ? editingId
+            : null;
+      if (savedId) dispatchExternalLinkUpdated(savedId);
       cancelEdit();
       await reload();
     } catch (e) {

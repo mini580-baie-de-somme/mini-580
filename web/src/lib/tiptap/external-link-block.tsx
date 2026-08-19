@@ -8,6 +8,11 @@ import {
 } from "@tiptap/react";
 import { useCallback, useEffect, useState } from "react";
 import { useLocale } from "@/components/LocaleProvider";
+import {
+  EXTERNAL_LINK_UPDATED_EVENT,
+  externalLinkIdHint,
+  resolveExternalLinkDisplayName,
+} from "@/lib/external-link-display";
 import { resolveExternalLinkUrl } from "@/lib/external-link-token";
 import {
   EXTERNAL_LINK_HTML_ATTR,
@@ -64,8 +69,18 @@ function ExternalLinkBlockView({ node, deleteNode, selected }: NodeViewProps) {
     void loadMeta();
   }, [loadMeta]);
 
+  useEffect(() => {
+    const onUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ linkId?: string }>).detail;
+      if (detail?.linkId === linkId) void loadMeta();
+    };
+    window.addEventListener(EXTERNAL_LINK_UPDATED_EVENT, onUpdated);
+    return () => window.removeEventListener(EXTERNAL_LINK_UPDATED_EVENT, onUpdated);
+  }, [linkId, loadMeta]);
+
   const label =
-    meta && ((locale === "fr" ? meta.labelFr : meta.labelEn) || meta.labelFr || meta.labelEn);
+    meta && resolveExternalLinkDisplayName(meta, locale, linkId);
+  const idHint = externalLinkIdHint(linkId);
   const href = meta ? resolveExternalLinkUrl(meta, locale) : "";
 
   const shellClass = missing
@@ -87,11 +102,20 @@ function ExternalLinkBlockView({ node, deleteNode, selected }: NodeViewProps) {
           ) : missing ? (
             <span className="truncate">{t("externalLink.missingChip")}</span>
           ) : (
-            <span className="truncate font-medium">{label}</span>
+            <span className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-1">
+              <span className="truncate font-medium">{label}</span>
+              {href ? (
+                <span className="truncate text-[11px] opacity-80 sm:text-xs">
+                  {href}
+                  <span className="font-mono"> · #{idHint}</span>
+                </span>
+              ) : (
+                <span className="truncate text-[11px] opacity-80 sm:text-xs font-mono">
+                  #{idHint}
+                </span>
+              )}
+            </span>
           )}
-          {!loading && !missing && href ? (
-            <span className="truncate text-[11px] opacity-80 sm:text-xs">{href}</span>
-          ) : null}
         </span>
         <button
           type="button"

@@ -13,8 +13,12 @@ import {
   cleanMediaGroupTokens,
   mediaGroupPlaceholder,
 } from "@/lib/media-group-token";
-import { externalLinkPlaceholder } from "@/lib/external-link-token";
+import {
+  cleanExternalLinkTokens,
+  externalLinkPlaceholder,
+} from "@/lib/external-link-token";
 import { shouldApplyParentMarkdownToVisualEditor } from "@/lib/visual-editor-markdown-sync";
+import { useExternalLinkBodyEnrichment } from "@/hooks/useExternalLinkBodyEnrichment";
 import { useMediaGroupBodyEnrichment } from "@/hooks/useMediaGroupBodyEnrichment";
 import { ExternalLinkBlock } from "@/lib/tiptap/external-link-block";
 import { MediaGroupBlock } from "@/lib/tiptap/media-group-block";
@@ -332,8 +336,14 @@ export function ArticleBodyEditor({
     handleBodyEnriched
   );
 
+  useExternalLinkBodyEnrichment(
+    mode === "markdown" ? value : "",
+    lang,
+    handleBodyEnriched
+  );
+
   const helpItems = ARTICLE_MARKDOWN_HELP[lang];
-  const previewContent = cleanMediaGroupTokens(value);
+  const previewContent = cleanExternalLinkTokens(cleanMediaGroupTokens(value));
 
   return (
     <div className="space-y-2">
@@ -414,6 +424,11 @@ export function ArticleBodyEditor({
                 {lang === "fr"
                   ? "Groupes — bouton « Insérer un groupe » ; le nom et le nombre de médias s’ajoutent automatiquement dans la balise (seul l’id est enregistré)"
                   : "Media groups — “Insert group” button; name and count appear in the tag automatically (only the id is saved)"}
+              </li>
+              <li>
+                {lang === "fr"
+                  ? "Liens — bouton « Insérer un lien » ; libellé et URL s’ajoutent automatiquement dans la balise (seul l’id est enregistré)"
+                  : "Links — “Insert link” button; label and URL appear in the tag automatically (only the id is saved)"}
               </li>
             </ul>
           </details>

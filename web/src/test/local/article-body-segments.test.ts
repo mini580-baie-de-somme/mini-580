@@ -34,6 +34,16 @@ describe("parseArticleBodySegments", () => {
     ]);
   });
 
+  it("parses enriched external-link tokens (editor sur-charge)", () => {
+    const linkId = "cllinkenriched";
+    const body = `Intro\n{{external-link:${linkId}|Teste|https://classmini580.blog}}\nOutro`;
+    expect(parseArticleBodySegments(body)).toEqual([
+      { type: "text", content: "Intro\n" },
+      { type: "external-link", linkId },
+      { type: "text", content: "\nOutro" },
+    ]);
+  });
+
   it("handles FR and EN bodies with different group positions", () => {
     const g1 = "grp001";
     const g2 = "grp002";
