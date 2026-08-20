@@ -8,22 +8,20 @@ import remarkGfm from "remark-gfm";
 import { InlineExternalLink } from "./InlineExternalLink";
 import { InlineMediaGroup } from "./InlineMediaGroup";
 
-const proseClassName =
-  "prose prose-slate max-w-none prose-headings:text-[#0D131A] prose-p:text-[#0D131A]/90 prose-strong:text-[#0D131A] prose-li:text-[#0D131A]/90";
+export const articleProseClassName =
+  "article-prose prose prose-slate w-full max-w-none text-[1.0625rem] leading-[1.75] sm:text-lg sm:leading-8 lg:text-[1.125rem] lg:leading-8 prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-[#0D131A] prose-h2:mt-10 prose-h2:mb-4 prose-h3:mt-8 prose-h3:mb-3 prose-p:text-[#0D131A]/90 prose-p:leading-relaxed prose-strong:text-[#0D131A] prose-li:text-[#0D131A]/90 prose-li:leading-relaxed prose-a:text-[#495867] prose-a:underline-offset-2 hover:prose-a:text-[#0D131A] prose-img:w-full prose-img:rounded-lg prose-blockquote:border-[#d4dde6] prose-blockquote:text-[#495867]";
 
 export function ArticleBody({
   content,
   locale = "fr",
   mediaGroups = {},
   externalLinks = {},
-  manifestIndexByGroupId = {},
   onOpenMediaGroup,
 }: {
   content: string;
   locale?: "fr" | "en";
   mediaGroups?: Record<string, PublicMediaGroup>;
   externalLinks?: Record<string, PublicExternalLink>;
-  manifestIndexByGroupId?: Record<string, number>;
   onOpenMediaGroup?: (groupId: string) => void;
 }) {
   const normalized = normalizeLegacyBodyText(content);
@@ -36,19 +34,19 @@ export function ArticleBody({
 
   if (!hasInlineBlocks) {
     return (
-      <div className={proseClassName}>
+      <div className={articleProseClassName}>
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{normalized}</ReactMarkdown>
       </div>
     );
   }
 
   return (
-    <div className="space-y-0">
+    <div className="w-full space-y-6 sm:space-y-8">
       {segments.map((segment, index) => {
         if (segment.type === "text") {
           if (!segment.content.trim()) return null;
           return (
-            <div key={`text-${index}`} className={proseClassName}>
+            <div key={`text-${index}`} className={articleProseClassName}>
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {segment.content}
               </ReactMarkdown>

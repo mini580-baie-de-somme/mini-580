@@ -104,13 +104,13 @@ export function InlineMediaGroup({
   const canOpen = count > 0;
 
   return (
-    <figure className="my-8">
+    <figure className="my-6 w-full sm:my-8">
       <button
         type="button"
         onClick={canOpen ? onOpen : undefined}
         disabled={!canOpen}
         aria-label={ariaLabel}
-        className="group w-full overflow-hidden rounded-lg border border-[#d4dde6] shadow-sm transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#495867] focus-visible:ring-offset-2 disabled:cursor-default disabled:opacity-100"
+        className="group w-full overflow-hidden rounded-xl border border-[#d4dde6] shadow-sm transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#495867] focus-visible:ring-offset-2 disabled:cursor-default disabled:opacity-100"
       >
         <div className="w-full overflow-hidden">
           {count === 1 && (

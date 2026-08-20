@@ -11,12 +11,9 @@ import {
   type GalleryEditorImage,
   coverUrlFromImage,
   findCoverImage,
-  galleryThumbSrc,
   toEditorImage,
 } from "@/lib/gallery-editor";
 import { PhotoEditModal } from "./PhotoEditModal";
-import { FullscreenEditorModal } from "./FullscreenEditorModal";
-import { MediaKindThumb } from "./MediaKindThumb";
 import {
   newPhotoEditorTraceId,
   photoEditorTrace,
@@ -52,13 +49,8 @@ export function PostGalleryEditor({
   coverImageUrl,
   onCoverChange,
 }: Props) {
-  // Local list is source of truth while editing — do not reset from parent
-  // re-renders (autosave / router.refresh), which was wiping reorder.
   const [images, setImages] = useState<GalleryEditorImage[]>(() =>
     normalizeImages(initialImages)
-  );
-  const [selectedId, setSelectedId] = useState<string | null>(
-    initialImages[0]?.id ?? null
   );
   const { searchParams, pushVirtual, closeVirtual, markOpenedViaPush } =
     useVirtualUrl();
@@ -68,28 +60,14 @@ export function PostGalleryEditor({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [libraryItems, setLibraryItems] = useState<
-    {
-      id: string;
-      kind: string;
-      mimeType?: string;
-      titleFr: string;
-      titleEn: string;
-      urlOrigin: string;
-      urlPicto: string | null;
-      urlMoyenne: string | null;
-    }[]
-  >([]);
-  const [librarySelected, setLibrarySelected] = useState<Set<string>>(new Set());
   const orphanImportRef = useRef(false);
 
-  const selected = images.find((i) => i.id === selectedId) ?? null;
   const coverImage = findCoverImage(images, coverImageUrl);
-  const editingImage =
-    modal.kind === "edit" || modal.kind === "edit-cover"
+  const editingCoverImage =
+    modal.kind === "edit-cover"
       ? images.find((i) => i.id === modal.imageId) ?? null
       : null;
-  const isCoverModal =
+  const coverModalOpen =
     modal.kind === "add-cover" || modal.kind === "edit-cover";
 
   const upsertImage = useCallback((image: GalleryEditorImage) => {
@@ -100,7 +78,6 @@ export function PostGalleryEditor({
       next[idx] = image;
       return next;
     });
-    setSelectedId(image.id);
   }, []);
 
   // Import orphan cover URLs (raw /api/media) into PostImage / médiathèque.
@@ -157,28 +134,6 @@ export function PostGalleryEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coverImageUrl, postId]);
 
-  async function reorder(fromIndex: number, toIndex: number) {
-    if (toIndex < 0 || toIndex >= images.length) return;
-    const next = [...images];
-    const [item] = next.splice(fromIndex, 1);
-    next.splice(toIndex, 0, item);
-    setImages(next);
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/posts/${postId}/images/reorder`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageIds: next.map((i) => i.id) }),
-      });
-      if (!res.ok) throw new Error("reorder failed");
-    } catch {
-      setError("Échec du réordonnancement");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   function openPhotoModal(
     state: Exclude<ReturnType<typeof parsePhotoModalState>, { kind: "closed" }>
   ) {
@@ -202,384 +157,98 @@ export function PostGalleryEditor({
     onCoverChange(null);
   }
 
-  function useSelectedAsCover() {
-    if (!selected) return;
-    onCoverChange(coverUrlFromImage(selected));
-  }
-
   function handleImageSaved(image: GalleryEditorImage) {
     upsertImage(image);
-    if (isCoverModal) {
-      onCoverChange(coverUrlFromImage(image));
-    } else if (coverImage?.id === image.id) {
-      // Replace/edit of the current cover photo — keep URL in sync.
-      onCoverChange(coverUrlFromImage(image));
-    }
-  }
-
-  async function loadLibraryItems() {
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/media-library?limit=50&offset=0");
-      if (!res.ok) throw new Error("library failed");
-      const data = (await res.json()) as {
-        items: {
-          id: string;
-          kind: string;
-          mimeType?: string;
-          titleFr: string;
-          titleEn: string;
-          urlOrigin: string;
-          urlPicto: string | null;
-          urlMoyenne: string | null;
-        }[];
-      };
-      const already = new Set(images.map((i) => i.id));
-      setLibraryItems(data.items.filter((i) => !already.has(i.id)));
-      setLibrarySelected(new Set());
-    } catch {
-      setError("Impossible de charger la médiathèque");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function openLibraryPicker() {
-    openPhotoModal({ kind: "pick-library" });
-  }
-
-  useEffect(() => {
-    if (modal.kind !== "pick-library") return;
-    void loadLibraryItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modal.kind]);
-
-  async function attachFromLibrary() {
-    if (librarySelected.size === 0) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const mediaIds = [...librarySelected];
-      const res = await fetch(`/api/posts/${postId}/media`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mediaIds }),
-      });
-      if (!res.ok) throw new Error("attach failed");
-      const linked = (await res.json()) as Record<string, unknown>[];
-      for (const raw of linked) {
-        upsertImage(toEditorImage(raw));
-      }
-      closePhotoModal();
-    } catch {
-      setError("Association impossible");
-    } finally {
-      setBusy(false);
-    }
+    onCoverChange(coverUrlFromImage(image));
   }
 
   function handleImageDeleted(id: string) {
-    setImages((prev) => {
-      const next = prev.filter((i) => i.id !== id);
-      setSelectedId((cur) => (cur === id ? (next[0]?.id ?? null) : cur));
-      return next;
-    });
+    setImages((prev) => prev.filter((i) => i.id !== id));
     if (coverImage?.id === id) {
       onCoverChange(null);
     }
   }
 
   return (
-    <section className="space-y-6">
-      <div className="space-y-3 rounded-lg border border-[#d4dde6] p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-medium text-[#0D131A]">
-            {lang === "fr" ? "Photo de couverture" : "Cover photo"}
-          </h2>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={openCoverEditor}
-              className="rounded-md border border-[#495867] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7]"
-            >
-              {coverImage || coverImageUrl
-                ? lang === "fr"
-                  ? "Éditer la couverture"
-                  : "Edit cover"
-                : lang === "fr"
-                  ? "Ajouter une couverture"
-                  : "Add cover"}
-            </button>
-            {(coverImage || coverImageUrl) && (
-              <button
-                type="button"
-                onClick={clearCoverOnly}
-                className="rounded-md border border-[#d4dde6] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7]"
-              >
-                {lang === "fr" ? "Retirer" : "Remove"}
-              </button>
-            )}
-          </div>
-        </div>
-        <p className="text-xs text-[#495867]">
-          {lang === "fr"
-            ? "Cette photo est enregistrée dans la médiathèque comme les autres médias — cadrage, meta, variantes et galerie publique."
-            : "This photo is stored in the media library like other media — crop, meta, variants and public gallery."}
-        </p>
-        {coverImage || coverImageUrl ? (
+    <section className="space-y-3 rounded-lg border border-[#d4dde6] p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-medium text-[#0D131A]">
+          {lang === "fr" ? "Photo de couverture" : "Cover photo"}
+        </h2>
+        <div className="flex flex-wrap items-center gap-2">
+          {busy && <span className="text-xs text-[#495867]">…</span>}
+          {error && <span className="text-xs text-red-600">{error}</span>}
           <button
             type="button"
             onClick={openCoverEditor}
-            className="block overflow-hidden rounded-md border border-[#d4dde6]"
+            className="rounded-md border border-[#495867] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7]"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              key={
-                coverImage
-                  ? coverUrlFromImage(coverImage)
-                  : coverImageUrl!
-              }
-              src={
-                coverImage
-                  ? coverUrlFromImage(coverImage)
-                  : coverImageUrl!
-              }
-              alt=""
-              className="max-h-48 w-auto object-cover"
-            />
+            {coverImage || coverImageUrl
+              ? lang === "fr"
+                ? "Éditer la couverture"
+                : "Edit cover"
+              : lang === "fr"
+                ? "Ajouter une couverture"
+                : "Add cover"}
           </button>
-        ) : (
-          <p className="rounded-lg border border-dashed border-[#d4dde6] bg-[#fafbfc] px-4 py-6 text-center text-sm text-[#495867]">
-            {lang === "fr"
-              ? "Aucune couverture — ajoute une photo ou choisis une photo parmi les médias de l’article ci-dessous."
-              : "No cover — add a photo or pick a photo from the post media below."}
-          </p>
-        )}
-        {selected && coverImage?.id !== selected.id && (
-          <button
-            type="button"
-            onClick={useSelectedAsCover}
-            disabled={(selected.kind || "IMAGE") !== "IMAGE"}
-            className="rounded-md bg-[#eef3f7] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#e0e8ef] disabled:opacity-40"
-          >
-            {lang === "fr"
-              ? "Utiliser la photo sélectionnée comme couverture"
-              : "Use selected photo as cover"}
-          </button>
-        )}
-      </div>
-
-      <div className="space-y-4 rounded-lg border border-[#d4dde6] p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-medium text-[#0D131A]">
-            {lang === "fr"
-              ? `Médias de l’article (${images.length})`
-              : `Post media (${images.length})`}
-          </h2>
-          <div className="flex flex-wrap items-center gap-2">
-            {busy && <span className="text-xs text-[#495867]">…</span>}
-            {error && <span className="text-xs text-red-600">{error}</span>}
+          {(coverImage || coverImageUrl) && (
             <button
               type="button"
-              onClick={() => void openLibraryPicker()}
+              onClick={clearCoverOnly}
               className="rounded-md border border-[#d4dde6] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7]"
             >
-              {lang === "fr" ? "Depuis la médiathèque" : "From media library"}
+              {lang === "fr" ? "Retirer" : "Remove"}
             </button>
-            <button
-              type="button"
-              onClick={() => openPhotoModal({ kind: "add" })}
-              className="rounded-md border border-[#495867] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7]"
-            >
-              {lang === "fr" ? "Ajouter un média" : "Add media"}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (!selected) return;
-                openPhotoModal({ kind: "edit", imageId: selected.id });
-              }}
-              disabled={!selected}
-              className="rounded-md bg-[#495867] px-3 py-1.5 text-sm text-white hover:bg-[#3a4654] disabled:opacity-50"
-            >
-              {lang === "fr" ? "Éditer" : "Edit"}
-            </button>
-          </div>
+          )}
         </div>
-
-        {images.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-[#d4dde6] bg-[#fafbfc] px-4 py-8 text-center text-sm text-[#495867]">
-            {lang === "fr"
-              ? "Aucun média — uploade un fichier ou choisis depuis la médiathèque."
-              : "No media yet — upload a file or pick from the library."}
-          </p>
-        ) : (
-          <div className="flex flex-wrap gap-2 pb-1">
-            {images.map((img, index) => {
-              const isCover = coverImage?.id === img.id;
-              const thumbSrc = galleryThumbSrc(img);
-              const thumbKey = `${img.id}:${thumbSrc ?? "none"}:${img.scaleX}:${img.rotation}`;
-              return (
-                <div key={img.id} className="relative shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedId(img.id)}
-                    onDoubleClick={() =>
-                      openPhotoModal({ kind: "edit", imageId: img.id })
-                    }
-                    className={`block h-16 w-16 overflow-hidden rounded border-2 ${
-                      selectedId === img.id
-                        ? "border-[#495867]"
-                        : "border-transparent"
-                    }`}
-                  >
-                    <MediaKindThumb
-                      key={thumbKey}
-                      kind={img.kind || "IMAGE"}
-                      mimeType={img.mimeType}
-                      src={thumbSrc}
-                      size="md"
-                    />
-                  </button>
-                  {isCover && (
-                    <span className="absolute -top-1 left-0 rounded bg-[#495867] px-1 text-[9px] font-medium text-white">
-                      {lang === "fr" ? "Couv." : "Cover"}
-                    </span>
-                  )}
-                  <div className="mt-1 flex justify-center gap-1">
-                    <button
-                      type="button"
-                      className="flex min-h-9 min-w-9 items-center justify-center text-sm text-[#495867] disabled:opacity-30"
-                      disabled={index === 0 || busy}
-                      onClick={() => void reorder(index, index - 1)}
-                      aria-label={lang === "fr" ? "Déplacer à gauche" : "Move left"}
-                    >
-                      ←
-                    </button>
-                    <button
-                      type="button"
-                      className="flex min-h-9 min-w-9 items-center justify-center text-sm text-[#495867] disabled:opacity-30"
-                      disabled={index === images.length - 1 || busy}
-                      onClick={() => void reorder(index, index + 1)}
-                      aria-label={lang === "fr" ? "Déplacer à droite" : "Move right"}
-                    >
-                      →
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
-
-      {modal.kind === "pick-library" && (
-        <FullscreenEditorModal
-          title={
-            lang === "fr"
-              ? "Médias de la médiathèque"
-              : "Media library items"
-          }
-          onClose={closePhotoModal}
-          busy={busy}
-          footerRight={
-            <>
-              <button
-                type="button"
-                onClick={closePhotoModal}
-                className="rounded-md border border-[#d4dde6] px-3 py-2 text-sm"
-              >
-                {lang === "fr" ? "Annuler" : "Cancel"}
-              </button>
-              <button
-                type="button"
-                disabled={busy || librarySelected.size === 0}
-                onClick={() => void attachFromLibrary()}
-                className="rounded-md bg-[#495867] px-3 py-2 text-sm text-white disabled:opacity-50"
-              >
-                {lang === "fr"
-                  ? `Associer (${librarySelected.size})`
-                  : `Attach (${librarySelected.size})`}
-              </button>
-            </>
-          }
+      <p className="text-xs text-[#495867]">
+        {lang === "fr"
+          ? "Photo optionnelle affichée en en-tête de l’article. Les autres médias s’ajoutent via des groupes dans le corps du texte."
+          : "Optional photo shown at the top of the article. Other media belong in inline groups within the body."}
+      </p>
+      {coverImage || coverImageUrl ? (
+        <button
+          type="button"
+          onClick={openCoverEditor}
+          className="block w-full overflow-hidden rounded-md border border-[#d4dde6]"
         >
-          <div className="h-full overflow-y-auto p-4">
-            {libraryItems.length === 0 ? (
-              <p className="text-sm text-[#495867]">
-                {lang === "fr"
-                  ? "Aucun média disponible à associer."
-                  : "No media available to attach."}
-              </p>
-            ) : (
-              <ul className="mx-auto grid max-w-3xl gap-2 sm:grid-cols-2">
-                {libraryItems.map((item) => {
-                  const checked = librarySelected.has(item.id);
-                  return (
-                    <li key={item.id}>
-                      <label className="flex cursor-pointer items-center gap-3 rounded border border-[#d4dde6] px-3 py-2 hover:bg-[#f8fafc]">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => {
-                            setLibrarySelected((prev) => {
-                              const next = new Set(prev);
-                              if (next.has(item.id)) next.delete(item.id);
-                              else next.add(item.id);
-                              return next;
-                            });
-                          }}
-                        />
-                        <MediaKindThumb
-                          kind={item.kind}
-                          mimeType={item.mimeType}
-                          src={
-                            item.kind === "IMAGE"
-                              ? item.urlPicto ||
-                                item.urlMoyenne ||
-                                item.urlOrigin
-                              : item.urlPicto || item.urlMoyenne || null
-                          }
-                        />
-                        <span className="min-w-0 text-sm">
-                          <span className="block truncate font-medium">
-                            {item.titleFr || item.titleEn || item.id.slice(0, 8)}
-                          </span>
-                          <span className="text-xs text-[#495867]">
-                            {item.kind}
-                          </span>
-                        </span>
-                      </label>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        </FullscreenEditorModal>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            key={
+              coverImage
+                ? coverUrlFromImage(coverImage)
+                : coverImageUrl!
+            }
+            src={
+              coverImage
+                ? coverUrlFromImage(coverImage)
+                : coverImageUrl!
+            }
+            alt=""
+            className="aspect-[16/10] w-full object-cover sm:aspect-[2/1]"
+          />
+        </button>
+      ) : (
+        <p className="rounded-lg border border-dashed border-[#d4dde6] bg-[#fafbfc] px-4 py-6 text-center text-sm text-[#495867]">
+          {lang === "fr"
+            ? "Aucune couverture — ajoute une photo ou laisse vide."
+            : "No cover — add a photo or leave empty."}
+        </p>
       )}
 
-      {modal.kind !== "closed" && modal.kind !== "pick-library" && (
+      {coverModalOpen && (
         <PhotoEditModal
           key={
-            modal.kind === "edit" || modal.kind === "edit-cover"
-              ? `edit-${modal.imageId}`
-              : modal.kind
+            modal.kind === "edit-cover"
+              ? `edit-cover-${modal.imageId}`
+              : "add-cover"
           }
           postId={postId}
           lang={lang}
-          mode={
-            modal.kind === "add" || modal.kind === "add-cover" ? "add" : "edit"
-          }
-          imagesOnly={
-            modal.kind === "add-cover" || modal.kind === "edit-cover"
-          }
-          image={
-            modal.kind === "edit" || modal.kind === "edit-cover"
-              ? editingImage
-              : null
-          }
+          mode={modal.kind === "add-cover" ? "add" : "edit"}
+          imagesOnly
+          image={modal.kind === "edit-cover" ? editingCoverImage : null}
           onClose={closePhotoModal}
           onSaved={handleImageSaved}
           onDeleted={handleImageDeleted}

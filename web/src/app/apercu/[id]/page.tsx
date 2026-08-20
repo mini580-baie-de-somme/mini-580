@@ -33,7 +33,7 @@ export default async function ApercuPage({ params }: PageProps) {
   });
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+    <div className="mx-auto w-full px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-14">
       <PreviewArticle
         post={{
           ...legacy,

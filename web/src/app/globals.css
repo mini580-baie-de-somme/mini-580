@@ -28,6 +28,10 @@ body {
   background: linear-gradient(135deg, #eef3f7 0%, #e2ebf2 50%, #f4f7fa 100%);
 }
 
+.article-prose :where(p, li, blockquote) {
+  max-width: none;
+}
+
 .datetime-local-input::-webkit-calendar-picker-indicator {
   opacity: 0;
   position: absolute;
