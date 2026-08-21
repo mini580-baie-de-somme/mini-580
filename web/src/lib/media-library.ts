@@ -205,6 +205,10 @@ export function mediaAsPostImage(
     cropY: media.cropY,
     cropW: media.cropW,
     cropH: media.cropH,
+    cropAspectFormat:
+      "cropAspectFormat" in media
+        ? String((media as { cropAspectFormat?: string }).cropAspectFormat ?? "PORTRAIT_3_4")
+        : "PORTRAIT_3_4",
     isCover: link.isCover ?? false,
     updatedAt:
       "updatedAt" in media && media.updatedAt

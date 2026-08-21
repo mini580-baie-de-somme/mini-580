@@ -1,4 +1,5 @@
-import type { ImageLayoutParams } from "@/lib/image-layout";
+import type { CropAspectFormat, ImageLayoutParams } from "@/lib/image-layout";
+import { cropAspectFormatFromLegacy } from "@/lib/image-layout";
 
 export type GalleryEditorImage = {
   id: string;
@@ -32,6 +33,7 @@ export type GalleryEditorImage = {
   cropY: number;
   cropW: number;
   cropH: number;
+  cropAspectFormat?: CropAspectFormat | string;
 };
 
 export function toEditorImage(raw: Record<string, unknown>): GalleryEditorImage {
@@ -71,6 +73,7 @@ export function toEditorImage(raw: Record<string, unknown>): GalleryEditorImage 
     cropY: Number(raw.cropY ?? 0),
     cropW: Number(raw.cropW ?? 1),
     cropH: Number(raw.cropH ?? 1),
+    cropAspectFormat: cropAspectFormatFromLegacy(raw),
   };
 }
 

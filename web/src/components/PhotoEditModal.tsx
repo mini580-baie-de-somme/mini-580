@@ -18,6 +18,8 @@ import {
   layoutFromLegacy,
   layoutParamsDiffer,
   legacyFieldsFromLayout,
+  cropAspectFormatFromLegacy,
+  type CropAspectFormat,
   type ImageLayoutParams,
 } from "@/lib/image-layout";
 import {
@@ -142,6 +144,10 @@ function pasteClipboardErrorMessage(
   return messages[error][lang];
 }
 
+function defaultCropFormat(imagesOnly: boolean): CropAspectFormat {
+  return imagesOnly ? "LANDSCAPE_16_9" : "PORTRAIT_3_4";
+}
+
 export function PhotoEditModal({
   postId,
   lang,
@@ -159,6 +165,11 @@ export function PhotoEditModal({
     mode === "edit" && image
       ? layoutFromLegacy(image)
       : { ...DEFAULT_IMAGE_LAYOUT }
+  );
+  const [cropAspectFormat, setCropAspectFormat] = useState<CropAspectFormat>(() =>
+    mode === "edit" && image
+      ? cropAspectFormatFromLegacy(image)
+      : defaultCropFormat(imagesOnly)
   );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -182,6 +193,7 @@ export function PhotoEditModal({
       setOriginEditable(true);
       setMediaIntegrity(null);
       setLayout({ ...DEFAULT_IMAGE_LAYOUT });
+      setCropAspectFormat(defaultCropFormat(imagesOnly));
       const legacy = legacyFieldsFromLayout(DEFAULT_IMAGE_LAYOUT);
       setDraft((prev) => {
         const base = prev ?? emptyDraft(kind);
@@ -208,7 +220,7 @@ export function PhotoEditModal({
         };
       });
     },
-    []
+    [imagesOnly]
   );
 
   const fileQueueMessages = useMemo(
@@ -263,14 +275,13 @@ export function PhotoEditModal({
           integrity?: MediaIntegrity;
         };
         if (cancelled) return;
+        const parsed = toEditorImage(full as Record<string, unknown>);
         setDraft((prev) =>
           prev
-            ? mergeEditorImageLayout(
-                toEditorImage(full as Record<string, unknown>),
-                layoutFromLegacy(prev)
-              )
+            ? mergeEditorImageLayout(parsed, layoutFromLegacy(prev))
             : prev
         );
+        setCropAspectFormat(cropAspectFormatFromLegacy(parsed));
         const editable = full.integrity?.editable ?? false;
         setOriginEditable(editable);
         setRepairOriginAvailable(
@@ -432,6 +443,7 @@ export function PhotoEditModal({
         effectiveKind,
         metadata,
         layout,
+        cropAspectFormat,
         canEditImageLayout,
         locale: lang,
         trace,
@@ -568,6 +580,12 @@ export function PhotoEditModal({
             <PhotoCanvasEditor
               imageSrc={canvasSrc!}
               value={layout}
+              cropAspectFormat={cropAspectFormat}
+              onCropFormatChange={(format, nextLayout) => {
+                setCropAspectFormat(format);
+                setLayout(nextLayout);
+                setDirty(true);
+              }}
               onChange={(next) => {
                 setLayout(next);
                 setDirty(true);
@@ -697,6 +715,12 @@ export function PhotoEditModal({
                 <PhotoCanvasEditor
                   imageSrc={canvasSrc!}
                   value={layout}
+                  cropAspectFormat={cropAspectFormat}
+                  onCropFormatChange={(format, nextLayout) => {
+                    setCropAspectFormat(format);
+                    setLayout(nextLayout);
+                    setDirty(true);
+                  }}
                   onChange={(next) => {
                     setLayout(next);
                     setDirty(true);

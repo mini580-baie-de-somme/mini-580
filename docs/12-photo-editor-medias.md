@@ -10,7 +10,7 @@ Couvre l’édition layout des images (article, couverture, médiathèque), le r
 |-------|--------|
 | **Origin locale obligatoire** | `urlOrigin` = chemin `/media/...` présent sur disque. Pas de rebake depuis URL externe ni variante dégradée. |
 | **WYSIWYG** | Preview éditeur = pipeline serveur (`computeEditorPhotoLayout` / `applyImageTransform`). |
-| **Ratio portrait 3:4** | Cadre crop toujours `width:height = 3:4` ; variants rebake en boîtes fixes (picto → grande). |
+| **Ratio portrait 3:4** | Cadre crop par défaut `PORTRAIT_3_4` ; formats configurables (`SQUARE`, `LANDSCAPE_16_9`, `LANDSCAPE_4_3`, `PORTRAIT_3_4`, `CIRCLE`) via `cropAspectFormat` — article/couverture **et** médiathèque |
 | **Crop proportionnel au canvas** | Fenêtre crop en % du stage (inset) — utilise tout l’espace écran ; **ne change pas** les tailles rebake. |
 | **Pivot zoom/rotation** | Centre du crop (cadre blanc), pas le centre image. |
 | **Reset au remplacement** | Nouvelle originale → `DEFAULT_IMAGE_LAYOUT` (scale 1, rotation 0, offsets 0). |
@@ -33,6 +33,7 @@ Fichier canonique : `web/src/lib/image-layout.ts`
 | `cropShape` | `RECT` ou `CIRCLE` |
 | `cropInset` | Marge intérieure 0–0.4 (rétrécit le crop dans le stage) |
 | `backgroundColor` | Couleur fond ou `transparent` |
+| `cropAspectFormat` | Format crop : `SQUARE`, `LANDSCAPE_16_9`, `LANDSCAPE_4_3`, `PORTRAIT_3_4`, `CIRCLE` — couverture article défaut `LANDSCAPE_16_9` |
 
 Champs legacy (`zoom`, `focusX`, `focusY`, `cropX`…) fusionnés à la lecture ; écriture sync legacy + nouveaux champs.
 

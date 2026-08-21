@@ -45,6 +45,9 @@ const patchSchema = z.object({
   cropY: z.number().min(0).max(1).optional(),
   cropW: z.number().min(0).max(1).optional(),
   cropH: z.number().min(0).max(1).optional(),
+  cropAspectFormat: z
+    .enum(["SQUARE", "LANDSCAPE_16_9", "LANDSCAPE_4_3", "PORTRAIT_3_4", "CIRCLE"])
+    .optional(),
 });
 
 const TRANSFORM_KEYS = [
@@ -153,13 +156,19 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         ...(data.cropY !== undefined && { cropY: data.cropY }),
         ...(data.cropW !== undefined && { cropW: data.cropW }),
         ...(data.cropH !== undefined && { cropH: data.cropH }),
+        ...(data.cropAspectFormat !== undefined && {
+          cropAspectFormat: data.cropAspectFormat,
+        }),
       },
     });
 
+    const formatChanged =
+      data.cropAspectFormat !== undefined &&
+      data.cropAspectFormat !== link.media.cropAspectFormat;
     const transformChanged = TRANSFORM_KEYS.some((k) => data[k] !== undefined);
     const shouldRebakeLayout =
       media.kind === "IMAGE" &&
-      (Object.keys(layoutPatch).length > 0 || transformChanged);
+      (Object.keys(layoutPatch).length > 0 || transformChanged || formatChanged);
     let finalMedia = media;
 
     let rebakePending = false;

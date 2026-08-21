@@ -206,6 +206,89 @@ describe("saveMediaFlow library edit", () => {
   });
 });
 
+describe("saveMediaFlow post editor", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("includes cropAspectFormat in post image PATCH", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: "m1",
+          kind: "IMAGE",
+          urlOrigin: "/media/m1/origin.jpg",
+          titleFr: "t",
+          titleEn: "",
+          descriptionFr: "",
+          descriptionEn: "",
+          takenAt: null,
+          urlPicto: "/media/m1/picto.webp",
+          urlPetite: null,
+          urlMoyenne: null,
+          urlGrande: null,
+          cropAspectFormat: "LANDSCAPE_16_9",
+        })
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await saveMediaFlow({
+      strategy: "post",
+      postId: "post-1",
+      draft: {
+        id: "m1",
+        kind: "IMAGE",
+        urlOrigin: "/media/m1/origin.jpg",
+        urlPicto: "/media/m1/picto.webp",
+        urlPetite: null,
+        urlMoyenne: null,
+        urlGrande: null,
+        titleFr: "t",
+        titleEn: "",
+        descriptionFr: "",
+        descriptionEn: "",
+        takenAt: null,
+        sortOrder: 0,
+        offsetX: 0,
+        offsetY: 0,
+        scaleX: 1,
+        scaleY: 1,
+        lockAspect: true,
+        cropShape: "RECT",
+        backgroundColor: "#000000",
+        cropInset: 0.06,
+        focusX: 0.5,
+        focusY: 0.5,
+        zoom: 1,
+        rotation: 0,
+        cropX: 0,
+        cropY: 0,
+        cropW: 1,
+        cropH: 1,
+      },
+      pendingFile: null,
+      effectiveKind: "IMAGE",
+      metadata: {
+        titleFr: "t",
+        titleEn: "",
+        descriptionFr: "",
+        descriptionEn: "",
+        takenAt: null,
+      },
+      layout: { ...DEFAULT_IMAGE_LAYOUT },
+      cropAspectFormat: "LANDSCAPE_16_9",
+      canEditImageLayout: true,
+      locale: "fr",
+      trace: { traceId: "t-post-crop", postId: "post-1", mediaId: "m1" },
+    });
+
+    const [, init] = fetchMock.mock.calls[0]!;
+    const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    expect(body.cropAspectFormat).toBe("LANDSCAPE_16_9");
+  });
+});
+
 describe("getSaveFlowErrorPhase", () => {
   it("reads phase from MediaSaveFlowError", () => {
     expect(

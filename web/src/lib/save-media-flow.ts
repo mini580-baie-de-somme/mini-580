@@ -57,6 +57,7 @@ export type PostSaveMediaInput = {
   effectiveKind: MediaKindClient;
   metadata: MediaSaveMetadata;
   layout: ImageLayoutParams;
+  cropAspectFormat?: string;
   canEditImageLayout: boolean;
   locale: "fr" | "en";
   trace: PhotoEditorTraceContext;
@@ -265,6 +266,9 @@ async function savePostMedia(input: PostSaveMediaInput): Promise<SaveMediaFlowRe
   });
   if (layoutWillPatch) {
     Object.assign(patchBody, input.layout);
+    if (input.cropAspectFormat) {
+      patchBody.cropAspectFormat = input.cropAspectFormat;
+    }
   }
 
   lastPhase = "patch";
