@@ -103,3 +103,10 @@ fi
 
 echo "OK — $ENV_NAME is up on 127.0.0.1:${PORT}"
 docker compose -f "$COMPOSE" --env-file "$ENV_FILE" ps
+
+CLEANUP_SCRIPT="${OPT_ROOT}/bin/docker-cleanup.sh"
+if [[ -f "$CLEANUP_SCRIPT" ]]; then
+  bash "$CLEANUP_SCRIPT"
+else
+  echo "NOTE: $CLEANUP_SCRIPT not found — skip post-deploy cleanup"
+fi

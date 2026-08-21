@@ -155,6 +155,21 @@ Les pushes sur `main` qui ne touchent que `.github/` ou `docs/` **ne déclenchen
 
 **Ne jamais** livrer PROD avec une version différente de celle testée en recette.
 
+### Nettoyage disque post-deploy (automatique)
+
+Chaque deploy TEST ou PROD appelle **`docker-cleanup.sh`** à la fin de `deploy.sh` (après healthcheck OK) :
+
+- `docker image prune -af` — images GHCR mortes (stacks en cours conservées)
+- `docker builder prune -af` — cache build
+- `docker system prune -af` — artefacts Docker inutilisés (sans volumes)
+- suppression de `/tmp/mini580-deploy-sync` (sync CI obsolète)
+
+Script : `deploy/scripts/docker-cleanup.sh` → copié sur le VPS en `/opt/mini580/bin/docker-cleanup.sh`.
+
+**Prévention disque plein** : évite l’accumulation d’images (~96 Go observés en juillet 2026) qui bloquait `docker pull` (`no space left on device`).
+
+**Manuel / préflight** : workflow **Ops — Docker prune VPS** (même script) — utile si un deploy échoue encore sur disque ou si le dernier prune date de >14 jours.
+
 > **Phase 1e liens externes :** TEST + PROD **v1.2.118** (2026-08-19). Spec : `docs/16-external-links.md`.
 
 ## TLS (après DNS propagé)
@@ -285,6 +300,7 @@ sudo -u deploy docker compose -f /opt/mini580/prod/docker-compose.yml --env-file
 | `deploy/nginx/*.conf` | Reverse proxy HTTP |
 | `deploy/scripts/bootstrap-vps.sh` | Provisionnement serveur (+ dossiers media uid 1001) |
 | `deploy/scripts/deploy.sh` | Pull image + compose up (+ assure `./media`) |
+| `deploy/scripts/docker-cleanup.sh` | Prune images/cache Docker post-deploy (auto via `deploy.sh`) |
 | `build-counter.json` | Compteur patch par ligne major.minor (CI) |
 | `web/scripts/build-version-lib.mjs` | Logique semver + compteur |
 | `web/scripts/increment-build-counter.mjs` | Incrément CI → version + persist |

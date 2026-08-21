@@ -71,7 +71,7 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: "deploy/docker-compose.prod.yml,deploy/scripts/deploy.sh,deploy/nginx/classmini580.blog.conf"
+          source: "deploy/docker-compose.prod.yml,deploy/scripts/deploy.sh,deploy/scripts/docker-cleanup.sh,deploy/nginx/classmini580.blog.conf"
           target: "/tmp/mini580-deploy-sync"
           timeout: 120s
           command_timeout: 10m
@@ -107,7 +107,8 @@ jobs:
             mkdir -p /opt/mini580/prod/media /opt/mini580/nginx /opt/mini580/bin
             cp "$SYNC/docker-compose.prod.yml" /opt/mini580/prod/docker-compose.yml
             cp "$SYNC/scripts/deploy.sh" /opt/mini580/bin/deploy.sh
-            chmod +x /opt/mini580/bin/deploy.sh
+            cp "$SYNC/scripts/docker-cleanup.sh" /opt/mini580/bin/docker-cleanup.sh
+            chmod +x /opt/mini580/bin/deploy.sh /opt/mini580/bin/docker-cleanup.sh
             cp "$SYNC/nginx/classmini580.blog.conf" /opt/mini580/nginx/classmini580.blog.conf
             upsert_env() {
               local key="$1" val="$2"
