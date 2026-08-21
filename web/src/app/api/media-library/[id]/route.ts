@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
 import { deleteMediaUrls } from "@/lib/media-variants";
 import { layoutFromLegacy, legacyFieldsFromLayout, mergeLayoutPatch } from "@/lib/image-layout";
-import { deleteMediaById, mediaInclude } from "@/lib/media-library";
+import { deleteMediaById, mediaInclude, serializeMediaWithLinks } from "@/lib/media-library";
 import { runLayoutRebake } from "@/lib/layout-rebake-schedule";
 import { MediaKind } from "@/generated/prisma/client";
 import { optionalNullableDateTime } from "@/lib/date-schema";
@@ -78,7 +78,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   const enriched = await enrichMediaWithIntegrity(media);
   const repairFromVariantAvailable = await canRepairOriginFromLocalVariant(media);
   return NextResponse.json({
-    ...enriched,
+    ...serializeMediaWithLinks(enriched),
     integrity: {
       ...enriched.integrity,
       repairFromVariantAvailable,
@@ -230,11 +230,12 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   if (!result.ok && result.status === 409) {
     return NextResponse.json(
       {
-        error: "Media is linked to posts — pass force=1 to delete anyway",
+        error: "Media is linked — pass force=1 to delete anyway",
+        links: result.links,
         linkedPostCount: result.linkedPostCount,
       },
       { status: 409 }
     );
   }
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, links: result.ok ? result.links : undefined });
 }

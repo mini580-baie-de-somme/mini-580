@@ -14,6 +14,8 @@ import {
   mediaInclude,
   mediaWhere,
   parseMediaListParams,
+  serializeMediaListWithLinks,
+  serializeMediaWithLinks,
 } from "@/lib/media-library";
 import { enrichMediaListWithIntegrity } from "@/lib/media-integrity";
 import { optionalNullableDateTime } from "@/lib/date-schema";
@@ -46,7 +48,7 @@ export async function GET(request: NextRequest) {
   ]);
 
   const items = editor
-    ? await enrichMediaListWithIntegrity(rows)
+    ? serializeMediaListWithLinks(await enrichMediaListWithIntegrity(rows))
     : rows;
 
   return NextResponse.json({ items, total, totalAll, limit, offset });

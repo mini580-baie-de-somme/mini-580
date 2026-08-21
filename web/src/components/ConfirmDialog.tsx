@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 type Props = {
   open: boolean;
   title: string;
-  message: string;
+  message: ReactNode;
   confirmLabel: string;
   cancelLabel: string;
   variant?: "default" | "danger";
@@ -80,9 +80,9 @@ export function ConfirmDialog({
         >
           {title}
         </h2>
-        <p id="confirm-dialog-message" className="mt-2 text-sm text-[#495867]">
+        <div id="confirm-dialog-message" className="mt-2 text-sm text-[#495867]">
           {message}
-        </p>
+        </div>
         <div className="mt-5 flex flex-wrap justify-end gap-2">
           <button
             type="button"

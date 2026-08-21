@@ -244,6 +244,15 @@ Fichiers : `web/src/lib/prepare-upload-image.ts`, `web/src/lib/upload-form-data.
 
 Refresh origin à l’ouverture modal edit : `GET /api/media-library/[id]` si besoin.
 
+### Suppression médiathèque (ConfirmDialog)
+
+- **Couverture / en-tête** : `PostMedia.isCover = true` — liste des articles concernés
+- **Groupes** : appartenance `MediaGroupMember` — liste des noms de groupes
+- **Legacy** : anciens `PostMedia` non-couverture — nettoyés automatiquement, mention optionnelle dans le modal
+- API : `DELETE /api/media-library/:id` → 409 avec `links: { coverLinks, groups, legacyPostLinkCount }` ; `force=1` pour confirmer
+
+Composants : `MediaDeleteConfirmMessage`, `web/src/lib/media-links.ts`
+
 ## Article — bandeau pictos & galerie publique (Phase 1d)
 
 **Éditeur** (inchangé v1.2.x) :

@@ -35,6 +35,7 @@ import { EditorSheetPanel } from "./EditorSheetPanel";
 import { PhotoCanvasEditor } from "./PhotoCanvasEditor";
 import { editorCanvasSrc, mediaLibraryOpenUrl } from "@/lib/gallery-editor";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { MediaDeleteConfirmMessage } from "./MediaDeleteConfirmMessage";
 import { FullscreenEditorModal } from "./FullscreenEditorModal";
 import {
   MEDIA_ACCEPT,
@@ -76,6 +77,12 @@ import { MediaClipboardPasteButton } from "./MediaClipboardPasteButton";
 import { MediaGroupChips, type MediaGroupSummary } from "./MediaGroupChips";
 import { MediaGroupEditor } from "./MediaGroupEditor";
 import { MediaLibraryMobileCard } from "./MediaLibraryMobileCard";
+import {
+  extractMediaLinkInfo,
+  hasBlockingMediaLinks,
+  mediaLinkLabel,
+  type MediaLinkInfo,
+} from "@/lib/media-links";
 
 type MediaKind = MediaKindClient;
 
@@ -111,16 +118,19 @@ type MediaItem = {
   cropW?: number;
   cropH?: number;
   posts?: {
+    isCover: boolean;
     post: {
       id: string;
       titleFr: string;
       slug: string;
+      titleEn: string;
       status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
     };
   }[];
   groupMembers?: {
     group: MediaGroupSummary;
   }[];
+  links?: MediaLinkInfo;
   integrity?: MediaIntegrity;
 };
 
@@ -156,12 +166,16 @@ const VISIBILITY_FILTERS: VisibilityFilter[] = [
   "orphan",
 ];
 
+function linksFromMedia(m: MediaItem): MediaLinkInfo {
+  return m.links ?? extractMediaLinkInfo(m);
+}
+
 function mediaVisibility(
   m: MediaItem
 ): "public" | "draft" | "orphan" {
-  const posts = m.posts ?? [];
-  if (posts.length === 0) return "orphan";
-  if (posts.some((p) => p.post.status === "PUBLISHED")) return "public";
+  const coverPosts = (m.posts ?? []).filter((p) => p.isCover);
+  if (coverPosts.length === 0) return "orphan";
+  if (coverPosts.some((p) => p.post.status === "PUBLISHED")) return "public";
   return "draft";
 }
 
@@ -503,12 +517,13 @@ export function MediaLibraryManager() {
   async function confirmRemove() {
     const m = deleteTarget;
     if (!m) return;
-    const linked = m.posts?.length ?? 0;
+    const links = linksFromMedia(m);
+    const needsForce = hasBlockingMediaLinks(links);
     setBusy(true);
     setError(null);
     try {
       const res = await fetch(
-        `/api/media-library/${m.id}?force=${linked > 0 ? "1" : "0"}`,
+        `/api/media-library/${m.id}?force=${needsForce ? "1" : "0"}`,
         { method: "DELETE" }
       );
       if (!res.ok) {
@@ -526,17 +541,20 @@ export function MediaLibraryManager() {
   }
 
   const deleteConfirmMessage = useMemo(() => {
-    if (!deleteTarget) return "";
-    const label =
-      locale === "fr"
-        ? deleteTarget.titleFr || deleteTarget.id
-        : deleteTarget.titleEn || deleteTarget.id;
-    const linked = deleteTarget.posts?.length ?? 0;
-    return linked > 0
-      ? t("media.deleteLinkedConfirm")
-          .replace("{name}", label)
-          .replace("{n}", String(linked))
-      : t("media.deleteConfirm").replace("{name}", label);
+    if (!deleteTarget) return null;
+    return (
+      <MediaDeleteConfirmMessage
+        media={deleteTarget}
+        locale={locale}
+        labels={{
+          simple: t("media.deleteConfirm"),
+          intro: t("media.deleteConfirmIntro"),
+          coverSection: t("media.deleteConfirmCoverSection"),
+          groupSection: t("media.deleteConfirmGroupSection"),
+          legacyNote: t("media.deleteConfirmLegacyNote"),
+        }}
+      />
+    );
   }, [deleteTarget, locale, t]);
 
   const onSearch = useCallback(
@@ -1289,14 +1307,37 @@ export function MediaLibraryManager() {
                     </div>
                   </td>
                   <td className="hidden px-4 py-3 text-[#495867] lg:table-cell">
-                    {m.posts?.length ?? 0}
-                    {m.posts && m.posts.length > 0 && (
-                      <div className="mt-0.5 max-w-[12rem] truncate text-[10px] text-[#495867]">
-                        {m.posts
-                          .map((p) => p.post.titleFr || p.post.slug)
-                          .join(", ")}
-                      </div>
-                    )}
+                    {(() => {
+                      const links = linksFromMedia(m);
+                      const parts: string[] = [];
+                      if (links.coverLinks.length > 0) {
+                        parts.push(
+                          locale === "fr"
+                            ? `${links.coverLinks.length} couv.`
+                            : `${links.coverLinks.length} cover`
+                        );
+                      }
+                      if (links.groups.length > 0) {
+                        parts.push(
+                          locale === "fr"
+                            ? `${links.groups.length} grp.`
+                            : `${links.groups.length} grp.`
+                        );
+                      }
+                      if (parts.length === 0) return "—";
+                      return (
+                        <>
+                          {parts.join(" · ")}
+                          {links.coverLinks.length > 0 && (
+                            <div className="mt-0.5 max-w-[12rem] truncate text-[10px] text-[#495867]">
+                              {links.coverLinks
+                                .map((l) => mediaLinkLabel(l, locale))
+                                .join(", ")}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex flex-wrap gap-2">
@@ -1345,7 +1386,7 @@ export function MediaLibraryManager() {
       <ConfirmDialog
         open={Boolean(deleteTarget)}
         title={t("media.deleteConfirmTitle")}
-        message={deleteConfirmMessage}
+        message={deleteConfirmMessage ?? ""}
         confirmLabel={t("media.delete")}
         cancelLabel={t("media.cancel")}
         busy={busy}

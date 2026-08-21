@@ -537,6 +537,22 @@ const messages = {
     fr: "Supprimer le média « {name} » ?",
     en: "Delete media “{name}”?",
   },
+  "media.deleteConfirmIntro": {
+    fr: "« {name} » est encore utilisé. Supprimer quand même ?",
+    en: "“{name}” is still in use. Delete anyway?",
+  },
+  "media.deleteConfirmCoverSection": {
+    fr: "Couverture / en-tête ({n} article(s)) :",
+    en: "Cover / header ({n} post(s)):",
+  },
+  "media.deleteConfirmGroupSection": {
+    fr: "Groupes de médias ({n}) :",
+    en: "Media groups ({n}):",
+  },
+  "media.deleteConfirmLegacyNote": {
+    fr: "{n} lien(s) article obsolète(s) seront nettoyés automatiquement.",
+    en: "{n} obsolete post link(s) will be cleaned up automatically.",
+  },
   "media.deleteConfirmTitle": {
     fr: "Supprimer le média",
     en: "Delete media",

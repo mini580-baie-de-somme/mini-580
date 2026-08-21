@@ -24,6 +24,7 @@ Créer des **groupes de médias** réutilisables (médiathèque), les **insérer
 | SEO | **Historique de slugs** pour articles, médias et groupes → redirections 301 |
 | Placeholder body | **Jamais tapé à la main** — insertion 100 % assistée (UI + agent Telegram) |
 | **Médias inline vs PostMedia** | Un groupe inline **peut** contenir des médias **non** présents dans `PostMedia` — pas d’auto-attach obligatoire |
+| **Suppression média (médiathèque)** | Modal de confirmation distingue **couverture/en-tête** (`PostMedia.isCover`) et **groupes** (`MediaGroupMember`) — pas de décompte « articles » global ; liens legacy `PostMedia` non-couverture purgés (migration + auto-clean à la suppression) |
 | **Galerie article (bandeau + diaporama)** | **Évoluée** pour afficher **tous** les médias de l’article via un **manifeste unifié** (voir ci-dessous) — remplace le modèle « bandeau PostMedia seulement » |
 | **Affichage inline** | **Mini mosaïque** selon le nombre de médias ; clic → **même** lightbox/diaporama que la galerie article (`MediaSlideshow`) |
 | **Widget lightbox** | **Étendre et réutiliser** `MediaSlideshow` / hook `useMediaSlideshow` — **ne pas** créer un second lightbox |
@@ -63,6 +64,9 @@ Contrainte : `@@id([groupId, mediaId])` · index `(groupId, sortOrder)`.
 | Standalone | Médias attachés via médiathèque / upload article, **absents** de tout groupe inline référencé dans le body |
 | Ordre standalone | `PostMedia.sortOrder` — ordre relatif **entre** standalone uniquement ; position dans le manifeste global = **après** couverture + groupes inline |
 | Inline | Médias présents **uniquement** via un groupe inline → **pas** requis dans `PostMedia` pour l’affichage public |
+| Legacy (pré-chantier-1) | Anciennes lignes `PostMedia` avec `isCover=false` (galerie standalone) — **supprimées** par migration `20260821100000_purge_legacy_post_media` ; nettoyage auto à la suppression média si résidu |
+
+> **Médiathèque — suppression** : le dialogue de confirmation et l’API `DELETE /api/media-library/:id` exposent `links: { coverLinks, groups, legacyPostLinkCount }`. Seuls couverture + groupes bloquent (`force=1` requis) ; legacy non bloquant.
 
 > **Éditeur (info, non bloquant)** : optionnel — badge discret « non attaché au post » sur un média de groupe absent de `PostMedia` (aide opérateur, pas de garde-fou publication).
 

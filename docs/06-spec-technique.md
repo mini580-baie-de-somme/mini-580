@@ -66,7 +66,8 @@ Phase 2 (VM dédiée) :
 
 ### Media (médiathèque)
 - Types : `IMAGE` | `DOCUMENT` (PDF) | `VIDEO` (mp4/webm)
-- Indépendant des articles — liaison posts via `PostMedia` (`sortOrder`, `isCover`) pour **pièces jointes standalone** et couverture
+- Indépendant des articles — liaison posts via `PostMedia` (`sortOrder`, `isCover`) pour **couverture/en-tête uniquement** ; corps article via **groupes inline** (`MediaGroupMember`)
+- Suppression médiathèque : modal + API distinguent couverture vs groupes — voir `docs/13-article-image-groups.md` § PostMedia
 - Meta bilingue + transforms (IMAGE) + variants picto/petite/moyenne/grande
 - **Stockage** : bucket local `/media/...` (S3-like) — origin + variants sur disque VPS
 - **Intégrité** : audit `assessMediaIntegrity` — origin locale obligatoire pour édition layout ; badges UI `Local OK` / `Non conforme`

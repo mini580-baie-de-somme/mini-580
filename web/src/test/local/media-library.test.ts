@@ -266,7 +266,7 @@ describe("API integration — Media library", () => {
     await prisma.media.delete({ where: { id: media.id } }).catch(() => null);
   });
 
-  it("refuses delete when linked unless force=1", async () => {
+  it("refuses delete when cover-linked unless force=1", async () => {
     const { POST: createMedia } = await import("@/app/api/media-library/route");
     const media = await (
       await createMedia(
@@ -302,6 +302,9 @@ describe("API integration — Media library", () => {
       { params: Promise.resolve({ id: media.id }) }
     );
     expect(blocked.status).toBe(409);
+    const blockedBody = await blocked.json();
+    expect(blockedBody.links?.coverLinks?.length).toBeGreaterThanOrEqual(1);
+    expect(blockedBody.linkedPostCount).toBeGreaterThanOrEqual(1);
 
     const forced = await del(
       jsonRequest(`http://localhost/api/media-library/${media.id}?force=1`, {
@@ -315,6 +318,135 @@ describe("API integration — Media library", () => {
     expect(
       await prisma.postMedia.count({ where: { mediaId: media.id } })
     ).toBe(0);
+  });
+
+  it("allows delete with legacy PostMedia (isCover=false) without force", async () => {
+    const { POST: createMedia } = await import("@/app/api/media-library/route");
+    const media = await (
+      await createMedia(
+        jsonRequest("http://localhost/api/media-library", {
+          method: "POST",
+          headers: bearerHeaders(),
+          body: JSON.stringify({
+            urlOrigin: "/media/2026/08/legacy-only.jpg",
+            titleFr: "Legacy link",
+            titleEn: "Legacy link",
+            kind: "IMAGE",
+          }),
+        })
+      )
+    ).json();
+
+    await prisma.postMedia.create({
+      data: {
+        postId: postA,
+        mediaId: media.id,
+        sortOrder: 5,
+        isCover: false,
+      },
+    });
+
+    const { DELETE: del } = await import("@/app/api/media-library/[id]/route");
+    const res = await del(
+      jsonRequest(`http://localhost/api/media-library/${media.id}`, {
+        method: "DELETE",
+        headers: bearerHeaders(),
+      }),
+      { params: Promise.resolve({ id: media.id }) }
+    );
+    expect(res.status).toBe(200);
+    expect(await prisma.media.findUnique({ where: { id: media.id } })).toBeNull();
+    expect(
+      await prisma.postMedia.count({ where: { mediaId: media.id } })
+    ).toBe(0);
+  });
+
+  it("refuses delete when media is in a group unless force=1", async () => {
+    const { POST: createMedia } = await import("@/app/api/media-library/route");
+    const media = await (
+      await createMedia(
+        jsonRequest("http://localhost/api/media-library", {
+          method: "POST",
+          headers: bearerHeaders(),
+          body: JSON.stringify({
+            urlOrigin: "/media/2026/08/group-linked.jpg",
+            titleFr: "Group linked",
+            titleEn: "Group linked",
+            kind: "IMAGE",
+          }),
+        })
+      )
+    ).json();
+
+    const group = await prisma.mediaGroup.create({
+      data: {
+        slug: uniqueSlug(`${PREFIX}grp`),
+        titleFr: "Test group",
+        titleEn: "Test group",
+        layout: "GRID",
+        members: {
+          create: { mediaId: media.id, sortOrder: 0 },
+        },
+      },
+    });
+
+    const { DELETE: del } = await import("@/app/api/media-library/[id]/route");
+    const blocked = await del(
+      jsonRequest(`http://localhost/api/media-library/${media.id}`, {
+        method: "DELETE",
+        headers: bearerHeaders(),
+      }),
+      { params: Promise.resolve({ id: media.id }) }
+    );
+    expect(blocked.status).toBe(409);
+    const body = await blocked.json();
+    expect(body.links?.groups?.length).toBe(1);
+    expect(body.links?.groups?.[0]?.groupId).toBe(group.id);
+
+    const forced = await del(
+      jsonRequest(`http://localhost/api/media-library/${media.id}?force=1`, {
+        method: "DELETE",
+        headers: bearerHeaders(),
+      }),
+      { params: Promise.resolve({ id: media.id }) }
+    );
+    expect(forced.status).toBe(200);
+    expect(await prisma.media.findUnique({ where: { id: media.id } })).toBeNull();
+  });
+
+  it("list response includes structured links field", async () => {
+    const { POST: createMedia, GET: listMedia } = await import(
+      "@/app/api/media-library/route"
+    );
+    const media = await (
+      await createMedia(
+        jsonRequest("http://localhost/api/media-library", {
+          method: "POST",
+          headers: bearerHeaders(),
+          body: JSON.stringify({
+            urlOrigin: "/media/2026/08/links-field.jpg",
+            titleFr: "Links field",
+            titleEn: "Links field",
+            kind: "IMAGE",
+          }),
+        })
+      )
+    ).json();
+
+    const page = await listMedia(
+      jsonRequest("http://localhost/api/media-library", {
+        headers: bearerHeaders(),
+        searchParams: { q: "Links field", limit: "5", offset: "0" },
+      })
+    );
+    const body = await page.json();
+    const row = body.items.find((i: { id: string }) => i.id === media.id);
+    expect(row?.links).toBeDefined();
+    expect(row.links.coverLinks).toEqual([]);
+    expect(row.links.groups).toEqual([]);
+    expect(row.links.legacyPostLinkCount).toBe(0);
+
+    await prisma.media.delete({ where: { id: media.id } }).catch(() => null);
   });
 
   it("sets cover via PostMedia and updates coverImageUrl", async () => {

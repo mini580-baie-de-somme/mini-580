@@ -31,6 +31,11 @@ import {
 } from "@/lib/media-trace";
 import { assertEditableImageOrigin, isLocalMediaUrl } from "@/lib/media-integrity";
 import { EDITOR_LIST_PAGE_SIZE } from "@/lib/constants";
+import {
+  extractMediaLinkInfo,
+  hasBlockingMediaLinks,
+  type MediaLinkInfo,
+} from "@/lib/media-links";
 
 export const mediaInclude = {
   posts: {
@@ -62,6 +67,19 @@ export const mediaInclude = {
 } satisfies Prisma.MediaInclude;
 
 export type MediaWithPosts = Prisma.MediaGetPayload<{ include: typeof mediaInclude }>;
+
+/** API shape: media row + structured link info (cover + groups, not legacy PostMedia). */
+export function serializeMediaWithLinks<T extends MediaWithPosts>(
+  media: T
+): T & { links: MediaLinkInfo } {
+  return { ...media, links: extractMediaLinkInfo(media) };
+}
+
+export function serializeMediaListWithLinks<T extends MediaWithPosts>(
+  items: T[]
+): Array<T & { links: MediaLinkInfo }> {
+  return items.map(serializeMediaWithLinks);
+}
 
 export const postMediaInclude = {
   media: true,
@@ -561,16 +579,27 @@ export async function detachMediaFromPost(postId: string, mediaId: string) {
 export async function deleteMediaById(id: string, opts?: { force?: boolean }) {
   const media = await prisma.media.findUnique({
     where: { id },
-    include: { posts: true },
+    include: mediaInclude,
   });
   if (!media) return { ok: false as const, status: 404 as const };
 
-  if (media.posts.length > 0 && !opts?.force) {
+  const links = extractMediaLinkInfo(media);
+
+  if (hasBlockingMediaLinks(links) && !opts?.force) {
     return {
       ok: false as const,
       status: 409 as const,
-      linkedPostCount: media.posts.length,
+      links,
+      /** @deprecated use links.coverLinks.length — kept for compat */
+      linkedPostCount: links.coverLinks.length,
     };
+  }
+
+  // Auto-clean legacy PostMedia (isCover=false) before delete — not blocking.
+  if (links.legacyPostLinkCount > 0) {
+    await prisma.postMedia.deleteMany({
+      where: { mediaId: id, isCover: false },
+    });
   }
 
   await deleteMediaUrls([
@@ -581,7 +610,7 @@ export async function deleteMediaById(id: string, opts?: { force?: boolean }) {
     media.urlGrande,
   ]);
   await prisma.media.delete({ where: { id } });
-  return { ok: true as const };
+  return { ok: true as const, links };
 }
 
 type RebakeableMedia = LegacyMediaTransform & {
