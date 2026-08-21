@@ -1,4 +1,24 @@
-import type { MediaWithPosts } from "@/lib/media-library";
+/** Minimal input for link extraction — client rows may omit PostStatus. */
+export type MediaLinkInput = {
+  posts?: Array<{
+    isCover: boolean;
+    post: {
+      id: string;
+      titleFr: string;
+      titleEn: string;
+      slug: string;
+      status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+    };
+  }>;
+  groupMembers?: Array<{
+    group: {
+      id: string;
+      titleFr: string;
+      titleEn: string;
+      slug: string;
+    };
+  }>;
+};
 
 /** Cover/header link — PostMedia with isCover=true (valid media→article link). */
 export type MediaCoverLink = {
@@ -25,9 +45,7 @@ export type MediaLinkInfo = {
   legacyPostLinkCount: number;
 };
 
-export function extractMediaLinkInfo(
-  media: Pick<MediaWithPosts, "posts" | "groupMembers">
-): MediaLinkInfo {
+export function extractMediaLinkInfo(media: MediaLinkInput): MediaLinkInfo {
   const coverLinks: MediaCoverLink[] = [];
   let legacyPostLinkCount = 0;
 
