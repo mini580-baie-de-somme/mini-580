@@ -537,6 +537,14 @@ const messages = {
     fr: "Supprimer le média « {name} » ?",
     en: "Delete media “{name}”?",
   },
+  "media.deleteConfirmTitle": {
+    fr: "Supprimer le média",
+    en: "Delete media",
+  },
+  "media.deleteFromPostConfirm": {
+    fr: "Supprimer ce média de l’article et de la médiathèque ?",
+    en: "Remove this media from the post and library?",
+  },
   "media.deleteLinkedConfirm": {
     fr: "« {name} » est lié à {n} article(s). Supprimer quand même (détache tous les articles) ?",
     en: "“{name}” is linked to {n} post(s). Delete anyway (detaches all posts)?",
@@ -569,6 +577,10 @@ const messages = {
     en: "No post references this group.",
   },
   "mediaGroup.delete": { fr: "Supprimer le groupe", en: "Delete group" },
+  "mediaGroup.deleteConfirmTitle": {
+    fr: "Supprimer le groupe",
+    en: "Delete group",
+  },
   "mediaGroup.deleteConfirm": {
     fr: "Supprimer le groupe « {name} » ?",
     en: "Delete group “{name}”?",

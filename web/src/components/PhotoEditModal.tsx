@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DatetimeLocalInput } from "./DatetimeLocalInput";
 import { EditorSheetPanel } from "./EditorSheetPanel";
 import { PhotoCanvasEditor } from "./PhotoCanvasEditor";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { FullscreenEditorModal } from "./FullscreenEditorModal";
 import { MediaPreview } from "./MediaPreview";
 import {
@@ -37,6 +38,7 @@ import {
   readApiErrorBody,
 } from "@/lib/media-trace-client";
 import type { MediaIntegrity } from "@/lib/media-integrity-types";
+import { t } from "@/lib/i18n";
 import { MediaIntegrityNotice } from "./MediaIntegrityNotice";
 import { MediaClipboardPasteButton } from "./MediaClipboardPasteButton";
 import {
@@ -170,6 +172,7 @@ export function PhotoEditModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const handleFileAccepted = useCallback(
     (file: File, kind: MediaKindClient) => {
@@ -459,13 +462,8 @@ export function PhotoEditModal({
     }
   }
 
-  async function remove() {
+  async function confirmRemove() {
     if (!draft?.id) return;
-    const msg =
-      lang === "fr"
-        ? "Supprimer ce média de l’article et de la médiathèque ?"
-        : "Remove this media from the post and library?";
-    if (!confirm(msg)) return;
     setBusy(true);
     setError(null);
     try {
@@ -473,6 +471,7 @@ export function PhotoEditModal({
         method: "DELETE",
       });
       if (!res.ok && res.status !== 204) throw new Error("delete failed");
+      setDeleteConfirmOpen(false);
       onDeleted?.(draft.id);
       onClose();
     } catch {
@@ -516,6 +515,7 @@ export function PhotoEditModal({
     : MEDIA_ACCEPT;
 
   return (
+    <>
     <FullscreenEditorModal
       title={title}
       onClose={discard}
@@ -525,7 +525,7 @@ export function PhotoEditModal({
         draft?.id ? (
           <button
             type="button"
-            onClick={() => void remove()}
+            onClick={() => setDeleteConfirmOpen(true)}
             disabled={busy}
             className="rounded border border-red-300 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
           >
@@ -837,5 +837,19 @@ export function PhotoEditModal({
         }}
       />
     </FullscreenEditorModal>
+
+    <ConfirmDialog
+      open={deleteConfirmOpen}
+      title={t("media.deleteConfirmTitle", lang)}
+      message={t("media.deleteFromPostConfirm", lang)}
+      confirmLabel={t("media.delete", lang)}
+      cancelLabel={t("media.cancel", lang)}
+      busy={busy}
+      onConfirm={() => void confirmRemove()}
+      onCancel={() => {
+        if (!busy) setDeleteConfirmOpen(false);
+      }}
+    />
+    </>
   );
 }

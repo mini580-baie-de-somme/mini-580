@@ -34,6 +34,7 @@ import { DatetimeLocalInput } from "./DatetimeLocalInput";
 import { EditorSheetPanel } from "./EditorSheetPanel";
 import { PhotoCanvasEditor } from "./PhotoCanvasEditor";
 import { editorCanvasSrc, mediaLibraryOpenUrl } from "@/lib/gallery-editor";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { FullscreenEditorModal } from "./FullscreenEditorModal";
 import {
   MEDIA_ACCEPT,
@@ -223,6 +224,7 @@ export function MediaLibraryManager() {
   const [localError, setLocalError] = useState<string | null>(null);
   const [originEditable, setOriginEditable] = useState(false);
   const [editingIntegrity, setEditingIntegrity] = useState<MediaIntegrity | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<MediaItem | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fileQueueMessages = useMemo(
@@ -494,16 +496,14 @@ export function MediaLibraryManager() {
     }
   }
 
-  async function remove(m: MediaItem) {
-    const label = locale === "fr" ? m.titleFr || m.id : m.titleEn || m.id;
+  function requestRemove(m: MediaItem) {
+    setDeleteTarget(m);
+  }
+
+  async function confirmRemove() {
+    const m = deleteTarget;
+    if (!m) return;
     const linked = m.posts?.length ?? 0;
-    const msg =
-      linked > 0
-        ? t("media.deleteLinkedConfirm")
-            .replace("{name}", label)
-            .replace("{n}", String(linked))
-        : t("media.deleteConfirm").replace("{name}", label);
-    if (!confirm(msg)) return;
     setBusy(true);
     setError(null);
     try {
@@ -516,6 +516,7 @@ export function MediaLibraryManager() {
         throw new Error(data.error ?? t("media.deleteError"));
       }
       if (editingId === m.id) cancelEdit();
+      setDeleteTarget(null);
       await reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("media.deleteError"));
@@ -523,6 +524,20 @@ export function MediaLibraryManager() {
       setBusy(false);
     }
   }
+
+  const deleteConfirmMessage = useMemo(() => {
+    if (!deleteTarget) return "";
+    const label =
+      locale === "fr"
+        ? deleteTarget.titleFr || deleteTarget.id
+        : deleteTarget.titleEn || deleteTarget.id;
+    const linked = deleteTarget.posts?.length ?? 0;
+    return linked > 0
+      ? t("media.deleteLinkedConfirm")
+          .replace("{name}", label)
+          .replace("{n}", String(linked))
+      : t("media.deleteConfirm").replace("{name}", label);
+  }, [deleteTarget, locale, t]);
 
   const onSearch = useCallback(
     (next: string) => updateFilter("q", next.trim()),
@@ -1201,7 +1216,7 @@ export function MediaLibraryManager() {
                       delete: t("media.delete"),
                     }}
                     onEdit={() => void startEdit(m)}
-                    onDelete={() => void remove(m)}
+                    onDelete={() => requestRemove(m)}
                     onGroupClick={openGroupEdit}
                   />
                 </li>
@@ -1304,7 +1319,7 @@ export function MediaLibraryManager() {
                       <button
                         type="button"
                         disabled={busy}
-                        onClick={() => void remove(m)}
+                        onClick={() => requestRemove(m)}
                         className="text-xs text-red-700 hover:underline"
                       >
                         {t("media.delete")}
@@ -1326,6 +1341,19 @@ export function MediaLibraryManager() {
       {loadingMore && (
         <p className="mt-2 text-center text-sm text-[#495867]">{t("list.loadingMore")}</p>
       )}
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title={t("media.deleteConfirmTitle")}
+        message={deleteConfirmMessage}
+        confirmLabel={t("media.delete")}
+        cancelLabel={t("media.cancel")}
+        busy={busy}
+        onConfirm={() => void confirmRemove()}
+        onCancel={() => {
+          if (!busy) setDeleteTarget(null);
+        }}
+      />
     </div>
   );
 }

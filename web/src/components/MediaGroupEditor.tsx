@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { FullscreenEditorModal } from "./FullscreenEditorModal";
 import { EditorSheetPanel } from "./EditorSheetPanel";
 import { MediaKindThumb } from "./MediaKindThumb";
@@ -112,6 +113,7 @@ export function MediaGroupEditor({ groupId, onClose, onSaved }: Props) {
   const [pickerQ, setPickerQ] = useState("");
   const [pickerItems, setPickerItems] = useState<PickerItem[]>([]);
   const [pickerLoading, setPickerLoading] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const formRef = useRef<FormState | null>(null);
   const lastSavedFormRef = useRef<FormState | null>(null);
@@ -321,12 +323,9 @@ export function MediaGroupEditor({ groupId, onClose, onSaved }: Props) {
     setPickerQ("");
   }
 
-  async function removeGroup() {
+  async function confirmRemoveGroup() {
     if (!detail) return;
     if (referencedPosts.length > 0) return;
-    const label =
-      (locale === "fr" ? detail.titleFr : detail.titleEn) || detail.slug;
-    if (!confirm(t("mediaGroup.deleteConfirm").replace("{name}", label))) return;
     setSaveState("saving");
     try {
       const res = await fetch(`/api/media-groups/${groupId}`, { method: "DELETE" });
@@ -336,6 +335,7 @@ export function MediaGroupEditor({ groupId, onClose, onSaved }: Props) {
           typeof data.error === "string" ? data.error : t("mediaGroup.deleteError")
         );
       }
+      setDeleteConfirmOpen(false);
       onSaved?.();
       onClose();
     } catch (e) {
@@ -343,6 +343,13 @@ export function MediaGroupEditor({ groupId, onClose, onSaved }: Props) {
       setSaveState("error");
     }
   }
+
+  const deleteGroupMessage =
+    detail &&
+    t("mediaGroup.deleteConfirm").replace(
+      "{name}",
+      (locale === "fr" ? detail.titleFr : detail.titleEn) || detail.slug
+    );
 
   const saveLabel =
     saveState === "saving"
@@ -356,6 +363,7 @@ export function MediaGroupEditor({ groupId, onClose, onSaved }: Props) {
   const canDelete = referencedPosts.length === 0;
 
   return (
+    <>
     <FullscreenEditorModal
       title={t("mediaGroup.edit")}
       onClose={onClose}
@@ -373,7 +381,7 @@ export function MediaGroupEditor({ groupId, onClose, onSaved }: Props) {
                   String(referencedPosts.length)
                 )
           }
-          onClick={() => void removeGroup()}
+          onClick={() => setDeleteConfirmOpen(true)}
           className="rounded-md border border-red-200 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {t("mediaGroup.delete")}
@@ -617,5 +625,19 @@ export function MediaGroupEditor({ groupId, onClose, onSaved }: Props) {
         </div>
       )}
     </FullscreenEditorModal>
+
+    <ConfirmDialog
+      open={deleteConfirmOpen}
+      title={t("mediaGroup.deleteConfirmTitle")}
+      message={deleteGroupMessage ?? ""}
+      confirmLabel={t("mediaGroup.delete")}
+      cancelLabel={t("media.cancel")}
+      busy={saveState === "saving"}
+      onConfirm={() => void confirmRemoveGroup()}
+      onCancel={() => {
+        if (saveState !== "saving") setDeleteConfirmOpen(false);
+      }}
+    />
+    </>
   );
 }
