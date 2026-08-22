@@ -14,12 +14,33 @@ import {
   toEditorImage,
 } from "@/lib/gallery-editor";
 import { CoverImageDisplay } from "./CoverImageDisplay";
+import { FullscreenEditorModal } from "./FullscreenEditorModal";
+import { MediaKindThumb } from "./MediaKindThumb";
 import { PhotoEditModal } from "./PhotoEditModal";
+import { t } from "@/lib/i18n";
 import {
   newPhotoEditorTraceId,
   photoEditorTrace,
   readApiErrorBody,
 } from "@/lib/media-trace-client";
+
+type LibraryPickerItem = {
+  id: string;
+  kind: string;
+  mimeType?: string;
+  titleFr: string;
+  titleEn: string;
+  urlOrigin: string;
+  urlPicto: string | null;
+  urlMoyenne: string | null;
+};
+
+function libraryThumbSrc(item: LibraryPickerItem): string | null {
+  if (item.kind === "IMAGE") {
+    return item.urlPicto || item.urlMoyenne || item.urlOrigin;
+  }
+  return item.urlPicto || item.urlMoyenne || null;
+}
 
 export type { GalleryEditorImage };
 export { toEditorImage };
@@ -72,6 +93,9 @@ export function PostGalleryEditor({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [libraryItems, setLibraryItems] = useState<LibraryPickerItem[]>([]);
+  const [libraryQ, setLibraryQ] = useState("");
+  const [libraryLoading, setLibraryLoading] = useState(false);
   const orphanImportRef = useRef(false);
   const coverMediaIdRef = useRef<string | null>(
     initialCoverMediaId(normalizeImages(initialImages), coverImageUrl)
@@ -206,6 +230,75 @@ export function PostGalleryEditor({
     openPhotoModal({ kind: "add-cover" });
   }
 
+  function openLibraryPicker() {
+    setLibraryQ("");
+    openPhotoModal({ kind: "pick-library" });
+  }
+
+  useEffect(() => {
+    if (modal.kind !== "pick-library") return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void (async () => {
+        setLibraryLoading(true);
+        setError(null);
+        try {
+          const params = new URLSearchParams();
+          params.set("kind", "IMAGE");
+          params.set("limit", "50");
+          params.set("offset", "0");
+          if (libraryQ.trim()) params.set("q", libraryQ.trim());
+          const res = await fetch(`/api/media-library?${params.toString()}`);
+          if (!res.ok) throw new Error("library failed");
+          const data = (await res.json()) as { items: LibraryPickerItem[] };
+          if (!cancelled) setLibraryItems(data.items ?? []);
+        } catch {
+          if (!cancelled) {
+            setLibraryItems([]);
+            setError(
+              lang === "fr"
+                ? "Impossible de charger la médiathèque"
+                : "Could not load media library"
+            );
+          }
+        } finally {
+          if (!cancelled) setLibraryLoading(false);
+        }
+      })();
+    }, 200);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [modal.kind, libraryQ, lang]);
+
+  async function attachCoverFromLibrary(mediaId: string) {
+    if (coverMediaIdRef.current === mediaId && coverMediaIdRef.current) {
+      closePhotoModal();
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/posts/${postId}/media`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mediaIds: [mediaId], setCoverFirst: true }),
+      });
+      if (!res.ok) throw new Error("attach failed");
+      const linked = (await res.json()) as Record<string, unknown>[];
+      const image = toEditorImage(linked[0]);
+      handleImageSaved(image);
+      closePhotoModal();
+    } catch {
+      setError(
+        lang === "fr" ? "Association impossible" : "Could not attach cover"
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function clearCoverOnly() {
     setBusy(true);
     setError(null);
@@ -260,6 +353,13 @@ export function PostGalleryEditor({
           {error && <span className="text-xs text-red-600">{error}</span>}
           <button
             type="button"
+            onClick={openLibraryPicker}
+            className="rounded-md border border-[#d4dde6] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7]"
+          >
+            {t("media.pickFromLibrary", lang)}
+          </button>
+          <button
+            type="button"
             onClick={openCoverEditor}
             className="rounded-md border border-[#495867] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7]"
           >
@@ -298,9 +398,84 @@ export function PostGalleryEditor({
       ) : (
         <p className="rounded-lg border border-dashed border-[#d4dde6] bg-[#fafbfc] px-4 py-6 text-center text-sm text-[#495867]">
           {lang === "fr"
-            ? "Aucune couverture — ajoute une photo ou laisse vide."
-            : "No cover — add a photo or leave empty."}
+            ? "Aucune couverture — choisis une photo dans la médiathèque, uploade-en une, ou laisse vide."
+            : "No cover — pick from the library, upload a photo, or leave empty."}
         </p>
+      )}
+
+      {modal.kind === "pick-library" && (
+        <FullscreenEditorModal
+          title={
+            lang === "fr"
+              ? "Choisir une couverture"
+              : "Pick a cover photo"
+          }
+          onClose={closePhotoModal}
+          busy={busy || libraryLoading}
+          footerRight={
+            <button
+              type="button"
+              onClick={closePhotoModal}
+              className="rounded-md border border-[#d4dde6] px-3 py-2 text-sm"
+            >
+              {lang === "fr" ? "Annuler" : "Cancel"}
+            </button>
+          }
+        >
+          <div className="h-full overflow-y-auto p-4">
+            <input
+              type="search"
+              value={libraryQ}
+              onChange={(e) => setLibraryQ(e.target.value)}
+              placeholder={
+                lang === "fr" ? "Rechercher dans la médiathèque…" : "Search library…"
+              }
+              className="mb-3 w-full rounded border border-[#d4dde6] px-3 py-2 text-sm"
+            />
+            {libraryLoading ? (
+              <p className="text-sm text-[#495867]">…</p>
+            ) : libraryItems.length === 0 ? (
+              <p className="text-sm text-[#495867]">
+                {lang === "fr"
+                  ? "Aucune photo disponible dans la médiathèque."
+                  : "No photos available in the library."}
+              </p>
+            ) : (
+              <ul className="mx-auto grid max-w-3xl gap-2 sm:grid-cols-2">
+                {libraryItems.map((item) => {
+                  const isCurrentCover = coverMediaIdRef.current === item.id;
+                  const label =
+                    (lang === "fr" ? item.titleFr : item.titleEn) ||
+                    item.id.slice(0, 8);
+                  return (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        disabled={busy || isCurrentCover}
+                        onClick={() => void attachCoverFromLibrary(item.id)}
+                        className="flex w-full items-center gap-3 rounded border border-[#d4dde6] px-3 py-2 text-left hover:bg-[#f8fafc] disabled:cursor-default disabled:opacity-50"
+                      >
+                        <MediaKindThumb
+                          kind={item.kind}
+                          mimeType={item.mimeType}
+                          src={libraryThumbSrc(item)}
+                        />
+                        <span className="min-w-0 text-sm">
+                          <span className="block truncate font-medium">{label}</span>
+                          {isCurrentCover && (
+                            <span className="text-xs text-[#495867]">
+                              {lang === "fr" ? "Couverture actuelle" : "Current cover"}
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </FullscreenEditorModal>
       )}
 
       {coverModalOpen && (
