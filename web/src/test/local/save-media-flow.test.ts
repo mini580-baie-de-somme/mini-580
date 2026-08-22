@@ -287,6 +287,80 @@ describe("saveMediaFlow post editor", () => {
     const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
     expect(body.cropAspectFormat).toBe("LANDSCAPE_16_9");
   });
+
+  it("returns saved image with requested cropAspectFormat even when PATCH body omits it", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: "m1",
+          kind: "IMAGE",
+          urlOrigin: "/media/m1/origin.jpg",
+          titleFr: "t",
+          titleEn: "",
+          descriptionFr: "",
+          descriptionEn: "",
+          takenAt: null,
+          urlPicto: "/media/m1/picto.webp",
+          urlPetite: null,
+          urlMoyenne: null,
+          urlGrande: null,
+        })
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await saveMediaFlow({
+      strategy: "post",
+      postId: "post-1",
+      draft: {
+        id: "m1",
+        kind: "IMAGE",
+        urlOrigin: "/media/m1/origin.jpg",
+        urlPicto: "/media/m1/picto.webp",
+        urlPetite: null,
+        urlMoyenne: null,
+        urlGrande: null,
+        titleFr: "t",
+        titleEn: "",
+        descriptionFr: "",
+        descriptionEn: "",
+        takenAt: null,
+        sortOrder: 0,
+        offsetX: 0,
+        offsetY: 0,
+        scaleX: 1,
+        scaleY: 1,
+        lockAspect: true,
+        cropShape: "RECT",
+        backgroundColor: "#000000",
+        cropInset: 0.06,
+        focusX: 0.5,
+        focusY: 0.5,
+        zoom: 1,
+        rotation: 0,
+        cropX: 0,
+        cropY: 0,
+        cropW: 1,
+        cropH: 1,
+      },
+      pendingFile: null,
+      effectiveKind: "IMAGE",
+      metadata: {
+        titleFr: "t",
+        titleEn: "",
+        descriptionFr: "",
+        descriptionEn: "",
+        takenAt: null,
+      },
+      layout: { ...DEFAULT_IMAGE_LAYOUT },
+      cropAspectFormat: "PORTRAIT_3_4",
+      canEditImageLayout: true,
+      locale: "fr",
+      trace: { traceId: "t-post-crop-retain", postId: "post-1", mediaId: "m1" },
+    });
+
+    expect(result.saved.cropAspectFormat).toBe("PORTRAIT_3_4");
+  });
 });
 
 describe("getSaveFlowErrorPhase", () => {

@@ -74,10 +74,16 @@ describe("cover display", () => {
     expect(coverDisplayIsCircle("SQUARE", "RECT")).toBe(false);
   });
 
-  it("normalizes library covers to the default 16:9 format", () => {
+  it("normalizes library covers to the default 16:9 format on first attach only", () => {
     expect(COVER_DEFAULT_CROP_FORMAT).toBe("LANDSCAPE_16_9");
     expect(shouldNormalizeCoverFormat("LANDSCAPE_4_3")).toBe(true);
     expect(shouldNormalizeCoverFormat("SQUARE")).toBe(true);
     expect(shouldNormalizeCoverFormat("LANDSCAPE_16_9")).toBe(false);
+    expect(
+      shouldNormalizeCoverFormat("PORTRAIT_3_4", { isFirstCoverAttach: false })
+    ).toBe(false);
+    expect(
+      shouldNormalizeCoverFormat("SQUARE", { isFirstCoverAttach: true })
+    ).toBe(true);
   });
 });

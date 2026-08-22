@@ -9,6 +9,7 @@ import { FullscreenEditorModal } from "./FullscreenEditorModal";
 import { MediaPreview } from "./MediaPreview";
 import {
   type GalleryEditorImage,
+  coalesceEditorOrigin,
   editorCanvasSrc,
   mergeEditorImageLayout,
   toEditorImage,
@@ -182,6 +183,7 @@ export function PhotoEditModal({
   const [repairBusy, setRepairBusy] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
+  const dirtyRef = useRef(false);
   const [dragOver, setDragOver] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
@@ -260,6 +262,10 @@ export function PhotoEditModal({
   });
 
   useEffect(() => {
+    dirtyRef.current = dirty;
+  }, [dirty]);
+
+  useEffect(() => {
     if (mode !== "edit" || !draft?.id || pendingFile) {
       setOriginEditable(true);
       setRepairOriginAvailable(false);
@@ -276,12 +282,27 @@ export function PhotoEditModal({
         };
         if (cancelled) return;
         const parsed = toEditorImage(full as Record<string, unknown>);
-        setDraft((prev) =>
-          prev
-            ? mergeEditorImageLayout(parsed, layoutFromLegacy(prev))
-            : prev
-        );
-        setCropAspectFormat(cropAspectFormatFromLegacy(parsed));
+        const serverLayout = layoutFromLegacy(parsed);
+        const serverFormat = cropAspectFormatFromLegacy(parsed);
+        setDraft((prev) => {
+          if (!prev) return prev;
+          return mergeEditorImageLayout(
+            {
+              ...parsed,
+              urlOrigin: coalesceEditorOrigin(parsed, prev),
+            },
+            dirtyRef.current ? layoutFromLegacy(prev) : serverLayout,
+            {
+              cropAspectFormat: dirtyRef.current
+                ? prev.cropAspectFormat ?? serverFormat
+                : serverFormat,
+            }
+          );
+        });
+        if (!dirtyRef.current) {
+          setLayout(serverLayout);
+          setCropAspectFormat(serverFormat);
+        }
         const editable = full.integrity?.editable ?? false;
         setOriginEditable(editable);
         setRepairOriginAvailable(
@@ -461,6 +482,7 @@ export function PhotoEditModal({
           patchVariantBaseline: result.patchVariantBaseline,
           trace,
           onSaved,
+          cropAspectFormat,
         });
       }
     } catch (err) {
@@ -584,6 +606,10 @@ export function PhotoEditModal({
               onCropFormatChange={(format, nextLayout) => {
                 setCropAspectFormat(format);
                 setLayout(nextLayout);
+                patchDraft({
+                  cropAspectFormat: format,
+                  cropShape: nextLayout.cropShape,
+                });
                 setDirty(true);
               }}
               onChange={(next) => {
@@ -719,6 +745,10 @@ export function PhotoEditModal({
                   onCropFormatChange={(format, nextLayout) => {
                     setCropAspectFormat(format);
                     setLayout(nextLayout);
+                    patchDraft({
+                      cropAspectFormat: format,
+                      cropShape: nextLayout.cropShape,
+                    });
                     setDirty(true);
                   }}
                   onChange={(next) => {

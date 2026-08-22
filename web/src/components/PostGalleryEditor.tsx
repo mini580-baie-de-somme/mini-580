@@ -297,8 +297,14 @@ export function PostGalleryEditor({
       const linked = (await res.json()) as Record<string, unknown>[];
       let image = toEditorImage(linked[0]);
 
-      // Cover default is 16:9 (upload path) — library items keep their stored format until normalized.
-      if (shouldNormalizeCoverFormat(image.cropAspectFormat)) {
+      // Default library cover to 16:9 only on first attach — never override later edits.
+      const isFirstCoverAttach =
+        !coverImageUrl && !coverMediaIdRef.current && !coverImage;
+      if (
+        shouldNormalizeCoverFormat(image.cropAspectFormat, {
+          isFirstCoverAttach,
+        })
+      ) {
         const layout = { ...DEFAULT_IMAGE_LAYOUT };
         const trace = {
           traceId: newPhotoEditorTraceId(),
@@ -326,6 +332,7 @@ export function PostGalleryEditor({
             patchVariantBaseline: mediaVariantSnapshot(patched),
             trace,
             onSaved: handleImageSaved,
+            cropAspectFormat: COVER_DEFAULT_CROP_FORMAT,
           });
         }
       }

@@ -149,10 +149,16 @@ export function mediaVariantSnapshot(
 /** Merge persisted layout fields onto an API image row (post-save / rebake poll). */
 export function mergeEditorImageLayout(
   image: GalleryEditorImage,
-  layout: ImageLayoutParams
+  layout: ImageLayoutParams,
+  opts?: { cropAspectFormat?: CropAspectFormat | string | null }
 ): GalleryEditorImage {
+  const cropAspectFormat =
+    opts?.cropAspectFormat !== undefined && opts.cropAspectFormat !== null
+      ? cropAspectFormatFromLegacy({ cropAspectFormat: opts.cropAspectFormat })
+      : image.cropAspectFormat;
   return {
     ...image,
+    ...(cropAspectFormat !== undefined && { cropAspectFormat }),
     offsetX: layout.offsetX,
     offsetY: layout.offsetY,
     scaleX: layout.scaleX,
@@ -168,6 +174,16 @@ export function mergeEditorImageLayout(
       ? layout.scaleX
       : Math.max(layout.scaleX, layout.scaleY),
   };
+}
+
+/** Prefer a non-empty origin URL when hydrating editor state from API rows. */
+export function coalesceEditorOrigin(
+  image: Pick<GalleryEditorImage, "urlOrigin">,
+  fallback?: Pick<GalleryEditorImage, "urlOrigin"> | null
+): string {
+  const primary = image.urlOrigin?.trim();
+  if (primary) return primary;
+  return fallback?.urlOrigin?.trim() ?? "";
 }
 
 /** Prefer a sized variant for cards / header display. */

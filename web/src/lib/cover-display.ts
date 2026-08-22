@@ -9,9 +9,12 @@ import {
 /** Default crop for cover uploads / library picks — matches PhotoEditModal imagesOnly. */
 export const COVER_DEFAULT_CROP_FORMAT: CropAspectFormat = "LANDSCAPE_16_9";
 
+/** Whether a library attach should default the cover to 16:9 (first attach only). */
 export function shouldNormalizeCoverFormat(
-  format?: CropAspectFormat | string | null
+  format?: CropAspectFormat | string | null,
+  opts?: { isFirstCoverAttach?: boolean }
 ): boolean {
+  if (opts?.isFirstCoverAttach === false) return false;
   return resolveCropAspectFormat(format) !== COVER_DEFAULT_CROP_FORMAT;
 }
 

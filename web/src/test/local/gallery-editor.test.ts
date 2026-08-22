@@ -1,15 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
+  coalesceEditorOrigin,
   coverUrlFromImage,
   editorCanvasSrc,
   findCoverImage,
   galleryThumbSrc,
   mediaLibraryOpenUrl,
   mediaVariantSnapshot,
+  mergeEditorImageLayout,
   resolveCoverImage,
   toEditorImage,
   type GalleryEditorImage,
 } from "@/lib/gallery-editor";
+import { DEFAULT_IMAGE_LAYOUT } from "@/lib/image-layout";
 
 function img(
   partial: Partial<GalleryEditorImage> & { id: string }
@@ -232,5 +235,27 @@ describe("gallery-editor cover helpers", () => {
         })
       )
     ).toBeNull();
+  });
+
+  it("mergeEditorImageLayout preserves cropAspectFormat from opts", () => {
+    const merged = mergeEditorImageLayout(
+      img({ id: "fmt", cropAspectFormat: "LANDSCAPE_16_9" }),
+      { ...DEFAULT_IMAGE_LAYOUT, offsetX: 0.2 },
+      { cropAspectFormat: "PORTRAIT_3_4" }
+    );
+    expect(merged.cropAspectFormat).toBe("PORTRAIT_3_4");
+    expect(merged.offsetX).toBeCloseTo(0.2, 5);
+  });
+
+  it("coalesceEditorOrigin keeps previous origin when API row is empty", () => {
+    expect(
+      coalesceEditorOrigin(
+        img({ id: "x", urlOrigin: "" }),
+        img({ id: "x", urlOrigin: "/media/x/origin.jpg" })
+      )
+    ).toBe("/media/x/origin.jpg");
+    expect(
+      coalesceEditorOrigin(img({ id: "y", urlOrigin: "/media/y/new.jpg" }))
+    ).toBe("/media/y/new.jpg");
   });
 });

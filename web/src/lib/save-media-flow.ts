@@ -319,7 +319,9 @@ async function savePostMedia(input: PostSaveMediaInput): Promise<SaveMediaFlowRe
   }, "info");
 
   const saved = isImage
-    ? mergeEditorImageLayout(updated, input.layout)
+    ? mergeEditorImageLayout(updated, input.layout, {
+        cropAspectFormat: input.cropAspectFormat ?? updated.cropAspectFormat,
+      })
     : updated;
 
   return {
@@ -509,8 +511,17 @@ export function followUpPostRebakePoll(opts: {
   patchVariantBaseline: MediaVariantSnapshot;
   trace: PhotoEditorTraceContext;
   onSaved: (image: GalleryEditorImage) => void;
+  cropAspectFormat?: string;
 }): void {
-  const { mediaId, layout, isImage, patchVariantBaseline, trace, onSaved } = opts;
+  const {
+    mediaId,
+    layout,
+    isImage,
+    patchVariantBaseline,
+    trace,
+    onSaved,
+    cropAspectFormat,
+  } = opts;
   photoEditorTrace(trace, "save.rebake.poll.start", {
     mediaId,
     baseline: patchVariantBaseline,
@@ -536,7 +547,10 @@ export function followUpPostRebakePoll(opts: {
     }, "info");
     onSaved(
       isImage
-        ? mergeEditorImageLayout(toEditorImage(rebaked), layout)
+        ? mergeEditorImageLayout(toEditorImage(rebaked), layout, {
+            cropAspectFormat:
+              cropAspectFormat ?? toEditorImage(rebaked).cropAspectFormat,
+          })
         : toEditorImage(rebaked)
     );
   })();
