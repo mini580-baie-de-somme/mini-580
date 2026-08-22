@@ -11,6 +11,22 @@ import { optionalNullableDateTime } from "@/lib/date-schema";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+/** Ignore stale coverImageUrl from autosave when rebake rotated variant URLs. */
+async function coverImageUrlLinkedToPost(
+  postId: string,
+  coverImageUrl: string
+): Promise<boolean> {
+  const links = await prisma.postMedia.findMany({
+    where: { postId },
+    include: { media: true },
+  });
+  return links.some(({ media: m }) =>
+    [m.urlOrigin, m.urlMoyenne, m.urlGrande, m.urlPetite, m.urlPicto].includes(
+      coverImageUrl
+    )
+  );
+}
+
 export async function GET(request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
   const editor = await getEditorOrService(request);
@@ -90,6 +106,18 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       authorId = resolved;
     }
 
+    let coverImageUrlUpdate: string | null | undefined;
+    if (data.coverImageUrl !== undefined) {
+      if (data.coverImageUrl === null) {
+        coverImageUrlUpdate = null;
+      } else {
+        const linked = await coverImageUrlLinkedToPost(id, data.coverImageUrl);
+        if (linked) {
+          coverImageUrlUpdate = data.coverImageUrl;
+        }
+      }
+    }
+
     await prisma.post.update({
       where: { id },
       data: {
@@ -99,7 +127,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         ...(data.excerptEn !== undefined && { excerptEn: data.excerptEn }),
         ...(data.bodyFr !== undefined && { bodyFr: data.bodyFr }),
         ...(data.bodyEn !== undefined && { bodyEn: data.bodyEn }),
-        ...(data.coverImageUrl !== undefined && { coverImageUrl: data.coverImageUrl }),
+        ...(coverImageUrlUpdate !== undefined && {
+          coverImageUrl: coverImageUrlUpdate,
+        }),
         ...(data.publishedAt !== undefined && {
           publishedAt: data.publishedAt ? new Date(data.publishedAt) : null,
         }),

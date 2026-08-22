@@ -765,6 +765,8 @@ export function PhotoCanvasEditor({
               const nextLayout: ImageLayoutParams = {
                 ...valueRef.current,
                 cropShape: defaultCropShapeForFormat(format),
+                offsetX: 0,
+                offsetY: 0,
               };
               if (onCropFormatChange) {
                 onCropFormatChange(format, nextLayout);

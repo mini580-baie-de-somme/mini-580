@@ -10,7 +10,7 @@ import {
 import {
   type GalleryEditorImage,
   coverUrlFromImage,
-  findCoverImage,
+  resolveCoverImage,
   toEditorImage,
 } from "@/lib/gallery-editor";
 import { PhotoEditModal } from "./PhotoEditModal";
@@ -42,6 +42,17 @@ function normalizeImages(list: GalleryEditorImage[]): GalleryEditorImage[] {
   }));
 }
 
+function initialCoverMediaId(
+  images: GalleryEditorImage[],
+  coverImageUrl: string | null
+): string | null {
+  const flagged = images.find(
+    (img) => (img as GalleryEditorImage & { isCover?: boolean }).isCover
+  );
+  if (flagged) return flagged.id;
+  return resolveCoverImage(images, coverImageUrl)?.id ?? null;
+}
+
 export function PostGalleryEditor({
   postId,
   lang,
@@ -61,8 +72,15 @@ export function PostGalleryEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const orphanImportRef = useRef(false);
+  const coverMediaIdRef = useRef<string | null>(
+    initialCoverMediaId(normalizeImages(initialImages), coverImageUrl)
+  );
 
-  const coverImage = findCoverImage(images, coverImageUrl);
+  const coverImage = resolveCoverImage(
+    images,
+    coverImageUrl,
+    coverMediaIdRef.current
+  );
   const editingCoverImage =
     modal.kind === "edit-cover"
       ? images.find((i) => i.id === modal.imageId) ?? null
@@ -84,10 +102,19 @@ export function PostGalleryEditor({
   useEffect(() => {
     if (orphanImportRef.current) return;
     if (!coverImageUrl) return;
-    if (findCoverImage(images, coverImageUrl)) return;
+    if (resolveCoverImage(images, coverImageUrl, coverMediaIdRef.current)) {
+      return;
+    }
 
     orphanImportRef.current = true;
     let cancelled = false;
+
+    async function reloadImages(): Promise<GalleryEditorImage[]> {
+      const listRes = await fetch(`/api/posts/${postId}/images`);
+      if (!listRes.ok) return [];
+      const list = (await listRes.json()) as Record<string, unknown>[];
+      return list.map((row) => toEditorImage(row));
+    }
 
     async function importOrphanCover() {
       const trace = { traceId: newPhotoEditorTraceId(), postId };
@@ -106,6 +133,24 @@ export function PostGalleryEditor({
             status: res.status,
             ...errBody,
           }, "error");
+
+          const reloaded = await reloadImages();
+          if (!cancelled && reloaded.length > 0) {
+            setImages(normalizeImages(reloaded));
+            const retry = resolveCoverImage(
+              reloaded,
+              coverImageUrl,
+              coverMediaIdRef.current
+            );
+            if (retry) {
+              coverMediaIdRef.current = retry.id;
+              onCoverChange(coverUrlFromImage(retry));
+              photoEditorTrace(trace, "orphanCover.reload.resolved", {
+                mediaId: retry.id,
+              }, "info");
+              return;
+            }
+          }
           throw new Error("import failed");
         }
         const created = toEditorImage(await res.json());
@@ -114,6 +159,7 @@ export function PostGalleryEditor({
           urlOrigin: created.urlOrigin,
         }, "info");
         if (cancelled) return;
+        coverMediaIdRef.current = created.id;
         upsertImage(created);
         onCoverChange(coverUrlFromImage(created));
       } catch {
@@ -146,28 +192,61 @@ export function PostGalleryEditor({
   }
 
   function openCoverEditor() {
-    if (coverImage) {
-      openPhotoModal({ kind: "edit-cover", imageId: coverImage.id });
+    const resolved = resolveCoverImage(
+      images,
+      coverImageUrl,
+      coverMediaIdRef.current
+    );
+    const mediaId = resolved?.id ?? coverMediaIdRef.current;
+    if (mediaId) {
+      openPhotoModal({ kind: "edit-cover", imageId: mediaId });
       return;
     }
     openPhotoModal({ kind: "add-cover" });
   }
 
-  function clearCoverOnly() {
-    onCoverChange(null);
+  async function clearCoverOnly() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/posts/${postId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ coverImageUrl: null }),
+      });
+      if (!res.ok) throw new Error("clear cover failed");
+      coverMediaIdRef.current = null;
+      onCoverChange(null);
+    } catch {
+      setError(
+        lang === "fr"
+          ? "Impossible de retirer la couverture"
+          : "Could not remove cover"
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
   function handleImageSaved(image: GalleryEditorImage) {
     upsertImage(image);
+    coverMediaIdRef.current = image.id;
+    setError(null);
     onCoverChange(coverUrlFromImage(image));
   }
 
   function handleImageDeleted(id: string) {
     setImages((prev) => prev.filter((i) => i.id !== id));
-    if (coverImage?.id === id) {
+    if (coverImage?.id === id || coverMediaIdRef.current === id) {
+      coverMediaIdRef.current = null;
       onCoverChange(null);
     }
   }
+
+  const coverPreviewUrl = coverImage
+    ? coverUrlFromImage(coverImage)
+    : coverImageUrl;
+  const hasCover = Boolean(coverImage || coverImageUrl || coverMediaIdRef.current);
 
   return (
     <section className="space-y-3 rounded-lg border border-[#d4dde6] p-4">
@@ -183,7 +262,7 @@ export function PostGalleryEditor({
             onClick={openCoverEditor}
             className="rounded-md border border-[#495867] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7]"
           >
-            {coverImage || coverImageUrl
+            {hasCover
               ? lang === "fr"
                 ? "Éditer la couverture"
                 : "Edit cover"
@@ -191,10 +270,10 @@ export function PostGalleryEditor({
                 ? "Ajouter une couverture"
                 : "Add cover"}
           </button>
-          {(coverImage || coverImageUrl) && (
+          {hasCover && (
             <button
               type="button"
-              onClick={clearCoverOnly}
+              onClick={() => void clearCoverOnly()}
               className="rounded-md border border-[#d4dde6] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7]"
             >
               {lang === "fr" ? "Retirer" : "Remove"}
@@ -207,7 +286,7 @@ export function PostGalleryEditor({
           ? "Photo optionnelle affichée en en-tête de l’article. Les autres médias s’ajoutent via des groupes dans le corps du texte."
           : "Optional photo shown at the top of the article. Other media belong in inline groups within the body."}
       </p>
-      {coverImage || coverImageUrl ? (
+      {coverPreviewUrl ? (
         <button
           type="button"
           onClick={openCoverEditor}
@@ -215,16 +294,8 @@ export function PostGalleryEditor({
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            key={
-              coverImage
-                ? coverUrlFromImage(coverImage)
-                : coverImageUrl!
-            }
-            src={
-              coverImage
-                ? coverUrlFromImage(coverImage)
-                : coverImageUrl!
-            }
+            key={coverPreviewUrl}
+            src={coverPreviewUrl}
             alt=""
             className="aspect-[16/10] w-full object-cover sm:aspect-[2/1]"
           />

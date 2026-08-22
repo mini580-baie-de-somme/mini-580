@@ -6,6 +6,7 @@ import {
   galleryThumbSrc,
   mediaLibraryOpenUrl,
   mediaVariantSnapshot,
+  resolveCoverImage,
   toEditorImage,
   type GalleryEditorImage,
 } from "@/lib/gallery-editor";
@@ -76,6 +77,33 @@ describe("gallery-editor cover helpers", () => {
     expect(findCoverImage(images, "/media/2/origin.jpg")?.id).toBe("2");
     expect(findCoverImage(images, "/missing")).toBeNull();
     expect(findCoverImage(images, null)).toBeNull();
+  });
+
+  it("resolveCoverImage falls back to coverMediaId when URL is stale", () => {
+    const images = [
+      img({
+        id: "1",
+        urlMoyenne: "/media/1/moyenne-v2.webp",
+        urlGrande: "/media/1/grande-v2.webp",
+      }),
+      img({ id: "2", urlOrigin: "/media/2/origin.jpg" }),
+    ];
+    expect(
+      resolveCoverImage(images, "/media/1/grande-v1.webp", "1")?.id
+    ).toBe("1");
+    expect(
+      resolveCoverImage(images, "/media/1/grande-v2.webp", "1")?.id
+    ).toBe("1");
+    expect(resolveCoverImage(images, "/stale", "missing")).toBeNull();
+    expect(resolveCoverImage(images, null, "1")?.id).toBe("1");
+  });
+
+  it("resolveCoverImage prefers URL match over id fallback", () => {
+    const images = [
+      img({ id: "1", urlMoyenne: "/media/1/m.webp" }),
+      img({ id: "2", urlMoyenne: "/media/2/m.webp" }),
+    ];
+    expect(resolveCoverImage(images, "/media/2/m.webp", "1")?.id).toBe("2");
   });
 
   it("preserves layout fields from API payload for round-trip editor reopen", () => {

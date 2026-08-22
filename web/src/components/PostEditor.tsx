@@ -128,7 +128,6 @@ export function PostEditor({
       excerptEn: current.excerptEn,
       bodyFr: cleanExternalLinkTokens(cleanMediaGroupTokens(current.bodyFr)),
       bodyEn: cleanExternalLinkTokens(cleanMediaGroupTokens(current.bodyEn)),
-      coverImageUrl: current.coverImageUrl || null,
       publishedAt: fromDatetimeLocalValue(current.publishedAt),
       workDays:
         current.workDays.trim() === ""

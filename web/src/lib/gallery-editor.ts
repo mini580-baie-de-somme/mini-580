@@ -214,3 +214,17 @@ export function findCoverImage(
     ) ?? null
   );
 }
+
+/** Resolve cover media when variant URLs rotate after rebake (URL may be stale). */
+export function resolveCoverImage(
+  images: GalleryEditorImage[],
+  coverImageUrl: string | null | undefined,
+  coverMediaId?: string | null
+): GalleryEditorImage | null {
+  const byUrl = findCoverImage(images, coverImageUrl);
+  if (byUrl) return byUrl;
+  if (coverMediaId) {
+    return images.find((img) => img.id === coverMediaId) ?? null;
+  }
+  return null;
+}
