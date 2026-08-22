@@ -8,11 +8,19 @@ import {
   serializePhotoModalState,
 } from "@/lib/virtual-url";
 import {
+  COVER_DEFAULT_CROP_FORMAT,
+  shouldNormalizeCoverFormat,
+} from "@/lib/cover-display";
+import {
   type GalleryEditorImage,
   coverUrlFromImage,
+  mergeEditorImageLayout,
+  mediaVariantSnapshot,
   resolveCoverImage,
   toEditorImage,
 } from "@/lib/gallery-editor";
+import { DEFAULT_IMAGE_LAYOUT } from "@/lib/image-layout";
+import { followUpPostRebakePoll } from "@/lib/save-media-flow";
 import { CoverImageDisplay } from "./CoverImageDisplay";
 import { FullscreenEditorModal } from "./FullscreenEditorModal";
 import { MediaKindThumb } from "./MediaKindThumb";
@@ -287,7 +295,41 @@ export function PostGalleryEditor({
       });
       if (!res.ok) throw new Error("attach failed");
       const linked = (await res.json()) as Record<string, unknown>[];
-      const image = toEditorImage(linked[0]);
+      let image = toEditorImage(linked[0]);
+
+      // Cover default is 16:9 (upload path) — library items keep their stored format until normalized.
+      if (shouldNormalizeCoverFormat(image.cropAspectFormat)) {
+        const layout = { ...DEFAULT_IMAGE_LAYOUT };
+        const trace = {
+          traceId: newPhotoEditorTraceId(),
+          postId,
+          mediaId: image.id,
+        };
+        const patchRes = await fetch(`/api/posts/${postId}/images/${image.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...layout,
+            cropAspectFormat: COVER_DEFAULT_CROP_FORMAT,
+          }),
+        });
+        if (!patchRes.ok) throw new Error("cover format patch failed");
+        const patched = toEditorImage(await patchRes.json()) as GalleryEditorImage & {
+          rebakePending?: boolean;
+        };
+        image = mergeEditorImageLayout(patched, layout);
+        if (patched.rebakePending) {
+          followUpPostRebakePoll({
+            mediaId: image.id,
+            layout,
+            isImage: true,
+            patchVariantBaseline: mediaVariantSnapshot(patched),
+            trace,
+            onSaved: handleImageSaved,
+          });
+        }
+      }
+
       handleImageSaved(image);
       closePhotoModal();
     } catch {

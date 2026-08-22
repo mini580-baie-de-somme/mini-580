@@ -6,6 +6,15 @@ import {
   type CropAspectFormat,
 } from "@/lib/image-layout";
 
+/** Default crop for cover uploads / library picks — matches PhotoEditModal imagesOnly. */
+export const COVER_DEFAULT_CROP_FORMAT: CropAspectFormat = "LANDSCAPE_16_9";
+
+export function shouldNormalizeCoverFormat(
+  format?: CropAspectFormat | string | null
+): boolean {
+  return resolveCropAspectFormat(format) !== COVER_DEFAULT_CROP_FORMAT;
+}
+
 export type CoverMediaRef = {
   isCover: boolean;
   media: {
