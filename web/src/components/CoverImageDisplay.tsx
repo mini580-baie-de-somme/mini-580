@@ -25,8 +25,11 @@ export function CoverImageDisplay({
 }: CoverImageDisplayProps) {
   const isCircle = coverDisplayIsCircle(cropAspectFormat, cropShape);
   const rounded = isCircle ? "rounded-full" : "rounded-xl";
+  const wrapperStyle = {
+    aspectRatio: coverDisplayAspectRatio(cropAspectFormat),
+  };
   const wrapperClasses = [
-    "block w-full overflow-hidden",
+    "block w-full max-w-full overflow-hidden",
     rounded,
     wrapperClassName,
     className,
@@ -39,18 +42,26 @@ export function CoverImageDisplay({
     <img
       src={src}
       alt=""
-      className={`h-full w-full object-cover ${imgClassName}`.trim()}
-      style={{ aspectRatio: coverDisplayAspectRatio(cropAspectFormat) }}
+      className={`block h-full w-full object-contain ${imgClassName}`.trim()}
     />
   );
 
   if (onClick) {
     return (
-      <button type="button" onClick={onClick} className={wrapperClasses}>
+      <button
+        type="button"
+        onClick={onClick}
+        className={wrapperClasses}
+        style={wrapperStyle}
+      >
         {img}
       </button>
     );
   }
 
-  return <div className={wrapperClasses}>{img}</div>;
+  return (
+    <div className={wrapperClasses} style={wrapperStyle}>
+      {img}
+    </div>
+  );
 }

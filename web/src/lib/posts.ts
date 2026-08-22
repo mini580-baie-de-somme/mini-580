@@ -62,6 +62,7 @@ export function withLegacyImages<T extends PostWithRelations>(post: T) {
     cropY: link.media.cropY,
     cropW: link.media.cropW,
     cropH: link.media.cropH,
+    cropAspectFormat: link.media.cropAspectFormat,
   }));
   const { mediaLinks: _ml, ...rest } = post;
   return { ...rest, images, mediaLinks: post.mediaLinks };
