@@ -13,6 +13,7 @@ import {
   resolveCoverImage,
   toEditorImage,
 } from "@/lib/gallery-editor";
+import { CoverImageDisplay } from "./CoverImageDisplay";
 import { PhotoEditModal } from "./PhotoEditModal";
 import {
   newPhotoEditorTraceId,
@@ -287,19 +288,13 @@ export function PostGalleryEditor({
           : "Optional photo shown at the top of the article. Other media belong in inline groups within the body."}
       </p>
       {coverPreviewUrl ? (
-        <button
-          type="button"
+        <CoverImageDisplay
+          src={coverPreviewUrl}
+          cropAspectFormat={coverImage?.cropAspectFormat}
+          cropShape={coverImage?.cropShape}
+          wrapperClassName="rounded-md border border-[#d4dde6]"
           onClick={openCoverEditor}
-          className="block w-full overflow-hidden rounded-md border border-[#d4dde6]"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            key={coverPreviewUrl}
-            src={coverPreviewUrl}
-            alt=""
-            className="aspect-[16/10] w-full object-cover sm:aspect-[2/1]"
-          />
-        </button>
+        />
       ) : (
         <p className="rounded-lg border border-dashed border-[#d4dde6] bg-[#fafbfc] px-4 py-6 text-center text-sm text-[#495867]">
           {lang === "fr"

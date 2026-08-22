@@ -6,6 +6,7 @@ import type { HullId } from "@/lib/types";
 import type { ArticleMediaPageData } from "@/lib/article-media-types";
 import { useArticleMediaSlideshow } from "@/lib/article-media-slideshow";
 import { ArticleBody } from "./ArticleBody";
+import { CoverImageDisplay } from "./CoverImageDisplay";
 import { LangToggle } from "./LangToggle";
 import { HullBadgeList } from "./HullBadge";
 import { MediaSlideshow } from "./MediaSlideshow";
@@ -69,14 +70,11 @@ export function PreviewArticle({
       </div>
 
       {post.coverImageUrl && (
-        <div className="mb-8 overflow-hidden rounded-xl sm:mb-10">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={post.coverImageUrl}
-            alt=""
-            className="aspect-[16/10] w-full object-cover sm:aspect-[2/1]"
-          />
-        </div>
+        <CoverImageDisplay
+          src={post.coverImageUrl}
+          cropAspectFormat={mediaPage?.coverCropAspectFormat}
+          className="mb-8 sm:mb-10"
+        />
       )}
 
       <ArticleBody

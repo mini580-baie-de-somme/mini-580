@@ -50,4 +50,6 @@ export type ArticleMediaPageData = {
   manifestIndexByGroupIdEn: Record<string, number>;
   mediaGroups: Record<string, PublicMediaGroup>;
   externalLinks: Record<string, PublicExternalLink>;
+  /** Crop format of the cover/header image (from cover PostMedia). */
+  coverCropAspectFormat: string;
 };

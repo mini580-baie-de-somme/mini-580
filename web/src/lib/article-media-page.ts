@@ -11,6 +11,7 @@ import type {
   PublicMediaGroup,
 } from "@/lib/article-media-types";
 import { parseExternalLinkIds } from "@/lib/external-link-token";
+import { resolveCoverCropAspectFormat } from "@/lib/cover-display";
 import { mediaAsPostImage } from "@/lib/media-library";
 import { parseMediaGroupIds } from "@/lib/media-group-token";
 
@@ -102,5 +103,9 @@ export async function prepareArticleMediaPageData(
     manifestIndexByGroupIdEn: buildGroupIndexMap(manifestEn),
     mediaGroups,
     externalLinks,
+    coverCropAspectFormat: resolveCoverCropAspectFormat(
+      post.coverImageUrl,
+      post.mediaLinks
+    ),
   };
 }

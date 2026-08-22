@@ -6,6 +6,7 @@ import type { ArticleMediaPageData } from "@/lib/article-media-types";
 import { useArticleMediaSlideshow } from "@/lib/article-media-slideshow";
 import { ArticleBody } from "./ArticleBody";
 import { BlogTaxonomyLinks } from "./BlogTaxonomyLinks";
+import { CoverImageDisplay } from "./CoverImageDisplay";
 import { HullBadgeList } from "./HullBadge";
 import { MediaSlideshow } from "./MediaSlideshow";
 import { PostCard } from "./PostCard";
@@ -142,14 +143,11 @@ export function ArticleView({
         </header>
 
         {post.coverImageUrl && (
-          <div className="mb-8 overflow-hidden rounded-xl shadow-sm sm:mb-10">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={post.coverImageUrl}
-              alt=""
-              className="aspect-[16/10] w-full object-cover sm:aspect-[2/1]"
-            />
-          </div>
+          <CoverImageDisplay
+            src={post.coverImageUrl}
+            cropAspectFormat={mediaPage?.coverCropAspectFormat}
+            className="mb-8 shadow-sm sm:mb-10"
+          />
         )}
 
         <ArticleBody
