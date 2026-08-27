@@ -13,12 +13,12 @@ import {
   type TimelineMilestone,
   type TimelinePost,
 } from "@/lib/timeline-data";
-import { elapsedProjectDays, sumWorkDays } from "@/lib/project-metrics";
+import { elapsedProjectDays, sumWorkHours } from "@/lib/project-metrics";
 
 type Props = {
   milestones: TimelineMilestone[];
   publishedPosts: TimelinePost[];
-  allPostsForMetrics: { workDays: number | null }[];
+  allPostsForMetrics: { workHours: number | null }[];
 };
 
 export function TimelineContent({
@@ -40,7 +40,7 @@ export function TimelineContent({
   );
 
   const elapsedDays = elapsedProjectDays();
-  const totalProducedDays = sumWorkDays(allPostsForMetrics);
+  const totalProducedHours = sumWorkHours(allPostsForMetrics);
 
   const { rangeStart, rangeEnd } = useMemo(
     () => timelineRangeFromBlocks(blocks),
@@ -85,9 +85,9 @@ export function TimelineContent({
             {t("timeline.metricProduced")}
           </p>
           <p className="mt-1 text-2xl font-bold text-[#0D131A]">
-            {totalProducedDays}{" "}
+            {totalProducedHours}{" "}
             <span className="text-base font-normal text-[#495867]">
-              {t("timeline.days")}
+              {t("timeline.hours")}
             </span>
           </p>
         </div>
@@ -163,18 +163,18 @@ export function TimelineContent({
 
                 <h2 className="mt-1 text-lg font-semibold text-[#0D131A]">{title}</h2>
 
-                {(forecast != null || block.producedDays > 0) && (
+                {(forecast != null || block.producedHours > 0) && (
                   <p className="mt-1 text-sm text-[#495867]">
                     {forecast != null && (
                       <span>
-                        {t("timeline.forecast")}: {forecast} {t("timeline.days")}
+                        {t("timeline.forecast")}: {forecast} {t("timeline.hours")}
                       </span>
                     )}
-                    {forecast != null && block.producedDays > 0 && " · "}
-                    {block.producedDays > 0 && (
+                    {forecast != null && block.producedHours > 0 && " · "}
+                    {block.producedHours > 0 && (
                       <span>
-                        {t("timeline.produced")}: {block.producedDays}{" "}
-                        {t("timeline.days")}
+                        {t("timeline.produced")}: {block.producedHours}{" "}
+                        {t("timeline.hours")}
                       </span>
                     )}
                   </p>
@@ -205,11 +205,11 @@ export function TimelineContent({
                                 {t("timeline.step")} {stepIndex + 1}
                                 <span className="mx-1.5 text-[#b8c5d0]">·</span>
                                 <time dateTime={date.toISOString()}>{fmtDate(date)}</time>
-                                {post.workDays != null && (
+                                {post.workHours != null && (
                                   <>
                                     <span className="mx-1.5 text-[#b8c5d0]">·</span>
                                     <span>
-                                      {post.workDays} {t("timeline.days")}
+                                      {post.workHours} {t("timeline.hours")}
                                     </span>
                                   </>
                                 )}
@@ -246,9 +246,9 @@ export function TimelineContent({
                     className="mt-0.5 block text-base font-medium text-[#0D131A] hover:text-[#495867]"
                   >
                     {titleForPost(post)}
-                    {post.workDays != null && (
+                    {post.workHours != null && (
                       <span className="ml-2 text-xs font-normal text-[#495867]">
-                        ({post.workDays} {t("timeline.days")})
+                        ({post.workHours} {t("timeline.hours")})
                       </span>
                     )}
                   </Link>

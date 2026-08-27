@@ -2,15 +2,15 @@
 
 ## Data model
 
-### Post (`workDays`)
+### Post (`workHours`)
 - Optional integer ≥ 0
-- Person-days **produced** for this article
+- Person-hours **produced** for this article
 - Feeds public timeline header metric (sum of all published posts) and per-milestone produced sum
 
 ### Milestone
 - `milestoneDate` — period **start** (required)
 - `endDate` — period **end** (optional). `null` = **punctual deadline** jalon
-- `workloadForecast` — optional planned person-days for the period
+- `workloadForecast` — optional planned person-hours for the period
 
 Validation: `endDate >= milestoneDate` when set.
 
@@ -18,14 +18,14 @@ Validation: `endDate >= milestoneDate` when set.
 
 **Header metrics**
 1. Days elapsed since `PROJECT_START_DATE` (`lib/project-metrics.ts`, default `2025-01-15` = « Lancement du projet », override `NEXT_PUBLIC_PROJECT_START_DATE`). **Calendar days** at day granularity (local timezone, inclusive same-day → 0).
-2. Sum of `workDays` on all **published** posts
+2. Sum of `workHours` on all **published** posts (displayed in hours)
 
 **Milestone blocks**
 - Continuous bar from start → end (or dot if punctual)
 - **Current milestone** highlighted when today ∈ [start, end] (inclusive) or on punctual start day — badge « En cours »
 - Dashed separator between non-contiguous milestone periods
 - Linked posts shown as **steps** when `publishedAt` ∈ [start, end] (inclusive, day granularity)
-- Badge: forecast days + produced days (sum of step `workDays`)
+- Badge: forecast hours + produced hours (sum of step `workHours`)
 
 **Standalone posts** — published posts whose `publishedAt` falls outside every milestone window.
 
@@ -39,8 +39,8 @@ Validation: `endDate >= milestoneDate` when set.
 
 ## Agent / API
 
-- `posts.create` / `posts.update` — optional `workDays`, optional `publishedAt` (timeline placement)
-- `milestones.create` / `milestones.update` — optional `endDate`, `workloadForecast`
+- `posts.create` / `posts.update` — optional `workHours`, optional `publishedAt` (timeline placement)
+- `milestones.create` / `milestones.update` — optional `endDate`, `workloadForecast` (hours)
 - Telegram `systemBrief` documents timeline semantics for the Cursor agent
 
 ## Tests
@@ -50,6 +50,6 @@ Validation: `endDate >= milestoneDate` when set.
 
 ## Pre-deploy checklist
 
-- [ ] Migration `20260817103000_drop_post_milestone` applied
-- [ ] Backfill optional: set `workDays` / milestone forecasts on key content
+- [ ] Migration `20260827100000_workdays_to_workhours` applied
+- [ ] Backfill optional: set `workHours` / milestone forecasts on key content
 - [ ] Verify `/timeline` metrics + one milestone with end date + articles in window

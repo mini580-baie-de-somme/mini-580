@@ -160,10 +160,11 @@ const messages = {
     en: "Days elapsed since project start",
   },
   "timeline.metricProduced": {
-    fr: "Jours produits",
-    en: "Produced days",
+    fr: "Heures produites",
+    en: "Produced hours",
   },
   "timeline.days": { fr: "j", en: "d" },
+  "timeline.hours": { fr: "h", en: "hrs" },
   "timeline.punctual": { fr: "Jalon ponctuel", en: "Punctual deadline" },
   "timeline.current": { fr: "En cours", en: "In progress" },
   "timeline.forecast": { fr: "Prévision", en: "Forecast" },
@@ -259,14 +260,14 @@ const messages = {
     fr: "Permet de rétro-dater ou placer l’article précisément sur la timeline.",
     en: "Backdate or place the post precisely on the timeline.",
   },
-  "editor.workDays": {
-    fr: "Jours de travail produits",
-    en: "Work days produced",
+  "editor.workHours": {
+    fr: "Heures de travail produites",
+    en: "Work hours produced",
   },
-  "editor.workDaysPlaceholder": { fr: "Optionnel", en: "Optional" },
-  "editor.workDaysHint": {
-    fr: "Entier optionnel — alimente les métriques timeline et jalons.",
-    en: "Optional integer — feeds timeline and milestone metrics.",
+  "editor.workHoursPlaceholder": { fr: "Optionnel", en: "Optional" },
+  "editor.workHoursHint": {
+    fr: "Entier optionnel (heures-personnes) — alimente les métriques timeline et jalons.",
+    en: "Optional integer (person-hours) — feeds timeline and milestone metrics.",
   },
   "editor.author": { fr: "Auteur", en: "Author" },
   "editor.authorHint": {
@@ -666,8 +667,8 @@ const messages = {
   "milestones.startDate": { fr: "Date de début", en: "Start date" },
   "milestones.endDate": { fr: "Date de fin (optionnel)", en: "End date (optional)" },
   "milestones.workloadForecast": {
-    fr: "Charge prévisionnelle (j)",
-    en: "Forecast workload (days)",
+    fr: "Charge prévisionnelle (h)",
+    en: "Forecast workload (hours)",
   },
   "milestones.optional": { fr: "Optionnel", en: "Optional" },
   "milestones.slug": { fr: "Slug (URL)", en: "Slug (URL)" },

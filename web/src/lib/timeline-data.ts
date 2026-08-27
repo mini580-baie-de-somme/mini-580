@@ -14,7 +14,7 @@ export type TimelinePost = {
   titleEn: string;
   status: string;
   publishedAt: Date | string | null;
-  workDays: number | null;
+  workHours: number | null;
 };
 
 export type TimelineMilestone = {
@@ -39,7 +39,7 @@ export type TimelineMilestoneBlock = {
   end: Date | null;
   isPunctual: boolean;
   steps: MilestoneArticleStep[];
-  producedDays: number;
+  producedHours: number;
 };
 
 export type TimelineStandalonePost = {
@@ -119,8 +119,8 @@ export function buildMilestoneBlocks(
       if (!start) return null;
       const end = toDate(m.endDate);
       const steps = postsInMilestoneWindow(m, allPosts);
-      const producedDays = steps.reduce(
-        (acc, s) => acc + (s.post.workDays ?? 0),
+      const producedHours = steps.reduce(
+        (acc, s) => acc + (s.post.workHours ?? 0),
         0
       );
       return {
@@ -129,7 +129,7 @@ export function buildMilestoneBlocks(
         end,
         isPunctual: !end,
         steps,
-        producedDays,
+        producedHours,
       };
     })
     .filter((b): b is TimelineMilestoneBlock => b != null)

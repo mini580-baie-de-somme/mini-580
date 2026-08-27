@@ -12,7 +12,7 @@ import {
   calendarDaysBetween,
   elapsedProjectDays,
   parseLocalISODate,
-  sumWorkDays,
+  sumWorkHours,
 } from "@/lib/project-metrics";
 
 describe("timeline-data", () => {
@@ -42,7 +42,7 @@ describe("timeline-data", () => {
         titleEn: "A",
         status: "PUBLISHED",
         publishedAt: "2026-01-15",
-        workDays: 3,
+        workHours: 3,
       },
       {
         id: "p2",
@@ -51,7 +51,7 @@ describe("timeline-data", () => {
         titleEn: "B",
         status: "PUBLISHED",
         publishedAt: "2026-02-01",
-        workDays: 5,
+        workHours: 5,
       },
     ];
     const milestone = {
@@ -67,7 +67,7 @@ describe("timeline-data", () => {
     const steps = postsInMilestoneWindow(milestone, posts);
     expect(steps.map((s) => s.post.id)).toEqual(["p1"]);
     const blocks = buildMilestoneBlocks([milestone], posts);
-    expect(blocks[0]?.producedDays).toBe(3);
+    expect(blocks[0]?.producedHours).toBe(3);
     expect(blocks[0]?.isPunctual).toBe(false);
   });
 
@@ -80,7 +80,7 @@ describe("timeline-data", () => {
         titleEn: "In window",
         status: "PUBLISHED",
         publishedAt: "2026-02-18T09:00:00.000Z",
-        workDays: 4,
+        workHours: 4,
       },
       {
         id: "p2",
@@ -89,7 +89,7 @@ describe("timeline-data", () => {
         titleEn: "Outside",
         status: "PUBLISHED",
         publishedAt: "2026-03-28T09:00:00.000Z",
-        workDays: 2,
+        workHours: 2,
       },
     ];
     const milestone = {
@@ -118,7 +118,7 @@ describe("timeline-data", () => {
         titleEn: "Start",
         status: "PUBLISHED",
         publishedAt: "2026-01-01",
-        workDays: 1,
+        workHours: 1,
       },
       {
         id: "end",
@@ -127,7 +127,7 @@ describe("timeline-data", () => {
         titleEn: "End",
         status: "PUBLISHED",
         publishedAt: "2026-01-10",
-        workDays: 2,
+        workHours: 2,
       },
     ];
     const milestone = {
@@ -142,7 +142,7 @@ describe("timeline-data", () => {
     };
     const steps = postsInMilestoneWindow(milestone, posts);
     expect(steps.map((s) => s.post.id)).toEqual(["start", "end"]);
-    expect(buildMilestoneBlocks([milestone], posts)[0]?.producedDays).toBe(3);
+    expect(buildMilestoneBlocks([milestone], posts)[0]?.producedHours).toBe(3);
   });
 
   it("detects current period milestone (inclusive boundaries)", () => {
@@ -233,8 +233,8 @@ describe("timeline-data", () => {
 });
 
 describe("project-metrics", () => {
-  it("sums work days", () => {
-    expect(sumWorkDays([{ workDays: 2 }, { workDays: null }, { workDays: 5 }])).toBe(
+  it("sums work hours", () => {
+    expect(sumWorkHours([{ workHours: 2 }, { workHours: null }, { workHours: 5 }])).toBe(
       7
     );
   });

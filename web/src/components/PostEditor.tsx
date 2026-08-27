@@ -41,7 +41,7 @@ export type EditorPost = {
   bodyEn: string;
   status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   publishedAt: string | Date | null;
-  workDays: number | null;
+  workHours: number | null;
   coverImageUrl: string | null;
   authorId: string;
   author: PlatformEditor;
@@ -102,7 +102,7 @@ export function PostEditor({
     bodyEn: post.bodyEn,
     coverImageUrl: post.coverImageUrl ?? "",
     publishedAt: toDatetimeLocalValue(post.publishedAt),
-    workDays: post.workDays != null ? String(post.workDays) : "",
+    workHours: post.workHours != null ? String(post.workHours) : "",
     authorId: post.authorId,
     hulls: post.hulls.map((h) => h.hull),
     tagIds: post.tags.map((t) => t.tag.id),
@@ -129,10 +129,10 @@ export function PostEditor({
       bodyFr: cleanExternalLinkTokens(cleanMediaGroupTokens(current.bodyFr)),
       bodyEn: cleanExternalLinkTokens(cleanMediaGroupTokens(current.bodyEn)),
       publishedAt: fromDatetimeLocalValue(current.publishedAt),
-      workDays:
-        current.workDays.trim() === ""
+      workHours:
+        current.workHours.trim() === ""
           ? null
-          : Math.max(0, parseInt(current.workDays, 10) || 0),
+          : Math.max(0, parseInt(current.workHours, 10) || 0),
       authorId: current.authorId,
       hulls: current.hulls,
       tagIds: current.tagIds,
@@ -427,22 +427,22 @@ export function PostEditor({
           </label>
           <label className="block text-sm">
             <span className="mb-1 block text-[#495867]">
-              {t("editor.workDays")}
+              {t("editor.workHours")}
             </span>
             <input
               type="number"
               min={0}
               step={1}
               inputMode="numeric"
-              value={form.workDays}
+              value={form.workHours}
               onChange={(e) =>
-                setForm((f) => ({ ...f, workDays: e.target.value }))
+                setForm((f) => ({ ...f, workHours: e.target.value }))
               }
-              placeholder={t("editor.workDaysPlaceholder")}
+              placeholder={t("editor.workHoursPlaceholder")}
               className="w-full rounded-md border border-[#d4dde6] px-3 py-2 text-sm"
             />
             <span className="mt-1 block text-[11px] text-[#495867]">
-              {t("editor.workDaysHint")}
+              {t("editor.workHoursHint")}
             </span>
           </label>
         </div>

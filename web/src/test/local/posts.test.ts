@@ -122,27 +122,27 @@ describe("API integration — Posts CRUD + FR/EN", () => {
     expect(clearDate.status).toBe(200);
     expect((await clearDate.json()).publishedAt).toBeNull();
 
-    const workDaysPatch = await PATCH(
+    const workHoursPatch = await PATCH(
       jsonRequest(`http://localhost/api/posts/${created.id}`, {
         method: "PATCH",
         headers: bearerHeaders(),
-        body: JSON.stringify({ workDays: 7 }),
+        body: JSON.stringify({ workHours: 7 }),
       }),
       ctx
     );
-    expect(workDaysPatch.status).toBe(200);
-    expect((await workDaysPatch.json()).workDays).toBe(7);
+    expect(workHoursPatch.status).toBe(200);
+    expect((await workHoursPatch.json()).workHours).toBe(7);
 
-    const clearWorkDays = await PATCH(
+    const clearWorkHours = await PATCH(
       jsonRequest(`http://localhost/api/posts/${created.id}`, {
         method: "PATCH",
         headers: bearerHeaders(),
-        body: JSON.stringify({ workDays: null }),
+        body: JSON.stringify({ workHours: null }),
       }),
       ctx
     );
-    expect(clearWorkDays.status).toBe(200);
-    expect((await clearWorkDays.json()).workDays).toBeNull();
+    expect(clearWorkHours.status).toBe(200);
+    expect((await clearWorkHours.json()).workHours).toBeNull();
 
     const updatedTitle = uniqueSlug(`${PREFIX}-upd`);
     const patchRes = await PATCH(

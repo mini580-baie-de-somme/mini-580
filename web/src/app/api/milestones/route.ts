@@ -19,7 +19,7 @@ const postSelect = {
   titleEn: true,
   status: true,
   publishedAt: true,
-  workDays: true,
+  workHours: true,
 } as const;
 
 function milestoneWhere(q?: string): Prisma.MilestoneWhereInput {

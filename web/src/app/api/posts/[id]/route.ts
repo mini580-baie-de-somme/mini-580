@@ -59,7 +59,7 @@ const updateSchema = z.object({
   slug: z.string().optional(),
   coverImageUrl: z.string().nullable().optional(),
   publishedAt: optionalNullableDateTime,
-  workDays: z.union([z.number().int().min(0), z.null()]).optional(),
+  workHours: z.union([z.number().int().min(0), z.null()]).optional(),
   hulls: z.array(z.nativeEnum(Hull)).optional(),
   tagIds: z.array(z.string()).optional(),
   themeIds: z.array(z.string()).optional(),
@@ -133,7 +133,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         ...(data.publishedAt !== undefined && {
           publishedAt: data.publishedAt ? new Date(data.publishedAt) : null,
         }),
-        ...(data.workDays !== undefined && { workDays: data.workDays }),
+        ...(data.workHours !== undefined && { workHours: data.workHours }),
         ...(authorId !== undefined && { authorId }),
         slug,
       },

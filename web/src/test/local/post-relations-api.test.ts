@@ -48,7 +48,7 @@ function stubPost(overrides: Partial<PostWithRelations> = {}): PostWithRelations
       },
     ],
     mediaLinks: [],
-    workDays: null,
+    workHours: null,
     ...overrides,
   } as PostWithRelations;
 }

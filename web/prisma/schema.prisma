@@ -110,8 +110,8 @@ model Post {
   author        User                     @relation(fields: [authorId], references: [id])
   coverImageUrl String?
   publishedAt   DateTime?
-  /// Optional integer — person-days produced for this article (timeline metrics).
-  workDays      Int?
+  /// Optional integer — person-hours produced for this article (timeline metrics).
+  workHours     Int?
   createdAt     DateTime                 @default(now())
   updatedAt     DateTime                 @updatedAt
   hulls         PostHull[]
@@ -188,7 +188,7 @@ model Milestone {
   milestoneDate     DateTime
   /// Optional end date (>= milestoneDate). Null = punctual deadline jalon.
   endDate           DateTime?
-  /// Optional forecast person-days for this milestone period.
+  /// Optional forecast person-hours for this milestone period.
   workloadForecast  Int?
   createdAt         DateTime        @default(now())
 }

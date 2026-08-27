@@ -29,8 +29,8 @@ export function elapsedProjectDays(now = new Date()): number {
   return calendarDaysBetween(parseLocalISODate(PROJECT_START_DATE), now);
 }
 
-export function sumWorkDays(
-  posts: Array<{ workDays: number | null | undefined }>
+export function sumWorkHours(
+  posts: Array<{ workHours: number | null | undefined }>
 ): number {
-  return posts.reduce((acc, p) => acc + (p.workDays ?? 0), 0);
+  return posts.reduce((acc, p) => acc + (p.workHours ?? 0), 0);
 }

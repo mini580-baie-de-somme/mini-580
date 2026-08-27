@@ -14,7 +14,7 @@ const postSelect = {
   titleEn: true,
   status: true,
   publishedAt: true,
-  workDays: true,
+  workHours: true,
 } as const;
 
 export default async function TimelinePage() {
@@ -32,7 +32,7 @@ export default async function TimelinePage() {
     }),
     prisma.post.findMany({
       where: { status: PostStatus.PUBLISHED },
-      select: { workDays: true },
+      select: { workHours: true },
     }),
   ]);
 
