@@ -35,7 +35,7 @@ RUN groupadd --system --gid 1001 nodejs \
 RUN apt-get update \
   && apt-get install -y --no-install-recommends python3 python3-pip \
   && pip3 install --break-system-packages --no-cache-dir \
-       torch --index-url https://download.pytorch.org/whl/cpu \
+       torch --extra-index-url https://download.pytorch.org/whl/cpu \
   && pip3 install --break-system-packages --no-cache-dir openai-whisper --no-deps \
   && pip3 install --break-system-packages --no-cache-dir tiktoken tqdm more-itertools numba numpy \
   && mkdir -p /opt/whisper-cache \
