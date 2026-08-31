@@ -188,7 +188,7 @@ export function PhotoCanvasEditor({
     const ro = new ResizeObserver(sync);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [showStage, fillStage]);
+  }, [showStage, fillStage, cropAspectFormat]);
 
   const patch = useCallback(
     (partial: Partial<ImageLayoutParams>) => {

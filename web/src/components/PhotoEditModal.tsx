@@ -299,10 +299,10 @@ export function PhotoEditModal({
             }
           );
         });
-        if (!dirtyRef.current) {
-          setLayout(serverLayout);
-          setCropAspectFormat(serverFormat);
-        }
+        setLayout((current) => (dirtyRef.current ? current : serverLayout));
+        setCropAspectFormat((current) =>
+          dirtyRef.current ? current : serverFormat
+        );
         const editable = full.integrity?.editable ?? false;
         setOriginEditable(editable);
         setRepairOriginAvailable(
@@ -386,7 +386,13 @@ export function PhotoEditModal({
     }
   }
 
+  function markDirty() {
+    dirtyRef.current = true;
+    setDirty(true);
+  }
+
   function patchDraft(patch: Partial<GalleryEditorImage>) {
+    dirtyRef.current = true;
     setDraft((prev) => (prev ? { ...prev, ...patch } : prev));
     setDirty(true);
   }
@@ -604,17 +610,18 @@ export function PhotoEditModal({
               value={layout}
               cropAspectFormat={cropAspectFormat}
               onCropFormatChange={(format, nextLayout) => {
+                dirtyRef.current = true;
                 setCropAspectFormat(format);
                 setLayout(nextLayout);
                 patchDraft({
                   cropAspectFormat: format,
                   cropShape: nextLayout.cropShape,
                 });
-                setDirty(true);
               }}
               onChange={(next) => {
+                dirtyRef.current = true;
                 setLayout(next);
-                setDirty(true);
+                markDirty();
               }}
               disabled={busy}
               fillStage
@@ -743,17 +750,18 @@ export function PhotoEditModal({
                   value={layout}
                   cropAspectFormat={cropAspectFormat}
                   onCropFormatChange={(format, nextLayout) => {
+                    dirtyRef.current = true;
                     setCropAspectFormat(format);
                     setLayout(nextLayout);
                     patchDraft({
                       cropAspectFormat: format,
                       cropShape: nextLayout.cropShape,
                     });
-                    setDirty(true);
                   }}
                   onChange={(next) => {
+                    dirtyRef.current = true;
                     setLayout(next);
-                    setDirty(true);
+                    markDirty();
                   }}
                   disabled={busy}
                   showStage={false}
