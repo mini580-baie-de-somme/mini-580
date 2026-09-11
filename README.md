@@ -2,7 +2,7 @@
 
 Plateforme de documentation, publication et communication autour de la construction de **trois Class Globe 5.80** sur la Baie de Somme.
 
-**Stack :** Next.js 15 + PostgreSQL + **OpenClaw** (control plane, VM dédiée Phase 2) + **Telegram** / **Google Drive** (canaux équipe zero-tech).
+**Stack :** Next.js 15 + PostgreSQL + **Telegram bot in-app** (webhook Next.js `/api/telegram/webhook`, live TEST+PROD) + **Google Drive** (canal équipe zero-tech, backlog). OpenClaw = control plane ops SimohraAgent (pas l’hôte du bot CNBS).
 
 ## Le projet
 
@@ -67,9 +67,9 @@ cp web/.env.example web/.env
 3. ~~Provisionner VPS Hostinger + domaine + CI/CD~~ → TEST/PROD live, promotion package (`docs/07-deploy-cicd.md`)
 4. ~~Éditeur photo mobile + intégrité media + rebake strict~~ → **v1.2.66** (`docs/12-photo-editor-medias.md`)
 5. ~~Groupes de médias inline~~ → **Phase 1d livrée v1.2.88** (`docs/13-article-image-groups.md`, `TODO.md`)
-6. ~~Liens externes inline~~ → **Phase 1e livrée v1.2.118 TEST** (`docs/16-external-links.md`) — validation → PROD
-7. Migrer médias Blogger non conformes (re-upload originale locale)
-8. Installer OpenClaw sur VM dédiée + bot Telegram Class Mini 5.80 Baie de Somme (Phase 2)
-9. ~~Développer le skill `mini580-ingest`~~ → webhook + FSM review (`docs/09-telegram-publish.md`)
-10. Brancher `TELEGRAM_*` + `CURSOR_API_KEY` sur TEST et valider un post bout-en-bout équipe
-11. Enrichir contenu équipe + jalons
+6. ~~Liens externes inline~~ → **Phase 1e livrée v1.2.118** · inclus live **v1.2.137** TEST+PROD (`docs/16-external-links.md`)
+7. ~~Phase 2 Telegram équipe~~ → bot in-app live TEST+PROD **v1.2.137** (`docs/09-telegram-publish.md`) — VM OpenClaw dédiée **abandonnée**
+8. ~~Skill `mini580-ingest` / webhook + FSM review~~ → livré dans Next (`docs/09-telegram-publish.md`)
+9. Migrer médias Blogger non conformes (re-upload originale locale)
+10. Jalons / tags / thèmes — URLs virtuelles modales
+11. Enrichir contenu équipe + jalons · Google Drive / newsletter / commentaires (Phase 3)

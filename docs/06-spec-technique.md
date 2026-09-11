@@ -44,8 +44,9 @@
 │  posts · tags · themes · milestones · externalLinks · users · images    │
 └─────────────────────────────────────────────────────────┘
 
-Phase 2 (VM dédiée) :
-  Telegram Class Mini 5.80 Baie de Somme → OpenClaw → même API/DB (pas cette instance Simohra)
+Phase 2 Telegram (livrée) :
+  Telegram → webhook Next.js `/api/telegram/webhook` → même API/DB
+  (VM OpenClaw séparée = abandonné / hors chemin)
 ```
 
 ## Modèle de données
@@ -150,7 +151,7 @@ Voir **[Déploiement & CI/CD](07-deploy-cicd.md)** :
 2. Docker Compose (stacks isolées) + nginx + Certbot
 3. GitHub Actions : push `main` → TEST · `workflow_dispatch` → PROD
 4. Images GHCR `ghcr.io/mini580-baie-de-somme/mini-580`
-5. Phase 2 : VM OpenClaw séparée + bot Telegram Class Mini 5.80 Baie de Somme → API posts
+5. ~~Phase 2 : VM OpenClaw séparée~~ → **abandonné** ; bot Telegram **in-app** Next.js → API posts (`docs/09-telegram-publish.md`)
 
 ## Phasage
 
@@ -160,8 +161,8 @@ Voir **[Déploiement & CI/CD](07-deploy-cicd.md)** :
 | **1b** | Auth + éditeur + autosave + preview + médiathèque + galerie publique + sync TEST↔PROD | ✅ Livré |
 | **1c** | Éditeur photo mobile, intégrité media, rebake strict, URLs virtuelles, CI/CD promotion package | ✅ Livré (**v1.2.66** — upload mobile, refresh vignettes, origin full-res) |
 | **1d** | Groupes inline + manifeste médias unifié + mosaïque carrée + lightbox groupe/article + slug auto + swipe mobile + footer Simohra | ✅ Livré (**v1.2.88** — TEST validé, PROD promu) — voir `docs/13-article-image-groups.md` |
-| **1e** | Liens externes réutilisables + insertion TipTap + admin `/editeur/liens` + sync catalogue + tools Telegram | ✅ Livré (**v1.2.118** TEST) — voir `docs/16-external-links.md` |
-| **2** | VM OpenClaw Class Mini 5.80 Baie de Somme + Telegram publish (production équipe) | En cours |
+| **1e** | Liens externes réutilisables + insertion TipTap + admin `/editeur/liens` + sync catalogue + tools Telegram | ✅ Livré (**v1.2.118** → inclus live **v1.2.137** TEST+PROD) — voir `docs/16-external-links.md` |
+| **2** | Telegram publish équipe (bot in-app Next.js webhook) | ✅ Livré (**v1.2.137** TEST+PROD) — VM OpenClaw dédiée **obsolète** |
 | **3** | Google Drive, newsletter, commentaires | À faire |
 
 ## Contenu seed

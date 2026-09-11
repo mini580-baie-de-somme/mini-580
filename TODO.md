@@ -1,12 +1,10 @@
 # TODO — Class Mini 5.80 Baie de Somme
 
-> Dernière mise à jour : 2026-08-19 · prod **v1.2.118** · test **v1.2.118**
+> Dernière mise à jour : 2026-09-11 · prod **v1.2.137** · test **v1.2.137** (`main` @ `a36daff`)
 
-## 🚧 En cours — validation deploy (août 2026)
+## ✅ Terminé — Phase 1e liens externes inline (août 2026)
 
-### Phase 1e — liens externes (TEST v1.2.118)
-
-Spec : `docs/16-external-links.md`
+Spec : `docs/16-external-links.md` · livré **v1.2.110 → v1.2.118** · inclus dans live **v1.2.137** TEST+PROD
 
 - [x] Modèle `ExternalLink` — labels FR/EN + url unique ou urlFr/urlEn
 - [x] API CRUD + references + insert-external-link + delete 409 si référencé
@@ -17,13 +15,12 @@ Spec : `docs/16-external-links.md`
 - [x] Sync catalogue TEST↔PROD inclut `externalLinks`
 - [x] Tools Telegram `external_links_*` + `posts.insert_external_link`
 - [x] Tests — external-links, token, segments, sync, ai-tools (**365** local)
-- [x] Ship TEST ✓ **v1.2.118**
-- [ ] Validation Hammed TEST (CRUD liens, insertion article, sync catalogue, bot)
-- [x] Deploy PROD ✓ **v1.2.118** (2026-08-19)
+- [x] Ship TEST ✓ **v1.2.118** → supersédé par live **v1.2.137**
+- [x] Deploy PROD ✓ **v1.2.118** (2026-08-19) → live **v1.2.137** (liens externes en prod)
 
-### Phase 1f — timeline & métriques (TEST v1.2.93+)
+## ✅ Terminé — Phase 1f timeline & métriques (inclus live v1.2.137)
 
-Spec : `docs/15-timeline-metrics.md` · `docs/12-photo-editor-medias.md` (crop formats)
+Spec : `docs/15-timeline-metrics.md` · `docs/12-photo-editor-medias.md` (crop formats) · ship TEST **v1.2.93+** · inclus live TEST+PROD **v1.2.137**
 
 - [x] Login anti-enumération — messages génériques (password + OTP)
 - [x] Crop 5 formats — SQUARE (défaut upload), 16:9, 4:3, 3:4, CIRCLE + rebake dynamique
@@ -33,9 +30,7 @@ Spec : `docs/15-timeline-metrics.md` · `docs/12-photo-editor-medias.md` (crop f
 - [x] Médiathèque — chips groupes plus lisibles (stack, break-words)
 - [x] Agent Telegram — brief + tools MAJ
 - [x] Tests — `timeline-metrics`, `crop-formats`, `auth-security` + milestones/posts workDays
-- [x] Ship TEST ✓ v1.2.93
-- [ ] Validation Hammed TEST → deploy PROD (timeline bundle)
-- [ ] Port simohra.fr (clone)
+- [x] Ship TEST ✓ v1.2.93 → live TEST+PROD **v1.2.137**
 
 ## ✅ Terminé — Phase 1c éditeur photo (août 2026)
 
@@ -81,52 +76,27 @@ Spec : `docs/13-article-image-groups.md` · livré **v1.2.67 → v1.2.88** (TEST
 - [x] Footer Simohra FR/EN (v1.2.88)
 - [x] Pipeline commit → push → CI → deploy TEST → validation Hammed → **deploy PROD v1.2.88**
 
-## ✅ Terminé — Phase 1e liens externes inline (août 2026)
+## ✅ Terminé — Phase 2 Telegram équipe (live TEST+PROD v1.2.137)
 
-Spec : `docs/16-external-links.md` · livré **v1.2.110 → v1.2.118** (TEST déployé · PROD en attente)
+Spec : `docs/09-telegram-publish.md` · bot **dans l’app Next.js** (webhook `POST /api/telegram/webhook`) — **pas** une VM OpenClaw séparée
 
-- [x] Modèle `ExternalLink` + token `{{external-link:id}}` + sur-charge éditeur
-- [x] API CRUD + references + insert-external-link + delete 409
-- [x] Admin `/editeur/liens` (pattern jalons) + picker « Nouveau lien »
-- [x] TipTap bloc + rendu public `InlineExternalLink`
-- [x] Sync catalogue `externalLinks` + tools Telegram
-- [x] Tests 365 local ✓ · deploy TEST **v1.2.118**
-- [ ] Validation Hammed → **deploy PROD**
+> **VM OpenClaw dédiée = abandonné / hors chemin.** Le bot publication vit dans le runtime Next (TEST+PROD). OpenClaw workspace reste le control plane ops SimohraAgent, pas l’hébergeur du bot CNBS.
 
-### Correctif bot Telegram prod (2026-08-14)
+- [x] Bot Telegram intégré Next.js (webhook `/api/telegram/webhook`) — allowlist + agent Cursor tools
+- [x] Secrets `TELEGRAM_*` + webhook live TEST+PROD (401 sans secret = route active)
+- [x] Flux review FR/EN fonctionnel (`docs/09-telegram-publish.md`)
+- [x] Correctif bot prod — verrou thread + timeout 120s + after() — **v1.2.89**
+- [x] Compaction non bloquante + non-régression — **v1.2.90+** (`docs/14-telegram-agent-compaction.md`)
+- [x] Live TEST+PROD **v1.2.137** (`main` @ `a36daff`)
 
-- [x] Verrou thread + timeout 120s run.wait + after() webhook — **v1.2.89**
-- [x] Tests CI 11/11 Telegram ✓ · deploy manuel (CI SSH timeout GitHub→VPS)
-
-### Compaction non bloquante + non-régression (2026-08-14)
-
-Spec : `docs/14-telegram-agent-compaction.md` · cible **v1.2.90**
-
-- [x] Compaction hors lock tour — fire-and-forget post-réponse
-- [x] Fork bootstrap si message pendant compaction (`compactingAgentIds`)
-- [x] Reset optimiste `cursorAgentId` — fil forké préservé
-- [x] Échec compaction → pas de reset historique
-- [x] Tests `telegram-agent-compaction.test.ts` (local, mock Cursor SDK)
-- [x] Tests `compaction-regression.test.ts` (webhook wiring)
-- [x] Commit → push → CI → deploy TEST → validation Hammed → deploy PROD **v1.2.90** (supersédé par livraisons ultérieures)
-- [ ] Port aligné **simohra.fr** (clone mini580, branding Simohra)
-
-## 📋 Backlog site (Phase 1)
+## 📋 Backlog
 
 - [ ] Migrer médias Blogger non conformes (re-upload originale locale)
 - [ ] Jalons / tags / thèmes — étendre URLs virtuelles modales (MEMORY § mini-580)
-
-## 📋 Phase 2 — Telegram équipe
-
-- [ ] Installer OpenClaw VM dédiée + bot Telegram Class Mini 5.80 Baie de Somme
-- [ ] Brancher `TELEGRAM_*` + `CURSOR_API_KEY` sur TEST — post bout-en-bout
-- [ ] Valider flux review FR/EN (`docs/09-telegram-publish.md`)
-
-## 📋 Phase 3 — plus tard
-
 - [ ] Google Drive ingest
 - [ ] Newsletter
 - [ ] Commentaires
+- [ ] Port aligné **simohra.fr** (clone mini580, branding Simohra)
 
 ## Notes opérateur
 

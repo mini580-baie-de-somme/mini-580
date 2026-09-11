@@ -1,6 +1,7 @@
 # Architecture — Plateforme OpenClaw + canaux équipe
 
-> Vision validée — juillet 2026
+> Vision validée — juillet 2026  
+> **Statut 2026-09-11 :** le bot publication Class Mini 580 est **livré in-app** (Next.js `POST /api/telegram/webhook`, live TEST+PROD **v1.2.137**). Une **VM OpenClaw dédiée pour ce bot = abandonné / hors chemin**. Le schéma ci-dessous reste une vision control-plane ; l’implémentation publication passe par le runtime Next, pas un gateway OpenClaw séparé pour le canal CNBS.
 
 ## Principe directeur
 
@@ -257,15 +258,15 @@ Skills personnalisés dans `.openclaw/skills/` ou `skills/` du workspace :
 ## Plan de mise en œuvre
 
 ### Phase 1 — Fondations (semaine 1–2)
-- [ ] Installer OpenClaw + configurer bot Telegram
-- [ ] Créer groupe `#Mini580-Chantier` + Google Drive partagé
-- [ ] Squelette site Astro/Next.js dans ce repo
-- [ ] Migrer les 3 articles Blogger existants
+- [x] Site Next.js + DB + auth + éditeur (repo `web/`)
+- [x] Migrer les 3 articles Blogger existants (seed)
+- [ ] Google Drive partagé équipe (toujours backlog Phase 3)
 
-### Phase 2 — Pipeline publication (semaine 3–4)
-- [ ] Skill `mini580-ingest` + `mini580-draft`
-- [ ] Workflow review admin via Telegram
-- [ ] Premier post chantier publié par l'équipe via Telegram seul
+### Phase 2 — Pipeline publication — ✅ livrée (in-app, pas VM OpenClaw)
+- [x] Webhook + agent Telegram dans Next.js (`/api/telegram/webhook`) — VM OpenClaw dédiée **abandonnée**
+- [x] Skill / flux `mini580-ingest` + review FR/EN (`docs/09-telegram-publish.md`)
+- [x] Secrets + webhook live TEST+PROD · compaction / correctifs bot (v1.2.89+)
+- [x] Live **v1.2.137** TEST+PROD
 
 ### Phase 3 — Enrichissement (mois 2)
 - [ ] Intégration Google Drive

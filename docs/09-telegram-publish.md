@@ -1,6 +1,7 @@
 # Publication Telegram assistée par IA
 
-> Phase 2 — flux admin / comptes autorisés (liste d'IDs Telegram)
+> Phase 2 — **livrée / live** TEST+PROD (**v1.2.137**) — flux admin / comptes autorisés (liste d'IDs Telegram)
+> Bot **dans l’app Next.js** (`POST /api/telegram/webhook`) — pas de VM OpenClaw dédiée (chemin abandonné).
 
 ## Objectif
 

@@ -80,8 +80,8 @@ Admin  → Telegram DM / Control UI → OpenClaw → tout le reste
 
 ## Prochaine étape
 
-1. Valider l'architecture OpenClaw (doc `05-architecture-openclaw.md`)
-2. Choisir domaine + hébergement
-3. Installer OpenClaw et créer le bot Telegram
-4. Lancer le squelette du site web dans ce repo
-5. Développer le premier skill `mini580-ingest` pour tester le flux équipe → site
+1. ~~Valider l'architecture OpenClaw~~ (`docs/05-architecture-openclaw.md`) — bot publication = Next.js in-app (VM dédiée abandonnée)
+2. ~~Domaine + hébergement~~ → `classmini580.blog` / VPS Hostinger TEST+PROD
+3. ~~Bot Telegram + flux publish~~ → live **v1.2.137** (`docs/09-telegram-publish.md`)
+4. ~~Squelette site web~~ → Phase 1 livrée (`web/`)
+5. Backlog : médias Blogger, URLs virtuelles jalons/tags/thèmes, Google Drive, newsletter, commentaires

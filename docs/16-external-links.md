@@ -1,6 +1,6 @@
 # Liens externes inline — articles
 
-> Spec **validée et livrée** — août 2026 · **Phase 1e** ✅ **v1.2.118** (TEST déployé · PROD en attente validation)
+> Spec **validée et livrée** — août 2026 · **Phase 1e** ✅ **v1.2.118** → inclus live TEST+PROD **v1.2.137**
 
 ## Problème
 
