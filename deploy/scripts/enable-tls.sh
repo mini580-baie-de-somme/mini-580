@@ -31,7 +31,7 @@ systemctl reload nginx
 echo "==> verify HTTPS"
 for url in https://test.classmini580.blog/api/version https://classmini580.blog/api/version; do
   echo -n "$url → "
-  curl -fsS "$url" | jq -r .version
+  curl -fsS "$url" | python3 -c 'import sys,json; print(json.load(sys.stdin)["version"])'
 done
 
 echo "TLS enabled OK"

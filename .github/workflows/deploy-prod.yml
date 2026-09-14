@@ -47,7 +47,7 @@ jobs:
               echo "::error::expected_version is required (e.g. 1.0.89)"
               exit 1
             fi
-            ACTUAL=$(curl -fsS http://127.0.0.1:3021/api/version | jq -r .version)
+            ACTUAL=$(curl -fsS http://127.0.0.1:3021/api/version | python3 -c 'import sys,json; print(json.load(sys.stdin)["version"])')
             echo "TEST live: v$ACTUAL — promote target: v$EXPECTED (localhost:3021)"
             if [ "$ACTUAL" != "$EXPECTED" ]; then
               echo "::error::TEST is v$ACTUAL but you asked to promote v$EXPECTED. Deploy or validate TEST first."
@@ -168,7 +168,7 @@ jobs:
             EXPECTED="${{ github.event.inputs.expected_version }}"
             ok=0
             for i in $(seq 1 30); do
-              ACTUAL=$(curl -fsS http://127.0.0.1:3020/api/version | jq -r .version 2>/dev/null || echo "")
+              ACTUAL=$(curl -fsS http://127.0.0.1:3020/api/version | python3 -c 'import sys,json; print(json.load(sys.stdin)["version"])' 2>/dev/null || echo "")
               echo "Attempt $i: PROD v$ACTUAL (expected v$EXPECTED, localhost:3020)"
               if [ "$ACTUAL" = "$EXPECTED" ]; then
                 ok=1
