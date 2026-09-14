@@ -6,8 +6,11 @@ set -euo pipefail
 
 ENV_NAME="${1:-}"
 IMAGE_ARG="${2:-}"
-OPT_ROOT="${OPT_ROOT:-/opt/mini580}"
-REGISTRY_IMAGE="${REGISTRY_IMAGE:-ghcr.io/mini580-baie-de-somme/mini-580}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=ports.sh
+source "${SCRIPT_DIR}/ports.sh"
+OPT_ROOT="${OPT_ROOT:-${OPT_ROOT_DEFAULT}}"
+REGISTRY_IMAGE="${REGISTRY_IMAGE:-${REGISTRY_IMAGE_DEFAULT}}"
 
 if [[ "$ENV_NAME" != "test" && "$ENV_NAME" != "prod" ]]; then
   echo "Usage: $0 <test|prod> [image]"
@@ -83,8 +86,7 @@ echo "==> docker compose up -d"
 docker compose -f "$COMPOSE" --env-file "$ENV_FILE" up -d --remove-orphans
 
 echo "==> wait for web healthy"
-PORT=3001
-[[ "$ENV_NAME" == "prod" ]] && PORT=3000
+PORT="$(web_port_for_env "$ENV_NAME")"
 
 ok=0
 for i in $(seq 1 60); do

@@ -9,7 +9,10 @@ LOG_TAIL="${LOG_TAIL:-2000}"
 COMPOSE="/opt/mini580/${OPS_ENV}/docker-compose.yml"
 ENVF="/opt/mini580/${OPS_ENV}/.env"
 MEDIA="/opt/mini580/${OPS_ENV}/media"
-PORT="$([ "$OPS_ENV" = prod ] && echo 3000 || echo 3001)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=ports.sh
+source "${SCRIPT_DIR}/ports.sh"
+PORT="$(web_port_for_env "${OPS_ENV}")"
 POSTGRES_DB="$(grep -E '^POSTGRES_DB=' "$ENVF" 2>/dev/null | cut -d= -f2- | tr -d '"'"'"'"' || true)"
 POSTGRES_DB="${POSTGRES_DB:-mini580_${OPS_ENV}}"
 

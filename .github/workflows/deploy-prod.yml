@@ -71,7 +71,7 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: "deploy/docker-compose.prod.yml,deploy/scripts/deploy.sh,deploy/scripts/docker-cleanup.sh,deploy/nginx/classmini580.blog.conf"
+          source: "deploy/docker-compose.prod.yml,deploy/scripts/deploy.sh,deploy/scripts/ports.sh,deploy/scripts/docker-cleanup.sh,deploy/nginx/classmini580.blog.conf"
           target: "/tmp/mini580-deploy-sync"
           timeout: 120s
           command_timeout: 10m
@@ -107,6 +107,7 @@ jobs:
             mkdir -p /opt/mini580/prod/media /opt/mini580/nginx /opt/mini580/bin
             cp "$SYNC/docker-compose.prod.yml" /opt/mini580/prod/docker-compose.yml
             cp "$SYNC/scripts/deploy.sh" /opt/mini580/bin/deploy.sh
+            cp "$SYNC/scripts/ports.sh" /opt/mini580/bin/ports.sh
             cp "$SYNC/scripts/docker-cleanup.sh" /opt/mini580/bin/docker-cleanup.sh
             chmod +x /opt/mini580/bin/deploy.sh /opt/mini580/bin/docker-cleanup.sh
             cp "$SYNC/nginx/classmini580.blog.conf" /opt/mini580/nginx/classmini580.blog.conf
@@ -129,7 +130,9 @@ jobs:
             upsert_env SYNC_PRIVATE_KEY "${SYNC_PRIVATE_KEY:-}"
             upsert_env SYNC_PEER_PUBLIC_KEY "${SYNC_PEER_PUBLIC_KEY:-}"
             upsert_env SESSION_SECRET "${SESSION_SECRET:-}"
-            upsert_env POSTGRES_PASSWORD "${POSTGRES_PASSWORD:-}"
+            if [[ -n "${POSTGRES_PASSWORD:-}" ]]; then
+              upsert_env DATABASE_URL "postgresql://mini580:${POSTGRES_PASSWORD}@host.docker.internal:5432/mini580_prod?schema=public"
+            fi
             upsert_env LOG_LEVEL "info"
             upsert_env NEXT_PUBLIC_LOG_LEVEL "info"
             if command -v sudo >/dev/null 2>&1; then

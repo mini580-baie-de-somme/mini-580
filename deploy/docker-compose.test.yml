@@ -1,34 +1,15 @@
-# Stack TEST — isolée (réseau, volumes, DB)
+# Stack TEST — web only; PostgreSQL native on VPS host (127.0.0.1:5432)
+# Ports: slot 02 → host 3021 (see scripts/host/vps-registry.conf)
 # Usage: IMAGE=ghcr.io/.../mini-580:test docker compose -f docker-compose.test.yml --env-file .env up -d
 
 name: mini580-test
 
 services:
-  db:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-mini580}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
-      POSTGRES_DB: ${POSTGRES_DB:-mini580_test}
-    volumes:
-      - mini580_test_pg:/var/lib/postgresql/data
-    networks:
-      - mini580_test
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mini580} -d ${POSTGRES_DB:-mini580_test}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   web:
     image: ${IMAGE:?IMAGE required}
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-mini580}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-mini580_test}?schema=public
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL required}
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET required}
       EDITORS_ALLOWLIST: ${EDITORS_ALLOWLIST:-}
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@classmini580.blog}
@@ -55,17 +36,15 @@ services:
       SYNC_PEER_PUBLIC_KEY: ${SYNC_PEER_PUBLIC_KEY:-}
       LOG_LEVEL: ${LOG_LEVEL:-debug}
     ports:
-      - "127.0.0.1:3001:3000"
+      - "127.0.0.1:3021:3000"
     volumes:
       - ./media:/data/media
     extra_hosts:
+      - "host.docker.internal:host-gateway"
       - "classmini580.blog:2.24.13.70"
       - "www.classmini580.blog:2.24.13.70"
     networks:
       - mini580_test
-
-volumes:
-  mini580_test_pg:
 
 networks:
   mini580_test:
