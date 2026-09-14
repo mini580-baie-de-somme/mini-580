@@ -32,19 +32,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify TEST live version
-        run: |
-          EXPECTED="${{ github.event.inputs.expected_version }}"
-          if [ -z "$EXPECTED" ]; then
-            echo "::error::expected_version is required (e.g. 1.0.89)"
-            exit 1
-          fi
-          ACTUAL=$(curl -fsS https://test.classmini580.blog/api/version | jq -r .version)
-          echo "TEST live: v$ACTUAL — promote target: v$EXPECTED"
-          if [ "$ACTUAL" != "$EXPECTED" ]; then
-            echo "::error::TEST is v$ACTUAL but you asked to promote v$EXPECTED. Deploy or validate TEST first."
-            exit 1
-          fi
+      - name: Verify TEST live version (SSH localhost)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          timeout: 60s
+          command_timeout: 2m
+          script: |
+            set -euo pipefail
+            EXPECTED="${{ github.event.inputs.expected_version }}"
+            if [ -z "$EXPECTED" ]; then
+              echo "::error::expected_version is required (e.g. 1.0.89)"
+              exit 1
+            fi
+            ACTUAL=$(curl -fsS http://127.0.0.1:3021/api/version | jq -r .version)
+            echo "TEST live: v$ACTUAL — promote target: v$EXPECTED (localhost:3021)"
+            if [ "$ACTUAL" != "$EXPECTED" ]; then
+              echo "::error::TEST is v$ACTUAL but you asked to promote v$EXPECTED. Deploy or validate TEST first."
+              exit 1
+            fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -147,21 +155,29 @@ jobs:
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             /opt/mini580/bin/deploy.sh prod "$IMAGE"
 
-      - name: Verify PROD version matches TEST
-        run: |
-          EXPECTED="${{ github.event.inputs.expected_version }}"
-          ok=0
-          for i in $(seq 1 30); do
-            ACTUAL=$(curl -fsS https://classmini580.blog/api/version | jq -r .version 2>/dev/null || echo "")
-            echo "Attempt $i: PROD v$ACTUAL (expected v$EXPECTED)"
-            if [ "$ACTUAL" = "$EXPECTED" ]; then
-              ok=1
-              break
+      - name: Verify PROD version matches TEST (SSH localhost)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          timeout: 60s
+          command_timeout: 5m
+          script: |
+            set -euo pipefail
+            EXPECTED="${{ github.event.inputs.expected_version }}"
+            ok=0
+            for i in $(seq 1 30); do
+              ACTUAL=$(curl -fsS http://127.0.0.1:3020/api/version | jq -r .version 2>/dev/null || echo "")
+              echo "Attempt $i: PROD v$ACTUAL (expected v$EXPECTED, localhost:3020)"
+              if [ "$ACTUAL" = "$EXPECTED" ]; then
+                ok=1
+                break
+              fi
+              sleep 5
+            done
+            if [ "$ok" -ne 1 ]; then
+              echo "::error::PROD version mismatch — expected v$EXPECTED"
+              exit 1
             fi
-            sleep 5
-          done
-          if [ "$ok" -ne 1 ]; then
-            echo "::error::PROD version mismatch — expected v$EXPECTED"
-            exit 1
-          fi
-          echo "PROD promoted OK — v$EXPECTED"
+            echo "PROD promoted OK — v$EXPECTED"

@@ -174,11 +174,21 @@ Script : `deploy/scripts/docker-cleanup.sh` → copié sur le VPS en `/opt/mini5
 
 ## TLS (après DNS propagé)
 
+**État 2026-09-14 :** HTTP `:80` OK · HTTPS `:443` **non configuré** (certbot jamais lancé).
+
+**Bloqueur :** l’utilisateur `deploy` n’a **pas** de sudo sans mot de passe ; `root@2.24.13.70` n’accepte aucune clé SSH de Box1. Certbot exige root.
+
+**CI verify :** les workflows deploy utilisent `curl http://127.0.0.1:3021|3020/api/version` via SSH (pas de dépendance HTTPS tant que TLS est absent).
+
+**Activation TLS (root requis)** — Hostinger hPanel → VPS → terminal root, ou SSH root une fois la clé ajoutée :
+
 ```bash
-ssh mini580-test 'sudo certbot --nginx \
-  -d classmini580.blog -d www.classmini580.blog -d test.classmini580.blog \
-  --non-interactive --agree-tos -m VOTRE_EMAIL --redirect'
+bash /opt/mini580/bin/enable-tls.sh
+# ou depuis le repo :
+sudo bash deploy/scripts/enable-tls.sh
 ```
+
+Script : `deploy/scripts/enable-tls.sh` (certbot `--nginx` + redirect HTTP→HTTPS pour les 3 hostnames).
 
 ## Seed base TEST (premier boot)
 

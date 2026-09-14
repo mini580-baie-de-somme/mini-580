@@ -200,12 +200,20 @@ jobs:
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             /opt/mini580/bin/deploy.sh test "$IMAGE"
 
-      - name: Verify TEST version
-        run: |
-          EXPECTED="${{ steps.ver.outputs.version }}"
-          ACTUAL=$(curl -fsS https://test.classmini580.blog/api/version | jq -r .version)
-          echo "Expected v$EXPECTED, live v$ACTUAL"
-          if [ "$ACTUAL" != "$EXPECTED" ]; then
-            echo "::error::TEST version mismatch after deploy"
-            exit 1
-          fi
+      - name: Verify TEST version (SSH localhost)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          timeout: 60s
+          command_timeout: 2m
+          script: |
+            set -euo pipefail
+            EXPECTED="${{ steps.ver.outputs.version }}"
+            ACTUAL=$(curl -fsS http://127.0.0.1:3021/api/version | jq -r .version)
+            echo "Expected v$EXPECTED, live v$ACTUAL (localhost:3021)"
+            if [ "$ACTUAL" != "$EXPECTED" ]; then
+              echo "::error::TEST version mismatch after deploy"
+              exit 1
+            fi
