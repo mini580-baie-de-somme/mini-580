@@ -138,8 +138,12 @@ jobs:
             upsert_env SYNC_PRIVATE_KEY "${SYNC_PRIVATE_KEY:-}"
             upsert_env SYNC_PEER_PUBLIC_KEY "${SYNC_PEER_PUBLIC_KEY:-}"
             upsert_env SESSION_SECRET "${SESSION_SECRET:-}"
-            if [[ -n "${POSTGRES_PASSWORD:-}" ]]; then
-              upsert_env DATABASE_URL "postgresql://mini580:${POSTGRES_PASSWORD}@host.docker.internal:5432/mini580_prod?schema=public"
+            # DATABASE_URL is managed on the VPS (native PG password). Do not overwrite from
+            # GitHub secrets — prod/test env secrets may drift from /opt/vps-secrets/pg.env.
+            if ! grep -q '^DATABASE_URL=' "$ENVF" 2>/dev/null; then
+              if [[ -n "${POSTGRES_PASSWORD:-}" ]]; then
+                upsert_env DATABASE_URL "postgresql://mini580:${POSTGRES_PASSWORD}@host.docker.internal:5432/mini580_prod?schema=public"
+              fi
             fi
             upsert_env LOG_LEVEL "info"
             upsert_env NEXT_PUBLIC_LOG_LEVEL "info"
