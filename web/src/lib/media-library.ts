@@ -606,6 +606,21 @@ export async function deleteMediaById(id: string, opts?: { force?: boolean }) {
     });
   }
 
+  // Clear dangling Post.coverImageUrl strings (incl. Telegram/raw covers without PostMedia).
+  const coverUrls = [
+    media.urlOrigin,
+    media.urlPicto,
+    media.urlPetite,
+    media.urlMoyenne,
+    media.urlGrande,
+  ].filter((u): u is string => Boolean(u));
+  if (coverUrls.length > 0) {
+    await prisma.post.updateMany({
+      where: { coverImageUrl: { in: coverUrls } },
+      data: { coverImageUrl: null },
+    });
+  }
+
   await deleteMediaUrls([
     media.urlOrigin,
     media.urlPicto,

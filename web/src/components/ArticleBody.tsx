@@ -17,12 +17,14 @@ export function ArticleBody({
   mediaGroups = {},
   externalLinks = {},
   onOpenMediaGroup,
+  showEmptyMediaGroups = true,
 }: {
   content: string;
   locale?: "fr" | "en";
   mediaGroups?: Record<string, PublicMediaGroup>;
   externalLinks?: Record<string, PublicExternalLink>;
   onOpenMediaGroup?: (groupId: string, startIndex?: number) => void;
+  showEmptyMediaGroups?: boolean;
 }) {
   const normalized = normalizeLegacyBodyText(content);
   if (!normalized.trim()) return null;
@@ -61,6 +63,7 @@ export function ArticleBody({
               key={`group-${segment.groupId}-${index}`}
               group={group}
               locale={locale}
+              showEmpty={showEmptyMediaGroups}
               onOpen={(startIndex) =>
                 onOpenMediaGroup?.(segment.groupId, startIndex)
               }

@@ -85,13 +85,17 @@ export function InlineMediaGroup({
   group,
   locale,
   onOpen,
+  showEmpty = true,
 }: {
   group: PublicMediaGroup | null;
   locale: "fr" | "en";
   manifestIndex?: number;
   onOpen: (startIndex: number) => void;
+  /** When false (public article), hide empty/missing groups instead of placeholder banners. */
+  showEmpty?: boolean;
 }) {
   if (!group) {
+    if (!showEmpty) return null;
     return (
       <div
         role="note"
@@ -109,6 +113,7 @@ export function InlineMediaGroup({
   const title = locale === "fr" ? group.titleFr : group.titleEn;
 
   if (count === 0) {
+    if (!showEmpty) return null;
     return (
       <div className="my-6 rounded-lg border border-dashed border-[#d4dde6] bg-[#f8fafc] px-4 py-6 text-center text-sm text-[#495867]">
         {locale === "fr" ? "Groupe vide." : "Empty group."}

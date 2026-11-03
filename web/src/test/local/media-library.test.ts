@@ -306,6 +306,12 @@ describe("API integration — Media library", () => {
     expect(blockedBody.links?.coverLinks?.length).toBeGreaterThanOrEqual(1);
     expect(blockedBody.linkedPostCount).toBeGreaterThanOrEqual(1);
 
+    const coverBefore = await prisma.post.findUnique({
+      where: { id: postA },
+      select: { coverImageUrl: true },
+    });
+    expect(coverBefore?.coverImageUrl).toBeTruthy();
+
     const forced = await del(
       jsonRequest(`http://localhost/api/media-library/${media.id}?force=1`, {
         method: "DELETE",
@@ -318,6 +324,50 @@ describe("API integration — Media library", () => {
     expect(
       await prisma.postMedia.count({ where: { mediaId: media.id } })
     ).toBe(0);
+    const coverAfter = await prisma.post.findUnique({
+      where: { id: postA },
+      select: { coverImageUrl: true },
+    });
+    expect(coverAfter?.coverImageUrl).toBeNull();
+  });
+
+  it("clears raw coverImageUrl when media is deleted without PostMedia cover link", async () => {
+    const { POST: createMedia } = await import("@/app/api/media-library/route");
+    const media = await (
+      await createMedia(
+        jsonRequest("http://localhost/api/media-library", {
+          method: "POST",
+          headers: bearerHeaders(),
+          body: JSON.stringify({
+            urlOrigin: "/media/2026/08/raw-cover-only.jpg",
+            urlMoyenne: "/media/2026/08/raw-cover-only/moyenne.webp",
+            titleFr: "Raw cover",
+            titleEn: "Raw cover",
+            kind: "IMAGE",
+          }),
+        })
+      )
+    ).json();
+
+    await prisma.post.update({
+      where: { id: postA },
+      data: { coverImageUrl: media.urlMoyenne ?? media.urlOrigin },
+    });
+
+    const { DELETE: del } = await import("@/app/api/media-library/[id]/route");
+    const res = await del(
+      jsonRequest(`http://localhost/api/media-library/${media.id}`, {
+        method: "DELETE",
+        headers: bearerHeaders(),
+      }),
+      { params: Promise.resolve({ id: media.id }) }
+    );
+    expect(res.status).toBe(200);
+    const post = await prisma.post.findUnique({
+      where: { id: postA },
+      select: { coverImageUrl: true },
+    });
+    expect(post?.coverImageUrl).toBeNull();
   });
 
   it("allows delete with legacy PostMedia (isCover=false) without force", async () => {
