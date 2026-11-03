@@ -155,9 +155,14 @@ export function ArticleView({
           locale={locale}
           mediaGroups={mediaPage?.mediaGroups}
           externalLinks={mediaPage?.externalLinks}
-          onOpenMediaGroup={(groupId) => {
+          onOpenMediaGroup={(groupId, startIndex = 0) => {
             const groups = mediaPage?.mediaGroups ?? {};
-            slideshow.openAtGroup(groupId, groups, manifestIndexByGroupId);
+            slideshow.openAtGroup(
+              groupId,
+              groups,
+              manifestIndexByGroupId,
+              startIndex
+            );
           }}
         />
 

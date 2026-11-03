@@ -21,26 +21,28 @@ function MosaicTile({
   locale,
   className = "",
   overlay,
+  onOpen,
+  ariaLabel,
 }: {
   media: MosaicMedia;
   locale: "fr" | "en";
   className?: string;
   overlay?: ReactNode;
+  onOpen?: () => void;
+  ariaLabel?: string;
 }) {
   const kind = resolveThumbKind(media.kind, media.mimeType, media.urlOrigin);
   const src = thumbSrc(media);
   const label =
     (locale === "fr" ? media.titleFr : media.titleEn) || "";
 
-  return (
-    <div
-      className={`relative aspect-square overflow-hidden bg-[#eef3f7] ${className}`}
-    >
+  const body = (
+    <>
       {kind === "IMAGE" && src ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={src}
-          alt={label}
+          alt=""
           className="h-full w-full object-cover object-center"
         />
       ) : (
@@ -58,8 +60,25 @@ function MosaicTile({
         </div>
       )}
       {overlay}
-    </div>
+    </>
   );
+
+  const tileClass = `relative aspect-square overflow-hidden bg-[#eef3f7] ${className}`;
+
+  if (onOpen) {
+    return (
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={ariaLabel}
+        className={`${tileClass} transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#495867]`}
+      >
+        {body}
+      </button>
+    );
+  }
+
+  return <div className={tileClass}>{body}</div>;
 }
 
 export function InlineMediaGroup({
@@ -70,7 +89,7 @@ export function InlineMediaGroup({
   group: PublicMediaGroup | null;
   locale: "fr" | "en";
   manifestIndex?: number;
-  onOpen: () => void;
+  onOpen: (startIndex: number) => void;
 }) {
   if (!group) {
     return (
@@ -88,10 +107,6 @@ export function InlineMediaGroup({
   const members = group.members;
   const count = members.length;
   const title = locale === "fr" ? group.titleFr : group.titleEn;
-  const ariaLabel =
-    locale === "fr"
-      ? `Voir ${count} média${count > 1 ? "s" : ""}${title ? ` — ${title}` : ""}`
-      : `View ${count} media item${count !== 1 ? "s" : ""}${title ? ` — ${title}` : ""}`;
 
   if (count === 0) {
     return (
@@ -101,48 +116,98 @@ export function InlineMediaGroup({
     );
   }
 
-  const canOpen = count > 0;
+  const tileAria = (index: number) => {
+    const n = index + 1;
+    if (locale === "fr") {
+      return `Voir média ${n} sur ${count}${title ? ` — ${title}` : ""}`;
+    }
+    return `View media ${n} of ${count}${title ? ` — ${title}` : ""}`;
+  };
+
+  const openAt = (index: number) => () => onOpen(index);
 
   return (
     <figure className="my-6 w-full sm:my-8">
-      <button
-        type="button"
-        onClick={canOpen ? onOpen : undefined}
-        disabled={!canOpen}
-        aria-label={ariaLabel}
-        className="group w-full overflow-hidden rounded-xl border border-[#d4dde6] shadow-sm transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#495867] focus-visible:ring-offset-2 disabled:cursor-default disabled:opacity-100"
-      >
+      <div className="w-full overflow-hidden rounded-xl border border-[#d4dde6] shadow-sm">
         <div className="w-full overflow-hidden">
           {count === 1 && (
-            <MosaicTile media={members[0]!} locale={locale} className="w-full" />
+            <MosaicTile
+              media={members[0]!}
+              locale={locale}
+              className="w-full"
+              onOpen={openAt(0)}
+              ariaLabel={tileAria(0)}
+            />
           )}
 
           {count === 2 && (
             <div className="grid grid-cols-2 gap-0.5">
-              <MosaicTile media={members[0]!} locale={locale} />
-              <MosaicTile media={members[1]!} locale={locale} />
+              <MosaicTile
+                media={members[0]!}
+                locale={locale}
+                onOpen={openAt(0)}
+                ariaLabel={tileAria(0)}
+              />
+              <MosaicTile
+                media={members[1]!}
+                locale={locale}
+                onOpen={openAt(1)}
+                ariaLabel={tileAria(1)}
+              />
             </div>
           )}
 
           {count === 3 && (
             <div className="grid grid-cols-3 gap-0.5">
-              <MosaicTile media={members[0]!} locale={locale} />
-              <MosaicTile media={members[1]!} locale={locale} />
-              <MosaicTile media={members[2]!} locale={locale} />
+              <MosaicTile
+                media={members[0]!}
+                locale={locale}
+                onOpen={openAt(0)}
+                ariaLabel={tileAria(0)}
+              />
+              <MosaicTile
+                media={members[1]!}
+                locale={locale}
+                onOpen={openAt(1)}
+                ariaLabel={tileAria(1)}
+              />
+              <MosaicTile
+                media={members[2]!}
+                locale={locale}
+                onOpen={openAt(2)}
+                ariaLabel={tileAria(2)}
+              />
             </div>
           )}
 
           {count >= 4 && (
             <div className="grid grid-cols-2 gap-0.5">
-              <MosaicTile media={members[0]!} locale={locale} />
-              <MosaicTile media={members[1]!} locale={locale} />
-              <MosaicTile media={members[2]!} locale={locale} />
+              <MosaicTile
+                media={members[0]!}
+                locale={locale}
+                onOpen={openAt(0)}
+                ariaLabel={tileAria(0)}
+              />
+              <MosaicTile
+                media={members[1]!}
+                locale={locale}
+                onOpen={openAt(1)}
+                ariaLabel={tileAria(1)}
+              />
+              <MosaicTile
+                media={members[2]!}
+                locale={locale}
+                onOpen={openAt(2)}
+                ariaLabel={tileAria(2)}
+              />
               <MosaicTile
                 media={members[3]!}
                 locale={locale}
+                onOpen={openAt(3)}
+                ariaLabel={tileAria(3)}
                 overlay={
                   count > 4 ? (
-                    <div className="absolute inset-0 flex items-center justify-center bg-[#0D131A]/55 text-lg font-semibold text-white">
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#0D131A]/55 text-lg font-semibold text-white">
                       +{count - 3}
                     </div>
                   ) : undefined
@@ -151,7 +216,7 @@ export function InlineMediaGroup({
             </div>
           )}
         </div>
-      </button>
+      </div>
       {title ? (
         <figcaption className="mt-2 text-center text-sm text-[#495867]">
           {title}

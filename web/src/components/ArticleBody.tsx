@@ -22,7 +22,7 @@ export function ArticleBody({
   locale?: "fr" | "en";
   mediaGroups?: Record<string, PublicMediaGroup>;
   externalLinks?: Record<string, PublicExternalLink>;
-  onOpenMediaGroup?: (groupId: string) => void;
+  onOpenMediaGroup?: (groupId: string, startIndex?: number) => void;
 }) {
   const normalized = normalizeLegacyBodyText(content);
   if (!normalized.trim()) return null;
@@ -61,7 +61,9 @@ export function ArticleBody({
               key={`group-${segment.groupId}-${index}`}
               group={group}
               locale={locale}
-              onOpen={() => onOpenMediaGroup?.(segment.groupId)}
+              onOpen={(startIndex) =>
+                onOpenMediaGroup?.(segment.groupId, startIndex)
+              }
             />
           );
         }

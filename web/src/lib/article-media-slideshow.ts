@@ -5,6 +5,7 @@ import {
   useMediaSlideshow,
   type MediaSlideshowItem,
 } from "@/components/MediaSlideshow";
+import { clampMediaGroupStartIndex } from "@/lib/media-group-start-index";
 
 /** Slideshow state with optional scoped items (inline group) vs full article manifest. */
 export function useArticleMediaSlideshow() {
@@ -17,7 +18,9 @@ export function useArticleMediaSlideshow() {
     (members: MediaSlideshowItem[], startIndex = 0) => {
       if (members.length === 0) return;
       setScopeItems(members);
-      slideshow.openViewer(startIndex);
+      slideshow.openViewer(
+        clampMediaGroupStartIndex(startIndex, members.length)
+      );
     },
     [slideshow]
   );
@@ -26,11 +29,12 @@ export function useArticleMediaSlideshow() {
     (
       groupId: string,
       mediaGroups: Record<string, { members: MediaSlideshowItem[] }>,
-      indexByGroupId: Record<string, number>
+      indexByGroupId: Record<string, number>,
+      startIndex = 0
     ) => {
       const group = mediaGroups[groupId];
       if (group?.members.length) {
-        openGroupMembers(group.members, 0);
+        openGroupMembers(group.members, startIndex);
         return;
       }
       const index = indexByGroupId[groupId];
