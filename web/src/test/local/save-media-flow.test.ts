@@ -9,6 +9,7 @@ import {
 } from "@/lib/media-save-errors";
 import {
   followUpLibraryRebakePoll,
+  followUpPostRebakePoll,
   getSaveFlowErrorPhase,
   saveMediaFlow,
 } from "@/lib/save-media-flow";
@@ -414,6 +415,95 @@ describe("followUpLibraryRebakePoll", () => {
     });
     await vi.advanceTimersByTimeAsync(25_000);
     expect(onReload).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+});
+
+describe("followUpPostRebakePoll", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("calls onSaved and onRebakeComplete when variants rotate", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "m1",
+          kind: "IMAGE",
+          urlOrigin: "/media/m1/origin.jpg",
+          urlPicto: "/media/m1/picto-new.webp",
+          urlPetite: null,
+          urlMoyenne: "/media/m1/moyenne-new.webp",
+          urlGrande: null,
+          titleFr: "",
+          titleEn: "",
+          descriptionFr: "",
+          descriptionEn: "",
+          takenAt: null,
+          sortOrder: 0,
+          offsetX: 0,
+          offsetY: 0,
+          scaleX: 1.2,
+          scaleY: 1.2,
+          lockAspect: true,
+          cropShape: "RECT",
+          backgroundColor: "#000000",
+          cropInset: 0.06,
+          focusX: 0.5,
+          focusY: 0.5,
+          zoom: 1.2,
+          rotation: 0,
+          cropX: 0,
+          cropY: 0,
+          cropW: 1,
+          cropH: 1,
+        })
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const onSaved = vi.fn();
+    const onRebakeComplete = vi.fn();
+    followUpPostRebakePoll({
+      mediaId: "m1",
+      layout: { ...DEFAULT_IMAGE_LAYOUT, scaleX: 1.2, scaleY: 1.2 },
+      isImage: true,
+      patchVariantBaseline: { urlPicto: "/media/m1/picto.webp" },
+      trace: { traceId: "t-rebake", postId: "p1", mediaId: "m1" },
+      onSaved,
+      onRebakeComplete,
+    });
+    await vi.waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(onRebakeComplete).toHaveBeenCalledTimes(1);
+    expect(onSaved.mock.calls[0]![0].urlMoyenne).toBe(
+      "/media/m1/moyenne-new.webp"
+    );
+  });
+
+  it("does not call onRebakeComplete when variants unchanged", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "m1",
+          urlPicto: "/media/m1/picto.webp",
+        })
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const onSaved = vi.fn();
+    const onRebakeComplete = vi.fn();
+    followUpPostRebakePoll({
+      mediaId: "m1",
+      layout: { ...DEFAULT_IMAGE_LAYOUT },
+      isImage: true,
+      patchVariantBaseline: { urlPicto: "/media/m1/picto.webp" },
+      trace: { traceId: "t-rebake-timeout", postId: "p1", mediaId: "m1" },
+      onSaved,
+      onRebakeComplete,
+    });
+    await vi.advanceTimersByTimeAsync(25_000);
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(onRebakeComplete).not.toHaveBeenCalled();
     vi.useRealTimers();
   });
 });

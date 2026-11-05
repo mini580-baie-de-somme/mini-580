@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useVirtualUrl } from "@/hooks/useVirtualUrl";
 import {
   parsePhotoModalState,
@@ -13,6 +14,8 @@ import {
 } from "@/lib/cover-display";
 import {
   type GalleryEditorImage,
+  coverDisplaySrc,
+  coverSrcFromUrl,
   coverUrlFromImage,
   mergeEditorImageLayout,
   mediaVariantSnapshot,
@@ -93,6 +96,10 @@ export function PostGalleryEditor({
   coverImageUrl,
   onCoverChange,
 }: Props) {
+  const router = useRouter();
+  const refreshAfterCoverRebake = useCallback(() => {
+    router.refresh();
+  }, [router]);
   const [images, setImages] = useState<GalleryEditorImage[]>(() =>
     normalizeImages(initialImages)
   );
@@ -342,6 +349,7 @@ export function PostGalleryEditor({
             patchVariantBaseline: mediaVariantSnapshot(patched),
             trace,
             onSaved: handleImageSaved,
+            onRebakeComplete: refreshAfterCoverRebake,
             cropAspectFormat: COVER_DEFAULT_CROP_FORMAT,
           });
         }
@@ -397,8 +405,10 @@ export function PostGalleryEditor({
   }
 
   const coverPreviewUrl = coverImage
-    ? coverUrlFromImage(coverImage)
-    : coverImageUrl;
+    ? coverDisplaySrc(coverImage)
+    : coverImageUrl
+      ? coverSrcFromUrl(coverImageUrl)
+      : null;
   const hasCover = Boolean(coverImage || coverImageUrl || coverMediaIdRef.current);
 
   return (
@@ -551,6 +561,7 @@ export function PostGalleryEditor({
           image={modal.kind === "edit-cover" ? editingCoverImage : null}
           onClose={closePhotoModal}
           onSaved={handleImageSaved}
+          onRebakeComplete={refreshAfterCoverRebake}
           onDeleted={handleImageDeleted}
         />
       )}

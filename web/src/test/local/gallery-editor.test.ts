@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   coalesceEditorOrigin,
+  coverDisplaySrc,
+  coverSrcFromUrl,
   coverUrlFromImage,
   editorCanvasSrc,
   findCoverImage,
@@ -65,6 +67,35 @@ describe("gallery-editor cover helpers", () => {
       coverUrlFromImage(img({ id: "b", urlGrande: "/g.webp" }))
     ).toBe("/g.webp");
     expect(coverUrlFromImage(img({ id: "c" }))).toBe("/media/c/origin.jpg");
+  });
+
+  it("coverDisplaySrc cache-busts like galleryThumbSrc (updatedAt/leaf/layout)", () => {
+    expect(
+      coverDisplaySrc(
+        img({
+          id: "a",
+          urlMoyenne: "/media/a/moyenne.webp",
+          urlGrande: "/media/a/grande.webp",
+          updatedAt: "2026-11-05T12:00:00.000Z",
+          scaleX: 1.25,
+          rotation: 90,
+        })
+      )
+    ).toBe(
+      "/media/a/moyenne.webp?v=1793880000000-1.2500-90.00-moyenne.webp"
+    );
+    expect(
+      coverDisplaySrc(img({ id: "b", urlGrande: "/media/b/grande.webp" }))
+    ).toBe("/media/b/grande.webp?v=0-1.0000-0.00-grande.webp");
+  });
+
+  it("coverSrcFromUrl busts stored coverImageUrl by leaf", () => {
+    expect(coverSrcFromUrl("/media/1/moyenne.webp")).toBe(
+      "/media/1/moyenne.webp?v=moyenne.webp"
+    );
+    expect(coverSrcFromUrl("/media/1/moyenne.webp?v=old")).toBe(
+      "/media/1/moyenne.webp?v=moyenne.webp"
+    );
   });
 
   it("finds cover by any stored variant URL", () => {

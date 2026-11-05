@@ -186,7 +186,7 @@ export function coalesceEditorOrigin(
   return fallback?.urlOrigin?.trim() ?? "";
 }
 
-/** Prefer a sized variant for cards / header display. */
+/** Prefer a sized variant for Post.coverImageUrl (no query — safe to persist). */
 export function coverUrlFromImage(image: GalleryEditorImage): string {
   return (
     image.urlMoyenne ||
@@ -194,6 +194,24 @@ export function coverUrlFromImage(image: GalleryEditorImage): string {
     image.urlPetite ||
     image.urlOrigin
   );
+}
+
+/** Cover preview in editor — same cache-bust pattern as galleryThumbSrc. */
+export function coverDisplaySrc(image: GalleryEditorImage): string {
+  const base = coverUrlFromImage(image);
+  if (!base) return base;
+  return withCacheBust(base, galleryThumbCacheBust(image, base));
+}
+
+/**
+ * Cache-bust a stored coverImageUrl for public/list display.
+ * Leaf filename rotates on rebake; immutable /media needs a query change to refresh.
+ */
+export function coverSrcFromUrl(url: string): string {
+  const path = url.split("?")[0]!;
+  if (!path) return url;
+  const leaf = path.split("/").pop() || "none";
+  return withCacheBust(path, leaf);
 }
 
 /** Open in new tab: largest baked variant for images (crop applied), origin for docs/video. */

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { coverSrcFromUrl } from "@/lib/gallery-editor";
 import type { HullId } from "@/lib/types";
 import { BlogTaxonomyLinks } from "./BlogTaxonomyLinks";
 import { HullBadgeList } from "./HullBadge";
@@ -41,7 +42,8 @@ export function PostCard({ post }: { post: PostCardData }) {
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={post.coverImageUrl}
+            key={coverSrcFromUrl(post.coverImageUrl)}
+            src={coverSrcFromUrl(post.coverImageUrl)}
             alt=""
             className="h-full w-full object-cover transition group-hover:scale-[1.02]"
           />

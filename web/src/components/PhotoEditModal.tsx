@@ -69,6 +69,8 @@ type Props = {
   imagesOnly?: boolean;
   onClose: () => void;
   onSaved: (image: GalleryEditorImage) => void;
+  /** After async rebake rotates variants (e.g. router.refresh for cover RSC). */
+  onRebakeComplete?: () => void;
   onDeleted?: (id: string) => void;
 };
 
@@ -157,6 +159,7 @@ export function PhotoEditModal({
   imagesOnly = false,
   onClose,
   onSaved,
+  onRebakeComplete,
   onDeleted,
 }: Props) {
   const [draft, setDraft] = useState<GalleryEditorImage | null>(
@@ -488,6 +491,7 @@ export function PhotoEditModal({
           patchVariantBaseline: result.patchVariantBaseline,
           trace,
           onSaved,
+          onRebakeComplete,
           cropAspectFormat,
         });
       }

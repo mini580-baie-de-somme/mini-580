@@ -511,6 +511,8 @@ export function followUpPostRebakePoll(opts: {
   patchVariantBaseline: MediaVariantSnapshot;
   trace: PhotoEditorTraceContext;
   onSaved: (image: GalleryEditorImage) => void;
+  /** After variants rotate — e.g. router.refresh() so RSC coverImageUrl updates. */
+  onRebakeComplete?: () => void;
   cropAspectFormat?: string;
 }): void {
   const {
@@ -520,6 +522,7 @@ export function followUpPostRebakePoll(opts: {
     patchVariantBaseline,
     trace,
     onSaved,
+    onRebakeComplete,
     cropAspectFormat,
   } = opts;
   photoEditorTrace(trace, "save.rebake.poll.start", {
@@ -553,6 +556,7 @@ export function followUpPostRebakePoll(opts: {
           })
         : toEditorImage(rebaked)
     );
+    onRebakeComplete?.();
   })();
 }
 

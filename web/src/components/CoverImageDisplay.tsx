@@ -2,6 +2,7 @@ import {
   coverDisplayAspectRatio,
   coverDisplayIsCircle,
 } from "@/lib/cover-display";
+import { coverSrcFromUrl } from "@/lib/gallery-editor";
 import type { CropAspectFormat } from "@/lib/image-layout";
 
 type CoverImageDisplayProps = {
@@ -36,11 +37,14 @@ export function CoverImageDisplay({
   ]
     .filter(Boolean)
     .join(" ");
+  // Bust immutable /media when leaf rotates after rebake (skip if already ?v=).
+  const displaySrc = src.includes("?v=") ? src : coverSrcFromUrl(src);
 
   const img = (
     /* eslint-disable-next-line @next/next/no-img-element */
     <img
-      src={src}
+      key={displaySrc}
+      src={displaySrc}
       alt=""
       className={`block h-full w-full object-contain ${imgClassName}`.trim()}
     />
