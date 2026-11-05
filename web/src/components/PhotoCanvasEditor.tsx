@@ -8,12 +8,13 @@ import {
   DEFAULT_IMAGE_LAYOUT,
   computeEditorCropWindow,
   computeEditorPhotoLayout,
+  containStageSize,
   coverScaleForCrop,
   cropCircleMetrics,
   cropWindowFractions,
-  defaultCropShapeForFormat,
   editorStageStyleForFormat,
   imageAspectForFormat,
+  layoutForCropFormatChange,
   layoutPatchForRotationChange,
   offsetForScalePivot,
   type CropAspectFormat,
@@ -136,10 +137,12 @@ export function PhotoCanvasEditor({
 }: Props) {
   const { locale } = useLocale();
   const dimMaskId = useId();
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
   const [imageNatural, setImageNatural] = useState({ width: 0, height: 0 });
+  const [formatNotice, setFormatNotice] = useState<string | null>(null);
   const dragMode = useRef<DragMode>(null);
   const lastPoint = useRef<Point | null>(null);
   const pointers = useRef<Map<number, Point>>(new Map());
@@ -154,6 +157,12 @@ export function PhotoCanvasEditor({
   useEffect(() => {
     setImageNatural({ width: 0, height: 0 });
   }, [imageSrc]);
+
+  useEffect(() => {
+    if (!formatNotice) return;
+    const t = window.setTimeout(() => setFormatNotice(null), 3200);
+    return () => window.clearTimeout(t);
+  }, [formatNotice]);
 
   const syncImageNatural = useCallback((img: HTMLImageElement) => {
     if (img.naturalWidth > 0 && img.naturalHeight > 0) {
@@ -170,18 +179,48 @@ export function PhotoCanvasEditor({
   }, [imageSrc, syncImageNatural]);
 
   useEffect(() => {
+    if (!showStage) return;
+
+    const applyMeasured = (width: number, height: number) => {
+      if (width <= 0 || height <= 0) {
+        setStageSize((prev) =>
+          prev.width === 0 && prev.height === 0 ? prev : { width: 0, height: 0 }
+        );
+        return;
+      }
+      setStageSize((prev) =>
+        prev.width === width && prev.height === height ? prev : { width, height }
+      );
+    };
+
+    if (fillStage) {
+      const wrapper = wrapperRef.current;
+      if (!wrapper) return;
+
+      const sync = () => {
+        const rect = wrapper.getBoundingClientRect();
+        const parentW = Math.round(rect.width);
+        const parentH = Math.round(rect.height);
+        const next = containStageSize(
+          parentW,
+          parentH,
+          imageAspectForFormat(cropAspectFormat)
+        );
+        applyMeasured(next.width, next.height);
+      };
+
+      sync();
+      const ro = new ResizeObserver(sync);
+      ro.observe(wrapper);
+      return () => ro.disconnect();
+    }
+
     const el = stageRef.current;
-    if (!el || !showStage) return;
+    if (!el) return;
 
     const sync = () => {
       const rect = el.getBoundingClientRect();
-      const width = Math.round(rect.width);
-      const height = Math.round(rect.height);
-      if (width > 0 && height > 0) {
-        setStageSize((prev) =>
-          prev.width === width && prev.height === height ? prev : { width, height }
-        );
-      }
+      applyMeasured(Math.round(rect.width), Math.round(rect.height));
     };
 
     sync();
@@ -507,15 +546,33 @@ export function PhotoCanvasEditor({
       </div>
     ) : null;
 
+  const fillStageStyle: React.CSSProperties =
+    fillStage && stageSize.width > 0 && stageSize.height > 0
+      ? {
+          width: stageSize.width,
+          height: stageSize.height,
+          aspectRatio: String(imageAspectForFormat(cropAspectFormat)),
+          maxWidth: "100%",
+          maxHeight: "100%",
+        }
+      : fillStage
+        ? {
+            ...editorStageStyleForFormat(cropAspectFormat, { fillStage: true }),
+            width: 0,
+            height: 0,
+          }
+        : editorStageStyleForFormat(cropAspectFormat, { fillStage: false });
+
   const stage = showStage ? (
     <div
+      key={cropAspectFormat}
       ref={stageRef}
       className={
         fillStage
           ? "relative shrink-0 cursor-grab touch-none overflow-hidden rounded-lg border border-[#d4dde6] shadow-sm active:cursor-grabbing"
           : "relative mx-auto shrink-0 cursor-grab touch-none overflow-hidden rounded-lg border border-[#d4dde6] shadow-sm active:cursor-grabbing"
       }
-      style={editorStageStyleForFormat(cropAspectFormat, { fillStage })}
+      style={fillStageStyle}
       onWheel={onWheel}
       onPointerDown={(e) => onInteractionPointerDown(e, "pan")}
       onPointerMove={onInteractionPointerMove}
@@ -762,12 +819,20 @@ export function PhotoCanvasEditor({
             }
             onChange={(e) => {
               const format = e.target.value as CropAspectFormat;
-              const nextLayout: ImageLayoutParams = {
-                ...valueRef.current,
-                cropShape: defaultCropShapeForFormat(format),
-                offsetX: 0,
-                offsetY: 0,
-              };
+              const prevFormat = cropAspectFormat;
+              const nextLayout = layoutForCropFormatChange(
+                valueRef.current,
+                format
+              );
+              // Remount/remeasure via stage key={format}; keep offsets (crop-relative).
+              // Clear notice when format is unchanged; otherwise hint that stage was remounted.
+              if (format !== prevFormat) {
+                setFormatNotice(
+                  locale === "fr"
+                    ? "Format mis à jour — le cadrage (pan/zoom) est conservé ; ajuste si besoin."
+                    : "Format updated — framing (pan/zoom) kept; adjust if needed."
+                );
+              }
               if (onCropFormatChange) {
                 onCropFormatChange(format, nextLayout);
               } else {
@@ -838,10 +903,20 @@ export function PhotoCanvasEditor({
     </div>
   ) : null;
 
+  const formatNoticeNode = formatNotice ? (
+    <p
+      className="rounded-md bg-[#eef3f7] px-2.5 py-1.5 text-[11px] leading-snug text-[#495867]"
+      role="status"
+    >
+      {formatNotice}
+    </p>
+  ) : null;
+
   if (showStage && showControls && !fillStage) {
     return (
       <div className="space-y-3">
         {stage}
+        {formatNoticeNode}
         {controls}
       </div>
     );
@@ -849,8 +924,13 @@ export function PhotoCanvasEditor({
 
   if (showStage && !showControls) {
     return fillStage ? (
-      <div className="flex h-full min-h-0 w-full touch-none items-center justify-center overflow-hidden p-2 sm:p-4">
-        {stage}
+      <div className="flex h-full min-h-0 w-full touch-none overflow-hidden p-2 sm:p-4">
+        <div
+          ref={wrapperRef}
+          className="flex h-full min-h-0 w-full items-center justify-center overflow-hidden"
+        >
+          {stage}
+        </div>
       </div>
     ) : (
       <>{stage}</>
@@ -858,15 +938,24 @@ export function PhotoCanvasEditor({
   }
 
   if (!showStage && showControls) {
-    return <>{controls}</>;
+    return (
+      <>
+        {formatNoticeNode}
+        {controls}
+      </>
+    );
   }
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 lg:flex-row">
-      <div className="flex min-h-[36vh] flex-1 items-center justify-center bg-[#eef3f7] p-2 lg:min-h-0">
+      <div
+        ref={fillStage ? wrapperRef : undefined}
+        className="flex min-h-[36vh] flex-1 items-center justify-center bg-[#eef3f7] p-2 lg:min-h-0"
+      >
         {stage}
       </div>
       <div className="shrink-0 overflow-y-auto border-t border-[#d4dde6] p-3 lg:w-[320px] lg:border-l lg:border-t-0">
+        {formatNoticeNode}
         {controls}
       </div>
     </div>

@@ -47,7 +47,34 @@ export function imageAspectForFormat(format: CropAspectFormat): number {
   }
 }
 
-/** Stage sizing — fillStage must fit inside parent without squashing aspect ratio. */
+/**
+ * Largest pixel box with `aspect` (width/height) that fits inside the parent
+ * (CSS object-fit: contain). Returns {0,0} when the parent is unmeasurable.
+ */
+export function containStageSize(
+  parentW: number,
+  parentH: number,
+  aspect: number
+): { width: number; height: number } {
+  if (!(parentW > 0) || !(parentH > 0) || !(aspect > 0)) {
+    return { width: 0, height: 0 };
+  }
+  const parentAspect = parentW / parentH;
+  if (parentAspect > aspect) {
+    const height = parentH;
+    const width = height * aspect;
+    return { width: Math.round(width), height: Math.round(height) };
+  }
+  const width = parentW;
+  const height = width / aspect;
+  return { width: Math.round(width), height: Math.round(height) };
+}
+
+/**
+ * Stage sizing for non-fillStage (intrinsic CSS).
+ * fillStage applies pixel sizes via `containStageSize` in PhotoCanvasEditor —
+ * do not use asymmetric width/height %/auto hacks (they break aspect in wide+short parents).
+ */
 export function editorStageStyleForFormat(
   format: CropAspectFormat,
   opts?: { fillStage?: boolean }
@@ -65,14 +92,23 @@ export function editorStageStyleForFormat(
       aspectRatio: String(aspect),
       maxWidth: "100%",
       maxHeight: "100%",
-      width: aspect >= 1 ? "100%" : "auto",
-      height: aspect >= 1 ? "auto" : "100%",
     };
   }
   return {
     aspectRatio: String(aspect),
     width: "100%",
     maxWidth: "min(100%, 360px)",
+  };
+}
+
+/** Layout patch when the user changes crop aspect format (keep framing offsets). */
+export function layoutForCropFormatChange(
+  layout: ImageLayoutParams,
+  format: CropAspectFormat
+): ImageLayoutParams {
+  return {
+    ...layout,
+    cropShape: defaultCropShapeForFormat(format),
   };
 }
 

@@ -19,7 +19,10 @@ import {
   resolveCoverImage,
   toEditorImage,
 } from "@/lib/gallery-editor";
-import { DEFAULT_IMAGE_LAYOUT } from "@/lib/image-layout";
+import {
+  defaultCropShapeForFormat,
+  layoutFromLegacy,
+} from "@/lib/image-layout";
 import { followUpPostRebakePoll } from "@/lib/save-media-flow";
 import { CoverImageDisplay } from "./CoverImageDisplay";
 import { FullscreenEditorModal } from "./FullscreenEditorModal";
@@ -305,7 +308,12 @@ export function PostGalleryEditor({
           isFirstCoverAttach,
         })
       ) {
-        const layout = { ...DEFAULT_IMAGE_LAYOUT };
+        // Normalize format only — keep existing pan/zoom (do not overwrite with DEFAULT).
+        const cropShape = defaultCropShapeForFormat(COVER_DEFAULT_CROP_FORMAT);
+        const layout = {
+          ...layoutFromLegacy(image),
+          cropShape,
+        };
         const trace = {
           traceId: newPhotoEditorTraceId(),
           postId,
@@ -315,15 +323,17 @@ export function PostGalleryEditor({
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            ...layout,
             cropAspectFormat: COVER_DEFAULT_CROP_FORMAT,
+            cropShape,
           }),
         });
         if (!patchRes.ok) throw new Error("cover format patch failed");
         const patched = toEditorImage(await patchRes.json()) as GalleryEditorImage & {
           rebakePending?: boolean;
         };
-        image = mergeEditorImageLayout(patched, layout);
+        image = mergeEditorImageLayout(patched, layout, {
+          cropAspectFormat: COVER_DEFAULT_CROP_FORMAT,
+        });
         if (patched.rebakePending) {
           followUpPostRebakePoll({
             mediaId: image.id,
