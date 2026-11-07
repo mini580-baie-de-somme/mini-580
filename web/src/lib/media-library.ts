@@ -36,6 +36,16 @@ import {
   hasBlockingMediaLinks,
   type MediaLinkInfo,
 } from "@/lib/media-links";
+import {
+  loadReferencedGroupIdSets,
+  mediaDraftOnBlogClause,
+  mediaOrphanClause,
+  mediaPublicOnBlogClause,
+} from "@/lib/media-post-visibility";
+import {
+  resolveMediaLibraryVisibility,
+  type MediaLibraryVisibility,
+} from "@/lib/media-library-visibility";
 
 export const mediaInclude = {
   posts: {
@@ -68,61 +78,101 @@ export const mediaInclude = {
 
 export type MediaWithPosts = Prisma.MediaGetPayload<{ include: typeof mediaInclude }>;
 
-/** API shape: media row + structured link info (cover + groups, not legacy PostMedia). */
+export type MediaVisibilityContext = {
+  publishedGroupIds: Set<string>;
+  anyGroupIds: Set<string>;
+};
+
+export function computeMediaVisibility(
+  media: MediaWithPosts,
+  ctx: MediaVisibilityContext
+): MediaLibraryVisibility {
+  const groupIds = (media.groupMembers ?? []).map((gm) => gm.group.id);
+  return resolveMediaLibraryVisibility({
+    postStatuses: (media.posts ?? []).map((p) => p.post.status),
+    hasPostMediaLink: (media.posts ?? []).length > 0,
+    referencedByPublishedGroup: groupIds.some((id) =>
+      ctx.publishedGroupIds.has(id)
+    ),
+    referencedByAnyGroup: groupIds.some((id) => ctx.anyGroupIds.has(id)),
+  });
+}
+
+export async function loadMediaVisibilityContext(): Promise<MediaVisibilityContext> {
+  const sets = await loadReferencedGroupIdSets();
+  return {
+    publishedGroupIds: new Set(sets.published),
+    anyGroupIds: new Set(sets.any),
+  };
+}
+
+/** API shape: media row + structured link info + visibility badge. */
 export function serializeMediaWithLinks<T extends MediaWithPosts>(
-  media: T
-): T & { links: MediaLinkInfo } {
-  return { ...media, links: extractMediaLinkInfo(media) };
+  media: T,
+  ctx?: MediaVisibilityContext
+): T & { links: MediaLinkInfo; visibility: MediaLibraryVisibility } {
+  const visibility = ctx
+    ? computeMediaVisibility(media, ctx)
+    : resolveMediaLibraryVisibility({
+        postStatuses: (media.posts ?? []).map((p) => p.post.status),
+        hasPostMediaLink: (media.posts ?? []).length > 0,
+      });
+  return { ...media, links: extractMediaLinkInfo(media), visibility };
 }
 
 export function serializeMediaListWithLinks<T extends MediaWithPosts>(
-  items: T[]
-): Array<T & { links: MediaLinkInfo }> {
-  return items.map(serializeMediaWithLinks);
+  items: T[],
+  ctx?: MediaVisibilityContext
+): Array<T & { links: MediaLinkInfo; visibility: MediaLibraryVisibility }> {
+  return items.map((item) => serializeMediaWithLinks(item, ctx));
 }
 
 export const postMediaInclude = {
   media: true,
 } satisfies Prisma.PostMediaInclude;
 
-export function mediaWhere(filters?: {
+export async function mediaWhere(filters?: {
   q?: string;
   kind?: string;
   visibility?: string;
   groupId?: string;
-}): Prisma.MediaWhereInput {
-  const where: Prisma.MediaWhereInput = {};
+}): Promise<Prisma.MediaWhereInput> {
+  const clauses: Prisma.MediaWhereInput[] = [];
   if (filters?.groupId) {
-    where.groupMembers = { some: { groupId: filters.groupId } };
+    clauses.push({ groupMembers: { some: { groupId: filters.groupId } } });
   }
   if (filters?.kind && filters.kind !== "ALL") {
     const kind = filters.kind as MediaKind;
     if (Object.values(MediaKind).includes(kind)) {
-      where.kind = kind;
+      clauses.push({ kind });
     }
   }
   const visibility = filters?.visibility?.trim().toLowerCase();
-  if (visibility === "public") {
-    where.posts = { some: { post: { status: "PUBLISHED" } } };
-  } else if (visibility === "draft") {
-    where.AND = [
-      { posts: { some: {} } },
-      { posts: { none: { post: { status: "PUBLISHED" } } } },
-    ];
-  } else if (visibility === "orphan") {
-    where.posts = { none: {} };
+  if (visibility === "public" || visibility === "draft" || visibility === "orphan") {
+    const sets = await loadReferencedGroupIdSets();
+    if (visibility === "public") {
+      clauses.push(mediaPublicOnBlogClause(sets.published));
+    } else if (visibility === "draft") {
+      clauses.push(mediaDraftOnBlogClause(sets.any, sets.published));
+    } else {
+      clauses.push(mediaOrphanClause(sets.any));
+    }
   }
   const q = filters?.q?.trim();
   if (q) {
-    where.OR = [
-      { titleFr: { contains: q, mode: "insensitive" } },
-      { titleEn: { contains: q, mode: "insensitive" } },
-      { descriptionFr: { contains: q, mode: "insensitive" } },
-      { descriptionEn: { contains: q, mode: "insensitive" } },
-      { mimeType: { contains: q, mode: "insensitive" } },
-    ];
+    clauses.push({
+      OR: [
+        { titleFr: { contains: q, mode: "insensitive" } },
+        { titleEn: { contains: q, mode: "insensitive" } },
+        { descriptionFr: { contains: q, mode: "insensitive" } },
+        { descriptionEn: { contains: q, mode: "insensitive" } },
+        { mimeType: { contains: q, mode: "insensitive" } },
+      ],
+    });
   }
-  return where;
+  if (clauses.length === 0) return {};
+  if (clauses.length === 1) return clauses[0]!;
+  return { AND: clauses };
 }
 
 export function parseMediaListParams(searchParams: URLSearchParams) {

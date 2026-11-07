@@ -11,12 +11,17 @@ import {
 import {
   createMediaFromUpload,
   createMediaFromUrls,
+  loadMediaVisibilityContext,
   mediaInclude,
   mediaWhere,
   parseMediaListParams,
   serializeMediaListWithLinks,
   serializeMediaWithLinks,
 } from "@/lib/media-library";
+import {
+  loadReferencedGroupIdSets,
+  mediaPublicOnBlogClause,
+} from "@/lib/media-post-visibility";
 import { enrichMediaListWithIntegrity } from "@/lib/media-integrity";
 import { optionalNullableDateTime } from "@/lib/date-schema";
 
@@ -26,12 +31,27 @@ export async function GET(request: NextRequest) {
   const editor = await getEditorOrService(request);
   const { searchParams } = request.nextUrl;
   const { q, kind, visibility, groupId, limit, offset } = parseMediaListParams(searchParams);
-  const where = mediaWhere({ q, kind, visibility: editor ? visibility : undefined, groupId });
+  const baseWhere = await mediaWhere({
+    q,
+    kind,
+    visibility: editor ? visibility : undefined,
+    groupId,
+  });
 
-  // Public: only media linked to at least one published post (for discovery)
+  // Public discovery: PostMedia on PUBLISHED or inline group in a published body
+  let where = baseWhere;
+  let publicTotalWhere = baseWhere;
   if (!editor) {
-    where.posts = { some: { post: { status: "PUBLISHED" } } };
+    const sets = await loadReferencedGroupIdSets();
+    const publicClause = mediaPublicOnBlogClause(sets.published);
+    where =
+      Object.keys(baseWhere).length === 0
+        ? publicClause
+        : { AND: [baseWhere, publicClause] };
+    publicTotalWhere = publicClause;
   }
+
+  const visibilityCtx = editor ? await loadMediaVisibilityContext() : undefined;
 
   const [rows, total, totalAll] = await Promise.all([
     prisma.media.findMany({
@@ -42,13 +62,14 @@ export async function GET(request: NextRequest) {
       skip: offset,
     }),
     prisma.media.count({ where }),
-    prisma.media.count(
-      editor ? undefined : { where: { posts: { some: { post: { status: "PUBLISHED" } } } } }
-    ),
+    prisma.media.count(editor ? undefined : { where: publicTotalWhere }),
   ]);
 
   const items = editor
-    ? serializeMediaListWithLinks(await enrichMediaListWithIntegrity(rows))
+    ? serializeMediaListWithLinks(
+        await enrichMediaListWithIntegrity(rows),
+        visibilityCtx
+      )
     : rows;
 
   return NextResponse.json({ items, total, totalAll, limit, offset });
@@ -115,7 +136,8 @@ export async function POST(request: NextRequest) {
               : null,
         },
       });
-      return NextResponse.json(media, { status: 201 });
+      const ctx = await loadMediaVisibilityContext();
+      return NextResponse.json(serializeMediaWithLinks(media, ctx), { status: 201 });
     }
 
     const body = await request.json();
@@ -124,7 +146,8 @@ export async function POST(request: NextRequest) {
       ...data,
       takenAt: data.takenAt ? new Date(data.takenAt) : null,
     });
-    return NextResponse.json(media, { status: 201 });
+    const ctx = await loadMediaVisibilityContext();
+    return NextResponse.json(serializeMediaWithLinks(media, ctx), { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.flatten() }, { status: 400 });

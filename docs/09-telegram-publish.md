@@ -131,7 +131,7 @@ Auth : cookie session **ou** `Authorization: Bearer <INGEST_API_KEY>` (optionnel
 
 | Tool | Méthode |
 |------|---------|
-| Galerie publique | `GET /api/gallery?kind=&hull=&theme=&tag=&milestone=&search=&sort=` |
+| Galerie publique | `GET /api/gallery?kind=&hull=&theme=&tag=&milestone=&search=&sort=` — `PostMedia` **et** médias des groupes inline sur posts PUBLISHED (pas d’auto-attach) |
 | Médiathèque liste | `GET /api/media-library?q=&kind=&groupId=&limit=&offset=` |
 | Médiathèque CRUD | `POST/PATCH/DELETE /api/media-library` · `…/:id` · `…/:id/replace` |
 | Médias d’un post | `GET/POST /api/posts/:id/media` |

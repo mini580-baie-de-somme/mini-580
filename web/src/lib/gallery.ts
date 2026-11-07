@@ -8,6 +8,8 @@ import {
   publishedAtRangeForMilestone,
 } from "@/lib/milestone-windows";
 import { displayImageUrl } from "@/lib/media-variants";
+import { collectMediaGroupIdsFromBodies } from "@/lib/media-post-visibility";
+import { parseMediaGroupIds } from "@/lib/media-group-token";
 import { parseHull } from "@/lib/utils";
 
 export type { GalleryFilters, GalleryItem, GalleryPhoto } from "@/lib/gallery-types";
@@ -40,6 +42,67 @@ async function postFilter(filters: GalleryFilters): Promise<Prisma.PostWhereInpu
   return where;
 }
 
+type GalleryPostRow = Prisma.PostGetPayload<{
+  include: {
+    mediaLinks: { include: { media: true } };
+    hulls: true;
+    tags: { include: { tag: true } };
+    themes: { include: { theme: true } };
+  };
+}>;
+
+type GalleryMediaRow = GalleryPostRow["mediaLinks"][number]["media"];
+
+type AccEntry = {
+  media: GalleryMediaRow;
+  posts: GalleryPostRow[];
+  sortOrder: number;
+};
+
+function mediaMatchesSearch(
+  media: GalleryMediaRow,
+  post: GalleryPostRow,
+  search: string
+): boolean {
+  const q = search.toLowerCase();
+  const fields = [
+    media.titleFr,
+    media.titleEn,
+    media.descriptionFr,
+    media.descriptionEn,
+    post.titleFr,
+    post.titleEn,
+  ];
+  return fields.some((f) => f.toLowerCase().includes(q));
+}
+
+function acceptMedia(
+  media: GalleryMediaRow,
+  post: GalleryPostRow,
+  kind: MediaKind | undefined,
+  search: string | undefined
+): boolean {
+  if (kind && media.kind !== kind) return false;
+  if (search && !mediaMatchesSearch(media, post, search)) return false;
+  return true;
+}
+
+function addMediaToAcc(
+  byMedia: Map<string, AccEntry>,
+  media: GalleryMediaRow,
+  post: GalleryPostRow,
+  sortOrder: number
+) {
+  const existing = byMedia.get(media.id);
+  if (existing) {
+    if (!existing.posts.some((p) => p.id === post.id)) {
+      existing.posts.push(post);
+    }
+    return;
+  }
+  byMedia.set(media.id, { media, posts: [post], sortOrder });
+}
+
 export async function listGalleryItems(
   filters: GalleryFilters = {}
 ): Promise<GalleryItem[]> {
@@ -49,47 +112,16 @@ export async function listGalleryItems(
       ? (filters.kind as MediaKind)
       : undefined;
 
-  const [links, allMilestones] = await Promise.all([
-    prisma.postMedia.findMany({
-      where: {
-        post: await postFilter(filters),
-        ...(kind ? { media: { kind } } : {}),
-        ...(search
-          ? {
-              OR: [
-                { media: { titleFr: { contains: search, mode: "insensitive" } } },
-                { media: { titleEn: { contains: search, mode: "insensitive" } } },
-                {
-                  media: {
-                    descriptionFr: { contains: search, mode: "insensitive" },
-                  },
-                },
-                {
-                  media: {
-                    descriptionEn: { contains: search, mode: "insensitive" },
-                  },
-                },
-                {
-                  post: {
-                    OR: [
-                      { titleFr: { contains: search, mode: "insensitive" } },
-                      { titleEn: { contains: search, mode: "insensitive" } },
-                    ],
-                  },
-                },
-              ],
-            }
-          : {}),
-      },
+  const postWhere = await postFilter(filters);
+
+  const [posts, allMilestones] = await Promise.all([
+    prisma.post.findMany({
+      where: postWhere,
       include: {
-        media: true,
-        post: {
-          include: {
-            hulls: true,
-            tags: { include: { tag: true } },
-            themes: { include: { theme: true } },
-          },
-        },
+        mediaLinks: { include: { media: true } },
+        hulls: true,
+        tags: { include: { tag: true } },
+        themes: { include: { theme: true } },
       },
     }),
     prisma.milestone.findMany({
@@ -104,18 +136,49 @@ export async function listGalleryItems(
     }),
   ]);
 
-  // Dedupe media appearing on multiple published posts
-  const byMedia = new Map<string, (typeof links)[number][]>();
-  for (const link of links) {
-    const list = byMedia.get(link.mediaId) ?? [];
-    list.push(link);
-    byMedia.set(link.mediaId, list);
+  const groupIds = collectMediaGroupIdsFromBodies(posts);
+  const groups =
+    groupIds.length > 0
+      ? await prisma.mediaGroup.findMany({
+          where: { id: { in: groupIds } },
+          include: {
+            members: {
+              orderBy: { sortOrder: "asc" },
+              include: { media: true },
+            },
+          },
+        })
+      : [];
+  const groupById = new Map(groups.map((g) => [g.id, g]));
+
+  const byMedia = new Map<string, AccEntry>();
+
+  for (const post of posts) {
+    for (const link of post.mediaLinks) {
+      if (!acceptMedia(link.media, post, kind, search)) continue;
+      addMediaToAcc(byMedia, link.media, post, link.sortOrder);
+    }
+
+    const referenced = [
+      ...new Set([
+        ...parseMediaGroupIds(post.bodyFr),
+        ...parseMediaGroupIds(post.bodyEn),
+      ]),
+    ];
+    for (const groupId of referenced) {
+      const group = groupById.get(groupId);
+      if (!group) continue;
+      for (const member of group.members) {
+        if (!acceptMedia(member.media, post, kind, search)) continue;
+        addMediaToAcc(byMedia, member.media, post, member.sortOrder);
+      }
+    }
   }
 
   const items: GalleryItem[] = [];
-  for (const group of byMedia.values()) {
-    const primary = group[0]!;
-    const media = primary.media;
+  for (const entry of byMedia.values()) {
+    const media = entry.media;
+    const primary = entry.posts[0]!;
     const display = {
       urlOrigin: media.urlOrigin,
       urlPicto: media.urlPicto,
@@ -131,30 +194,30 @@ export async function listGalleryItems(
     const displayUrl =
       media.kind === "IMAGE" ? displayImageUrl(display) : media.urlOrigin;
 
-    const milestones = group.flatMap((g) =>
-      milestonesForPostPublishedAt(g.post, allMilestones).map((m) => ({
+    const milestones = entry.posts.flatMap((p) =>
+      milestonesForPostPublishedAt(p, allMilestones).map((m) => ({
         slug: m.slug,
         titleFr: m.titleFr,
         titleEn: m.titleEn,
         milestoneDate: m.milestoneDate.toISOString(),
       }))
     );
-    const themes = group.flatMap((g) =>
-      g.post.themes.map((t) => ({
+    const themes = entry.posts.flatMap((p) =>
+      p.themes.map((t) => ({
         slug: t.theme.slug,
         labelFr: t.theme.labelFr,
         labelEn: t.theme.labelEn,
       }))
     );
-    const tags = group.flatMap((g) =>
-      g.post.tags.map((t) => ({
+    const tags = entry.posts.flatMap((p) =>
+      p.tags.map((t) => ({
         name: t.tag.name,
         labelFr: t.tag.labelFr,
         labelEn: t.tag.labelEn,
       }))
     );
     const hulls = [
-      ...new Set(group.flatMap((g) => g.post.hulls.map((h) => h.hull))),
+      ...new Set(entry.posts.flatMap((p) => p.hulls.map((h) => h.hull))),
     ];
 
     items.push({
@@ -166,7 +229,7 @@ export async function listGalleryItems(
       descriptionFr: media.descriptionFr,
       descriptionEn: media.descriptionEn,
       takenAt: media.takenAt?.toISOString() ?? null,
-      sortOrder: primary.sortOrder,
+      sortOrder: entry.sortOrder,
       urlOrigin: media.urlOrigin,
       urlPicto: media.urlPicto,
       urlPetite: media.urlPetite,
@@ -183,17 +246,17 @@ export async function listGalleryItems(
       cropW: media.cropW,
       cropH: media.cropH,
       post: {
-        id: primary.post.id,
-        slug: primary.post.slug,
-        titleFr: primary.post.titleFr,
-        titleEn: primary.post.titleEn,
-        publishedAt: primary.post.publishedAt?.toISOString() ?? null,
+        id: primary.id,
+        slug: primary.slug,
+        titleFr: primary.titleFr,
+        titleEn: primary.titleEn,
+        publishedAt: primary.publishedAt?.toISOString() ?? null,
       },
-      posts: group.map((g) => ({
-        id: g.post.id,
-        slug: g.post.slug,
-        titleFr: g.post.titleFr,
-        titleEn: g.post.titleEn,
+      posts: entry.posts.map((p) => ({
+        id: p.id,
+        slug: p.slug,
+        titleFr: p.titleFr,
+        titleEn: p.titleEn,
       })),
       milestones,
       themes,

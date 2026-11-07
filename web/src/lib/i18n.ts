@@ -519,16 +519,16 @@ const messages = {
   "media.visibility.draft": { fr: "Brouillon", en: "Draft" },
   "media.visibility.orphan": { fr: "Non lié", en: "Unlinked" },
   "media.visibility.publicHint": {
-    fr: "Visible dans la galerie publique (article publié)",
-    en: "Visible in the public gallery (published post)",
+    fr: "Visible dans la galerie publique (couverture, pièce jointe ou groupe inline sur article publié)",
+    en: "Visible in the public gallery (cover, standalone, or inline group on a published post)",
   },
   "media.visibility.draftHint": {
-    fr: "Lié à un brouillon — publier l’article pour l’afficher",
-    en: "Linked to a draft — publish the post to show it",
+    fr: "Sur un brouillon (article ou groupe inline) — publier pour l’afficher",
+    en: "On a draft (post or inline group) — publish to show it",
   },
   "media.visibility.orphanHint": {
-    fr: "Pas d’article — associer à un post publié pour l’afficher",
-    en: "No post — attach to a published post to show it",
+    fr: "Pas sur un article (couverture, pièce jointe ou groupe inline) — lier pour l’afficher",
+    en: "Not on any article (cover, standalone, or inline group) — link it to show it",
   },
   "media.kind.all": { fr: "Tous", en: "All" },
   "media.kind.image": { fr: "Photo", en: "Photo" },

@@ -73,12 +73,14 @@ Phase 2 Telegram (livrée) :
 - **Stockage** : bucket local `/media/...` (S3-like) — origin + variants sur disque VPS
 - **Intégrité** : audit `assessMediaIntegrity` — origin locale obligatoire pour édition layout ; badges UI `Local OK` / `Non conforme`
 - Éditeur : `/editeur/galerie` · public : `/galerie` (multi-médias, filtre `kind`)
+- **Galerie publique site** (`listGalleryItems` / `GET /api/gallery`) : union `PostMedia` sur posts PUBLISHED **+** membres des `MediaGroup` référencés dans `bodyFr`/`bodyEn` des mêmes posts — pas d’auto-attach
+- **Filtres médiathèque** `visibility=public|draft|orphan` : même règle « sur un article » (PostMedia **ou** groupe inline dans un body) — voir `docs/13-article-image-groups.md` § Galerie publique
 - Détail éditeur photo, rebake, clipboard, URLs virtuelles : **`docs/12-photo-editor-medias.md`**
 
 ### MediaGroup (Phase 1d — groupes inline)
 - Entité médiathèque indépendante — M:N avec `Media` via `MediaGroupMember` (`sortOrder`)
 - Référencée dans `Post.bodyFr` / `bodyEn` par token assisté `{{media-group:<id>}}`
-- Médias de groupe **non requis** dans `PostMedia` pour l’affichage public
+- Médias de groupe **non requis** dans `PostMedia` pour l’affichage public (article **et** galerie site `/galerie`)
 - **Manifeste article** : algorithme unifié couverture → groupes inline (ordre body) → standalone — bandeau bas + diaporama + indices lightbox
 - Spec complète : **`docs/13-article-image-groups.md`**
 

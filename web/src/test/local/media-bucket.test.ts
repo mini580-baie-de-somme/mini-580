@@ -54,10 +54,10 @@ describe("media-library list params", () => {
     });
   });
 
-  it("builds where for kind and text search", () => {
-    expect(mediaWhere({ kind: "ALL" })).toEqual({});
-    expect(mediaWhere({ kind: "VIDEO" })).toEqual({ kind: "VIDEO" });
-    const withQ = mediaWhere({ q: "pdf" });
+  it("builds where for kind and text search", async () => {
+    expect(await mediaWhere({ kind: "ALL" })).toEqual({});
+    expect(await mediaWhere({ kind: "VIDEO" })).toEqual({ kind: "VIDEO" });
+    const withQ = await mediaWhere({ q: "pdf" });
     expect(withQ.OR).toBeTruthy();
     expect(Array.isArray(withQ.OR)).toBe(true);
   });

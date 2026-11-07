@@ -83,6 +83,10 @@ import {
   mediaLinkLabel,
   type MediaLinkInfo,
 } from "@/lib/media-links";
+import {
+  resolveMediaLibraryVisibility,
+  type MediaLibraryVisibility,
+} from "@/lib/media-library-visibility";
 
 type MediaKind = MediaKindClient;
 
@@ -132,6 +136,8 @@ type MediaItem = {
   }[];
   links?: MediaLinkInfo;
   integrity?: MediaIntegrity;
+  /** Server-computed: public | draft | orphan */
+  visibility?: MediaLibraryVisibility;
 };
 
 type VisibilityFilter = MediaLibraryVisibilityFilter;
@@ -170,13 +176,15 @@ function linksFromMedia(m: MediaItem): MediaLinkInfo {
   return m.links ?? extractMediaLinkInfo(m);
 }
 
-function mediaVisibility(
-  m: MediaItem
-): "public" | "draft" | "orphan" {
-  const coverPosts = (m.posts ?? []).filter((p) => p.isCover);
-  if (coverPosts.length === 0) return "orphan";
-  if (coverPosts.some((p) => p.post.status === "PUBLISHED")) return "public";
-  return "draft";
+function mediaVisibility(m: MediaItem): MediaLibraryVisibility {
+  return resolveMediaLibraryVisibility({
+    visibility: m.visibility,
+    postStatuses: (m.posts ?? []).map((p) => p.post.status),
+    hasPostMediaLink: (m.posts ?? []).length > 0,
+    // Without server visibility, group-only links cannot know body refs —
+    // treat group membership as at least draft when no PostMedia (API should set visibility).
+    referencedByAnyGroup: (m.groupMembers ?? []).length > 0 && !m.visibility,
+  });
 }
 
 function formFromMedia(m: MediaItem): FormState {

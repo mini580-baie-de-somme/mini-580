@@ -24,6 +24,7 @@ Créer des **groupes de médias** réutilisables (médiathèque), les **insérer
 | SEO | **Historique de slugs** pour articles, médias et groupes → redirections 301 |
 | Placeholder body | **Jamais tapé à la main** — insertion 100 % assistée (UI + agent Telegram) |
 | **Médias inline vs PostMedia** | Un groupe inline **peut** contenir des médias **non** présents dans `PostMedia` — pas d’auto-attach obligatoire |
+| **Galerie site `/galerie` + filtres médiathèque** | Les médias des groupes **insérés** dans un article **PUBLISHED** apparaissent dans `listGalleryItems` / `GET /api/gallery` et dans `visibility=public` — **sans** auto-attach `PostMedia` |
 | **Suppression média (médiathèque)** | Modal de confirmation distingue **couverture/en-tête** (`PostMedia.isCover`) et **groupes** (`MediaGroupMember`) — pas de décompte « articles » global ; liens legacy `PostMedia` non-couverture purgés (migration + auto-clean à la suppression) |
 | **Galerie article (bandeau + diaporama)** | **Évoluée** pour afficher **tous** les médias de l’article via un **manifeste unifié** (voir ci-dessous) — remplace le modèle « bandeau PostMedia seulement » |
 | **Affichage inline** | **Mini mosaïque** selon le nombre de médias ; clic → **même** lightbox/diaporama que la galerie article (`MediaSlideshow`) |
@@ -69,6 +70,26 @@ Contrainte : `@@id([groupId, mediaId])` · index `(groupId, sortOrder)`.
 > **Médiathèque — suppression** : le dialogue de confirmation et l’API `DELETE /api/media-library/:id` exposent `links: { coverLinks, groups, legacyPostLinkCount }`. Seuls couverture + groupes bloquent (`force=1` requis) ; legacy non bloquant.
 
 > **Éditeur (info, non bloquant)** : optionnel — badge discret « non attaché au post » sur un média de groupe absent de `PostMedia` (aide opérateur, pas de garde-fou publication).
+
+### Galerie publique site + visibilité médiathèque
+
+Les médias apparaissent sur le site et dans les filtres médiathèque via **deux** chemins (union, dédupliqués par `mediaId`) :
+
+| Source | Condition |
+|--------|-----------|
+| `PostMedia` | Couverture / standalone attachés à un post (PUBLISHED pour la galerie publique) |
+| Groupe inline | Membre d’un `MediaGroup` dont le token `{{media-group:<id>}}` figure dans `bodyFr` ou `bodyEn` d’un post (PUBLISHED pour la galerie / `visibility=public`) |
+
+**Règles `visibility` (médiathèque)** :
+
+- **public** — `PostMedia` sur post PUBLISHED **ou** membre d’un groupe référencé dans un body PUBLISHED
+- **draft** — lié à un article (PostMedia quelconque, ou groupe référencé dans un body) **et** pas public
+- **orphan** — aucun `PostMedia` **et** pas membre d’un groupe référencé dans **aucun** body (un groupe jamais inséré reste orphan)
+- **ALL** — toujours listable / éditable / réutilisable
+
+Implémentation : `web/src/lib/media-post-visibility.ts`, `listGalleryItems`, `mediaWhere`, champ `visibility` sur les réponses list/serialize médiathèque.
+
+**Phase 1d inchangé** : insérer un groupe **n’attache pas** automatiquement ses médias à `PostMedia`.
 
 ### Slug history (SEO)
 
@@ -331,6 +352,9 @@ Doc : `docs/09-telegram-publish.md` § tools groupes.
 - Sync TEST↔PROD : sérialiser `MediaGroup` + membres
 - Tools Telegram : insert + create + delete guard
 - API `GET …/media-manifest`
+- **Galerie site** : `gallery-inline-groups.test.ts` — groupe-only sur post PUBLISHED → `/api/gallery` ; draft / groupe non inséré exclus ; dedupe si aussi `PostMedia`
+- **Visibilité médiathèque** : `visibility=public|draft|orphan` avec médias groupe-only ; helpers `media-post-visibility` + `media-library-visibility` (badge UI)
+- HTTP smoke : `gallery-groups-smoke.test.ts` (shape + flux create→insert→publish si env TEST)
 
 ## Phasage implémentation
 

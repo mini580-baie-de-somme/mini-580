@@ -4,7 +4,12 @@ import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
 import { deleteMediaUrls } from "@/lib/media-variants";
 import { layoutFromLegacy, legacyFieldsFromLayout, mergeLayoutPatch } from "@/lib/image-layout";
-import { deleteMediaById, mediaInclude, serializeMediaWithLinks } from "@/lib/media-library";
+import {
+  deleteMediaById,
+  loadMediaVisibilityContext,
+  mediaInclude,
+  serializeMediaWithLinks,
+} from "@/lib/media-library";
 import { runLayoutRebake } from "@/lib/layout-rebake-schedule";
 import { MediaKind } from "@/generated/prisma/client";
 import { optionalNullableDateTime } from "@/lib/date-schema";
@@ -77,8 +82,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   }
   const enriched = await enrichMediaWithIntegrity(media);
   const repairFromVariantAvailable = await canRepairOriginFromLocalVariant(media);
+  const visibilityCtx = await loadMediaVisibilityContext();
   return NextResponse.json({
-    ...serializeMediaWithLinks(enriched),
+    ...serializeMediaWithLinks(enriched, visibilityCtx),
     integrity: {
       ...enriched.integrity,
       repairFromVariantAvailable,

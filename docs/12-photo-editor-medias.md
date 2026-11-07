@@ -265,6 +265,7 @@ Composants : `MediaDeleteConfirmMessage`, `web/src/lib/media-links.ts`
 
 - Bandeau bas de page + bouton diaporama alimentés par le **manifeste médias unifié** (plus seulement `PostMedia`)
 - Ordre manifeste : couverture → groupes inline (ordre placeholders dans body locale) → standalone `PostMedia`
+- Galerie site `/galerie` (`listGalleryItems`) : mêmes sources (PostMedia + groupes inline sur posts PUBLISHED), dédupliquées — voir `docs/13-article-image-groups.md`
 - Dedupe par `mediaId` (première occurrence gagne)
 - Lightbox / diaporama : composant existant **`MediaSlideshow`** — partagé avec mosaïques inline
 
