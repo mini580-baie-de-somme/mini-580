@@ -6,6 +6,8 @@ export const VIRTUAL_PARAM_LIBRARY = "library";
 export const VIRTUAL_PARAM_MEDIA = "media";
 export const VIRTUAL_PARAM_GROUP = "group";
 export const VIRTUAL_PARAM_VIEW = "view";
+/** Poster/thumbnail picker overlay while editing VIDEO|DOCUMENT (`poster=1`). */
+export const VIRTUAL_PARAM_POSTER = "poster";
 
 export const PHOTO_MODAL_PARAM_KEYS = [
   VIRTUAL_PARAM_PHOTO,
@@ -13,11 +15,16 @@ export const PHOTO_MODAL_PARAM_KEYS = [
   VIRTUAL_PARAM_LIBRARY,
 ] as const;
 
-export const MEDIA_EDIT_PARAM_KEYS = [VIRTUAL_PARAM_MEDIA] as const;
+export const MEDIA_EDIT_PARAM_KEYS = [
+  VIRTUAL_PARAM_MEDIA,
+  VIRTUAL_PARAM_POSTER,
+] as const;
 
 export const MEDIA_GROUP_PARAM_KEYS = [VIRTUAL_PARAM_GROUP] as const;
 
 export const GALLERY_VIEW_PARAM_KEYS = [VIRTUAL_PARAM_VIEW] as const;
+
+export const MEDIA_POSTER_PARAM_KEYS = [VIRTUAL_PARAM_POSTER] as const;
 
 export type SearchParamsInput =
   | URLSearchParams
@@ -114,6 +121,17 @@ export function serializeMediaEditState(
   editingId: string | null
 ): Record<string, string | null> {
   return { [VIRTUAL_PARAM_MEDIA]: editingId };
+}
+
+/** Parse poster picker overlay (`poster=1`) while a media edit is open. */
+export function parseMediaPosterPickerState(input: SearchParamsInput): boolean {
+  return toSearchParams(input).get(VIRTUAL_PARAM_POSTER) === "1";
+}
+
+export function serializeMediaPosterPickerState(
+  open: boolean
+): Record<string, string | null> {
+  return { [VIRTUAL_PARAM_POSTER]: open ? "1" : null };
 }
 
 /** Parse media-group editor overlay (`group=<id>`). */

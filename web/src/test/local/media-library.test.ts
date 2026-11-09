@@ -651,4 +651,226 @@ describe("API integration — Media library", () => {
     await prisma.postMedia.deleteMany({ where: { mediaId: media.id } });
     await prisma.media.delete({ where: { id: media.id } }).catch(() => null);
   });
+
+  it("patches posterMediaId on VIDEO and serializes nested poster", async () => {
+    const { POST: createMedia } = await import("@/app/api/media-library/route");
+    const image = await (
+      await createMedia(
+        jsonRequest("http://localhost/api/media-library", {
+          method: "POST",
+          headers: bearerHeaders(),
+          body: JSON.stringify({
+            urlOrigin: "/media/2026/11/poster-src.jpg",
+            urlPicto: "/media/2026/11/poster-picto.webp",
+            urlPetite: "/media/2026/11/poster-petite.webp",
+            urlMoyenne: "/media/2026/11/poster-moyenne.webp",
+            urlGrande: "/media/2026/11/poster-grande.webp",
+            titleFr: "Poster FR",
+            titleEn: "Poster EN",
+            kind: "IMAGE",
+            mimeType: "image/jpeg",
+          }),
+        })
+      )
+    ).json();
+
+    const video = await (
+      await createMedia(
+        jsonRequest("http://localhost/api/media-library", {
+          method: "POST",
+          headers: bearerHeaders(),
+          body: JSON.stringify({
+            urlOrigin: "/media/2026/11/clip.mp4",
+            titleFr: "Clip FR",
+            titleEn: "Clip EN",
+            kind: "VIDEO",
+            mimeType: "video/mp4",
+          }),
+        })
+      )
+    ).json();
+
+    const { PATCH, GET } = await import("@/app/api/media-library/[id]/route");
+    const patched = await PATCH(
+      jsonRequest(`http://localhost/api/media-library/${video.id}`, {
+        method: "PATCH",
+        headers: bearerHeaders(),
+        body: JSON.stringify({ posterMediaId: image.id }),
+      }),
+      { params: Promise.resolve({ id: video.id }) }
+    );
+    expect(patched.status).toBe(200);
+    const body = await patched.json();
+    expect(body.posterMediaId).toBe(image.id);
+    expect(body.poster?.id).toBe(image.id);
+    expect(body.poster?.urlPicto).toBe("/media/2026/11/poster-picto.webp");
+
+    const got = await GET(
+      jsonRequest(`http://localhost/api/media-library/${video.id}`, {
+        headers: bearerHeaders(),
+      }),
+      { params: Promise.resolve({ id: video.id }) }
+    );
+    const detail = await got.json();
+    expect(detail.posterMediaId).toBe(image.id);
+    expect(detail.poster?.urlMoyenne).toBe(
+      "/media/2026/11/poster-moyenne.webp"
+    );
+
+    const cleared = await PATCH(
+      jsonRequest(`http://localhost/api/media-library/${video.id}`, {
+        method: "PATCH",
+        headers: bearerHeaders(),
+        body: JSON.stringify({ posterMediaId: null }),
+      }),
+      { params: Promise.resolve({ id: video.id }) }
+    );
+    expect(cleared.status).toBe(200);
+    expect((await cleared.json()).posterMediaId).toBeNull();
+
+    await prisma.media.delete({ where: { id: video.id } }).catch(() => null);
+    await prisma.media.delete({ where: { id: image.id } }).catch(() => null);
+  });
+
+  it("rejects posterMediaId on IMAGE and non-IMAGE poster target", async () => {
+    const { POST: createMedia } = await import("@/app/api/media-library/route");
+    const imageA = await (
+      await createMedia(
+        jsonRequest("http://localhost/api/media-library", {
+          method: "POST",
+          headers: bearerHeaders(),
+          body: JSON.stringify({
+            urlOrigin: "/media/2026/11/a.jpg",
+            titleFr: "A",
+            kind: "IMAGE",
+            mimeType: "image/jpeg",
+          }),
+        })
+      )
+    ).json();
+    const imageB = await (
+      await createMedia(
+        jsonRequest("http://localhost/api/media-library", {
+          method: "POST",
+          headers: bearerHeaders(),
+          body: JSON.stringify({
+            urlOrigin: "/media/2026/11/b.jpg",
+            titleFr: "B",
+            kind: "IMAGE",
+            mimeType: "image/jpeg",
+          }),
+        })
+      )
+    ).json();
+    const pdf = await (
+      await createMedia(
+        jsonRequest("http://localhost/api/media-library", {
+          method: "POST",
+          headers: bearerHeaders(),
+          body: JSON.stringify({
+            urlOrigin: "/media/2026/11/doc.pdf",
+            titleFr: "PDF",
+            kind: "DOCUMENT",
+            mimeType: "application/pdf",
+          }),
+        })
+      )
+    ).json();
+
+    const { PATCH } = await import("@/app/api/media-library/[id]/route");
+    const onImage = await PATCH(
+      jsonRequest(`http://localhost/api/media-library/${imageA.id}`, {
+        method: "PATCH",
+        headers: bearerHeaders(),
+        body: JSON.stringify({ posterMediaId: imageB.id }),
+      }),
+      { params: Promise.resolve({ id: imageA.id }) }
+    );
+    expect(onImage.status).toBe(400);
+
+    const badTarget = await PATCH(
+      jsonRequest(`http://localhost/api/media-library/${pdf.id}`, {
+        method: "PATCH",
+        headers: bearerHeaders(),
+        body: JSON.stringify({ posterMediaId: pdf.id }),
+      }),
+      { params: Promise.resolve({ id: pdf.id }) }
+    );
+    expect(badTarget.status).toBe(400);
+
+    await prisma.media.delete({ where: { id: pdf.id } }).catch(() => null);
+    await prisma.media.delete({ where: { id: imageA.id } }).catch(() => null);
+    await prisma.media.delete({ where: { id: imageB.id } }).catch(() => null);
+  });
+
+  it("refuses delete of IMAGE used as poster unless force=1", async () => {
+    const { POST: createMedia } = await import("@/app/api/media-library/route");
+    const image = await (
+      await createMedia(
+        jsonRequest("http://localhost/api/media-library", {
+          method: "POST",
+          headers: bearerHeaders(),
+          body: JSON.stringify({
+            urlOrigin: "/media/2026/11/poster-locked.jpg",
+            titleFr: "Locked poster",
+            kind: "IMAGE",
+            mimeType: "image/jpeg",
+          }),
+        })
+      )
+    ).json();
+    const video = await (
+      await createMedia(
+        jsonRequest("http://localhost/api/media-library", {
+          method: "POST",
+          headers: bearerHeaders(),
+          body: JSON.stringify({
+            urlOrigin: "/media/2026/11/locked.mp4",
+            titleFr: "Locked video",
+            kind: "VIDEO",
+            mimeType: "video/mp4",
+          }),
+        })
+      )
+    ).json();
+
+    const { PATCH, DELETE: del } = await import(
+      "@/app/api/media-library/[id]/route"
+    );
+    await PATCH(
+      jsonRequest(`http://localhost/api/media-library/${video.id}`, {
+        method: "PATCH",
+        headers: bearerHeaders(),
+        body: JSON.stringify({ posterMediaId: image.id }),
+      }),
+      { params: Promise.resolve({ id: video.id }) }
+    );
+
+    const blocked = await del(
+      jsonRequest(`http://localhost/api/media-library/${image.id}`, {
+        method: "DELETE",
+        headers: bearerHeaders(),
+      }),
+      { params: Promise.resolve({ id: image.id }) }
+    );
+    expect(blocked.status).toBe(409);
+    const blockedBody = await blocked.json();
+    expect(blockedBody.posterOfCount).toBeGreaterThanOrEqual(1);
+
+    const forced = await del(
+      jsonRequest(`http://localhost/api/media-library/${image.id}?force=1`, {
+        method: "DELETE",
+        headers: bearerHeaders(),
+      }),
+      { params: Promise.resolve({ id: image.id }) }
+    );
+    expect(forced.status).toBe(200);
+
+    const videoAfter = await prisma.media.findUnique({
+      where: { id: video.id },
+    });
+    expect(videoAfter?.posterMediaId).toBeNull();
+
+    await prisma.media.delete({ where: { id: video.id } }).catch(() => null);
+  });
 });

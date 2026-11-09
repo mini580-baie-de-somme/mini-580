@@ -236,7 +236,7 @@ export const AI_TOOLS: AiToolDef[] = [
   {
     name: "media.update",
     description:
-      "Patch media FR/EN meta and IMAGE layout: cropAspectFormat (SQUARE|LANDSCAPE_16_9|LANDSCAPE_4_3|PORTRAIT_3_4|CIRCLE), offset/scale/rotation/cropInset/backgroundColor",
+      "Patch media FR/EN meta and IMAGE layout: cropAspectFormat (SQUARE|LANDSCAPE_16_9|LANDSCAPE_4_3|PORTRAIT_3_4|CIRCLE), offset/scale/rotation/cropInset/backgroundColor. For VIDEO|DOCUMENT only: optional posterMediaId (IMAGE id) or null to clear poster/thumbnail.",
     method: "PATCH",
     path: "/api/media-library/:id",
     auth: "bearer_or_session",

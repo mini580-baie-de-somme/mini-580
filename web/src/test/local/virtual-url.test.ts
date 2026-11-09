@@ -5,16 +5,19 @@ import {
   parseGalleryViewState,
   parseMediaEditState,
   parseMediaGroupEditState,
+  parseMediaPosterPickerState,
   parsePhotoModalState,
   serializeGalleryViewState,
   serializeMediaEditState,
   serializeMediaGroupEditState,
+  serializeMediaPosterPickerState,
   serializePhotoModalState,
   VIRTUAL_PARAM_COVER,
   VIRTUAL_PARAM_GROUP,
   VIRTUAL_PARAM_LIBRARY,
   VIRTUAL_PARAM_MEDIA,
   VIRTUAL_PARAM_PHOTO,
+  VIRTUAL_PARAM_POSTER,
   VIRTUAL_PARAM_VIEW,
 } from "@/lib/virtual-url";
 
@@ -85,6 +88,28 @@ describe("parseMediaGroupEditState / serializeMediaGroupEditState", () => {
     expect(parseMediaGroupEditState(`${VIRTUAL_PARAM_GROUP}=grp-1`)).toBe("grp-1");
     expect(serializeMediaGroupEditState("grp-1")).toEqual({ group: "grp-1" });
     expect(serializeMediaGroupEditState(null)).toEqual({ group: null });
+  });
+});
+
+describe("parseMediaPosterPickerState / serializeMediaPosterPickerState", () => {
+  it("is closed by default", () => {
+    expect(parseMediaPosterPickerState("")).toBe(false);
+    expect(parseMediaPosterPickerState(`${VIRTUAL_PARAM_MEDIA}=m1`)).toBe(false);
+  });
+
+  it("round-trips poster=1", () => {
+    expect(parseMediaPosterPickerState(`${VIRTUAL_PARAM_POSTER}=1`)).toBe(true);
+    expect(serializeMediaPosterPickerState(true)).toEqual({ poster: "1" });
+    expect(serializeMediaPosterPickerState(false)).toEqual({ poster: null });
+  });
+
+  it("preserves media edit when opening poster picker", () => {
+    const url = buildVirtualUrl(
+      "/editeur/galerie",
+      `${VIRTUAL_PARAM_MEDIA}=vid-1`,
+      serializeMediaPosterPickerState(true)
+    );
+    expect(url).toBe("/editeur/galerie?media=vid-1&poster=1");
   });
 });
 

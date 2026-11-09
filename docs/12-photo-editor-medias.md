@@ -145,11 +145,27 @@ Fichiers : `web/src/lib/virtual-url.ts`, `web/src/hooks/useVirtualUrl.ts`.
 | | `?library=1` | Picker médiathèque |
 | `/editeur/galerie` | `?media=new` | Créer média |
 | | `?media=<id>` | Éditer (deep link) |
+| | `?media=<id>&poster=1` | Picker vignette (VIDEO/DOCUMENT) |
 | `/galerie` | `?view=<photoId>` | Diaporama / lightbox |
 
 Filtres existants (`search`, `kind`, …) conservés à l’ouverture/fermeture.
 
 Tests : `web/src/test/local/virtual-url.test.ts`
+
+## Vignette poster (VIDEO / DOCUMENT)
+
+Product decision: optional `Media.posterMediaId` → existing library **IMAGE** (reuse picto/petite/moyenne/grande). No dedicated poster upload.
+
+| Piece | Detail |
+|-------|--------|
+| Schema | `posterMediaId` self-FK, `onDelete: SetNull`, index |
+| PATCH | `posterMediaId: string \| null` — source must be VIDEO\|DOCUMENT; target must be IMAGE; not self |
+| Delete | IMAGE used as poster → **409** unless `force=1` (then SetNull) |
+| Serialize | `posterMediaId` + nested `poster` urls in library / groups / post media / gallery |
+| UI | Médiathèque edit → « Vignette » choose/clear; tiles use poster + play/PDF badge via `MediaKindThumb` |
+| Helper | `web/src/lib/media-poster.ts` — validation + thumb resolution |
+
+Tests : `media-poster.test.ts`, PATCH cases in `media-library.test.ts`
 
 ## Logging structuré
 

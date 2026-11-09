@@ -3,7 +3,7 @@ import "server-only";
 import type { Media, PostMedia } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { parseMediaGroupIds } from "@/lib/media-group-token";
-import { mediaAsPostImage } from "@/lib/media-library";
+import { mediaAsPostImage, mediaPosterInclude } from "@/lib/media-library";
 
 export type MediaManifestSource = "cover" | "inline-group" | "standalone";
 
@@ -71,7 +71,7 @@ export async function buildArticleMediaManifest(
           include: {
             members: {
               orderBy: { sortOrder: "asc" },
-              include: { media: true },
+              include: { media: { include: mediaPosterInclude } },
             },
           },
         })

@@ -10,6 +10,8 @@ import {
 import { displayImageUrl } from "@/lib/media-variants";
 import { collectMediaGroupIdsFromBodies } from "@/lib/media-post-visibility";
 import { parseMediaGroupIds } from "@/lib/media-group-token";
+import { mediaPosterInclude } from "@/lib/media-library";
+import { posterImageSrc } from "@/lib/media-poster";
 import { parseHull } from "@/lib/utils";
 
 export type { GalleryFilters, GalleryItem, GalleryPhoto } from "@/lib/gallery-types";
@@ -44,7 +46,7 @@ async function postFilter(filters: GalleryFilters): Promise<Prisma.PostWhereInpu
 
 type GalleryPostRow = Prisma.PostGetPayload<{
   include: {
-    mediaLinks: { include: { media: true } };
+    mediaLinks: { include: { media: { include: typeof mediaPosterInclude } } };
     hulls: true;
     tags: { include: { tag: true } };
     themes: { include: { theme: true } };
@@ -118,7 +120,9 @@ export async function listGalleryItems(
     prisma.post.findMany({
       where: postWhere,
       include: {
-        mediaLinks: { include: { media: true } },
+        mediaLinks: {
+          include: { media: { include: mediaPosterInclude } },
+        },
         hulls: true,
         tags: { include: { tag: true } },
         themes: { include: { theme: true } },
@@ -144,7 +148,7 @@ export async function listGalleryItems(
           include: {
             members: {
               orderBy: { sortOrder: "asc" },
-              include: { media: true },
+              include: { media: { include: mediaPosterInclude } },
             },
           },
         })
@@ -187,10 +191,11 @@ export async function listGalleryItems(
       urlGrande: media.urlGrande,
     };
     // Never expose a PDF/video URL as thumbUrl — browsers show a broken <img>.
+    // VIDEO/DOCUMENT may reuse an IMAGE poster from the library.
     const thumbUrl =
       media.kind === "IMAGE"
         ? media.urlPetite || media.urlPicto || media.urlOrigin
-        : "";
+        : posterImageSrc(media.poster) || "";
     const displayUrl =
       media.kind === "IMAGE" ? displayImageUrl(display) : media.urlOrigin;
 

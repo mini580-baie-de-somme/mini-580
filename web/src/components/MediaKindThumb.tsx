@@ -1,11 +1,14 @@
 "use client";
 
-import { resolveThumbKind } from "@/lib/media-file-client";
+import { resolveKindThumbDisplay } from "@/lib/media-poster";
 
 type MediaKindThumbProps = {
   kind?: "IMAGE" | "DOCUMENT" | "VIDEO" | string | null;
   mimeType?: string | null;
-  /** IMAGE only — preferred thumb URL */
+  /**
+   * IMAGE thumb URL, or VIDEO/DOCUMENT poster image URL when a library poster is set.
+   * Non-image file URLs are ignored for VIDEO/DOCUMENT (icon fallback).
+   */
   src?: string | null;
   className?: string;
   size?: "sm" | "md";
@@ -51,6 +54,34 @@ function VideoIcon({ className }: { className?: string }) {
   );
 }
 
+function PlayBadge({ size }: { size: "sm" | "md" }) {
+  const box = size === "md" ? "h-6 w-6" : "h-4 w-4";
+  const icon = size === "md" ? "h-3 w-3" : "h-2.5 w-2.5";
+  return (
+    <span
+      className={`absolute bottom-0.5 right-0.5 flex ${box} items-center justify-center rounded-full bg-[#0D131A]/75 text-white shadow-sm`}
+      aria-hidden
+    >
+      <svg viewBox="0 0 24 24" fill="currentColor" className={icon}>
+        <path d="M8 5v14l11-7z" />
+      </svg>
+    </span>
+  );
+}
+
+function PdfBadge({ size }: { size: "sm" | "md" }) {
+  const box = size === "md" ? "h-6 w-6" : "h-4 w-4";
+  const icon = size === "md" ? "h-3.5 w-3.5" : "h-2.5 w-2.5";
+  return (
+    <span
+      className={`absolute bottom-0.5 right-0.5 flex ${box} items-center justify-center rounded bg-[#0D131A]/75 text-white shadow-sm`}
+      aria-hidden
+    >
+      <PdfIcon className={icon} />
+    </span>
+  );
+}
+
 export function MediaKindThumb({
   kind,
   mimeType,
@@ -60,12 +91,31 @@ export function MediaKindThumb({
 }: MediaKindThumbProps) {
   const box = size === "md" ? "h-16 w-16" : "h-10 w-10";
   const icon = size === "md" ? "h-8 w-8" : "h-5 w-5";
-  const resolved = resolveThumbKind(kind, mimeType, src);
-  const path = (src ?? "").split("?")[0].toLowerCase();
-  const srcLooksLikeNonImage =
-    path.endsWith(".pdf") || path.endsWith(".mp4") || path.endsWith(".webm");
+  const display = resolveKindThumbDisplay({ kind, mimeType, src });
 
-  if (resolved === "DOCUMENT") {
+  if (display.mode === "poster") {
+    return (
+      <span
+        className={`relative block overflow-hidden rounded ${box} ${className}`}
+        title={display.kind === "VIDEO" ? "Video" : "PDF"}
+        aria-label={display.kind === "VIDEO" ? "Video" : "PDF"}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={display.src}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        {display.kind === "VIDEO" ? (
+          <PlayBadge size={size} />
+        ) : (
+          <PdfBadge size={size} />
+        )}
+      </span>
+    );
+  }
+
+  if (display.mode === "icon" && display.kind === "DOCUMENT") {
     return (
       <span
         className={`flex ${box} items-center justify-center rounded bg-[#eef3f7] text-[#495867] ${className}`}
@@ -77,7 +127,7 @@ export function MediaKindThumb({
     );
   }
 
-  if (resolved === "VIDEO") {
+  if (display.mode === "icon" && display.kind === "VIDEO") {
     return (
       <span
         className={`flex ${box} items-center justify-center rounded bg-[#eef3f7] text-[#495867] ${className}`}
@@ -89,11 +139,11 @@ export function MediaKindThumb({
     );
   }
 
-  if (src && !srcLooksLikeNonImage) {
+  if (display.mode === "image") {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={src}
+        src={display.src}
         alt=""
         className={`${box} rounded object-cover ${className}`}
       />

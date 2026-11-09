@@ -4,12 +4,13 @@ import { z } from "zod";
 import { MediaGroupLayout, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { mediaGroupPlaceholder } from "@/lib/media-group-token";
+import { mediaPosterInclude } from "@/lib/media-library";
 import { slugify } from "@/lib/utils";
 
 export const mediaGroupInclude = {
   members: {
     orderBy: { sortOrder: "asc" as const },
-    include: { media: true },
+    include: { media: { include: mediaPosterInclude } },
   },
 } satisfies Prisma.MediaGroupInclude;
 

@@ -12,7 +12,7 @@ import type {
 } from "@/lib/article-media-types";
 import { parseExternalLinkIds } from "@/lib/external-link-token";
 import { resolveCoverCropAspectFormat } from "@/lib/cover-display";
-import { mediaAsPostImage } from "@/lib/media-library";
+import { mediaAsPostImage, mediaPosterInclude } from "@/lib/media-library";
 import { parseMediaGroupIds } from "@/lib/media-group-token";
 
 export type { ArticleMediaPageData, PublicMediaGroup } from "@/lib/article-media-types";
@@ -54,7 +54,7 @@ export async function prepareArticleMediaPageData(
           include: {
             members: {
               orderBy: { sortOrder: "asc" },
-              include: { media: true },
+              include: { media: { include: mediaPosterInclude } },
             },
           },
         })

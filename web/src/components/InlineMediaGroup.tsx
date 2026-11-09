@@ -3,17 +3,12 @@
 import type { ReactNode } from "react";
 import { resolveThumbKind } from "@/lib/media-file-client";
 import type { ArticleManifestMedia, PublicMediaGroup } from "@/lib/article-media-types";
+import { resolveMediaThumbSrc } from "@/lib/media-poster";
 import { MediaKindThumb } from "./MediaKindThumb";
 type MosaicMedia = ArticleManifestMedia;
 
 function thumbSrc(img: MosaicMedia): string {
-  return (
-    img.urlPetite ||
-    img.urlPicto ||
-    img.urlMoyenne ||
-    img.urlOrigin ||
-    ""
-  );
+  return resolveMediaThumbSrc(img) || "";
 }
 
 function MosaicTile({
@@ -36,6 +31,8 @@ function MosaicTile({
   const label =
     (locale === "fr" ? media.titleFr : media.titleEn) || "";
 
+  const hasPosterThumb =
+    (kind === "VIDEO" || kind === "DOCUMENT") && Boolean(src);
   const body = (
     <>
       {kind === "IMAGE" && src ? (
@@ -45,6 +42,16 @@ function MosaicTile({
           alt=""
           className="h-full w-full object-cover object-center"
         />
+      ) : hasPosterThumb ? (
+        <div className="relative h-full w-full">
+          <MediaKindThumb
+            kind={kind}
+            mimeType={media.mimeType}
+            src={src}
+            size="md"
+            className="h-full w-full rounded-none"
+          />
+        </div>
       ) : (
         <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-[#495867]">
           <MediaKindThumb

@@ -62,24 +62,15 @@ export function MediaLibraryMobileCard({
         aria-label={labels.edit}
       >
         <div className="relative h-[4.5rem] w-[4.5rem] overflow-hidden rounded-lg bg-[#eef3f7] ring-1 ring-[#d4dde6]/60">
-          {kind === "IMAGE" && thumbSrc ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+          <div className="flex h-full w-full items-center justify-center">
+            <MediaKindThumb
+              kind={kind}
+              mimeType={mimeType}
               src={thumbSrc}
-              alt=""
-              className="h-full w-full object-cover transition duration-200 group-active:scale-[1.03]"
+              size="md"
+              className="h-full w-full rounded-none bg-transparent"
             />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <MediaKindThumb
-                kind={kind}
-                mimeType={mimeType}
-                src={null}
-                size="sm"
-                className="h-10 w-10 bg-transparent"
-              />
-            </div>
-          )}
+          </div>
         </div>
       </button>
 

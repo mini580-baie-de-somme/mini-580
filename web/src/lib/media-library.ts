@@ -46,8 +46,31 @@ import {
   resolveMediaLibraryVisibility,
   type MediaLibraryVisibility,
 } from "@/lib/media-library-visibility";
+import {
+  serializePosterSummary,
+  validatePosterAssignment,
+} from "@/lib/media-poster";
+
+/** Nested IMAGE poster fields for list/tile serialization. */
+export const posterMediaSelect = {
+  id: true,
+  kind: true,
+  mimeType: true,
+  urlOrigin: true,
+  urlPicto: true,
+  urlPetite: true,
+  urlMoyenne: true,
+  urlGrande: true,
+  titleFr: true,
+  titleEn: true,
+} satisfies Prisma.MediaSelect;
+
+export const mediaPosterInclude = {
+  poster: { select: posterMediaSelect },
+} satisfies Prisma.MediaInclude;
 
 export const mediaInclude = {
+  ...mediaPosterInclude,
   posts: {
     include: {
       post: {
@@ -128,8 +151,39 @@ export function serializeMediaListWithLinks<T extends MediaWithPosts>(
 }
 
 export const postMediaInclude = {
-  media: true,
+  media: { include: mediaPosterInclude },
 } satisfies Prisma.PostMediaInclude;
+
+/** Resolve and validate posterMediaId for PATCH (null clears). */
+export async function resolvePosterMediaIdPatch(opts: {
+  sourceId: string;
+  sourceKind: MediaKind | string;
+  posterMediaId: string | null;
+}): Promise<
+  | { ok: true; posterMediaId: string | null }
+  | { ok: false; status: 400; error: string }
+> {
+  if (opts.posterMediaId === null) {
+    return validatePosterAssignment({
+      sourceId: opts.sourceId,
+      sourceKind: opts.sourceKind,
+      posterMediaId: null,
+      poster: null,
+    });
+  }
+
+  const poster = await prisma.media.findUnique({
+    where: { id: opts.posterMediaId },
+    select: { id: true, kind: true },
+  });
+
+  return validatePosterAssignment({
+    sourceId: opts.sourceId,
+    sourceKind: opts.sourceKind,
+    posterMediaId: opts.posterMediaId,
+    poster,
+  });
+}
 
 export async function mediaWhere(filters?: {
   q?: string;
@@ -217,9 +271,23 @@ export function mediaAsPostImage(
     cropW: number;
     cropH: number;
     updatedAt?: Date;
+    posterMediaId?: string | null;
+    poster?: {
+      id: string;
+      kind?: string | null;
+      mimeType?: string | null;
+      urlOrigin: string;
+      urlPicto: string | null;
+      urlPetite: string | null;
+      urlMoyenne: string | null;
+      urlGrande: string | null;
+      titleFr?: string;
+      titleEn?: string;
+    } | null;
   },
   link: { sortOrder: number; isCover?: boolean; postId?: string }
 ) {
+  const poster = serializePosterSummary(media.poster ?? null);
   return {
     id: media.id,
     postId: link.postId ?? "",
@@ -260,6 +328,8 @@ export function mediaAsPostImage(
         ? String((media as { cropAspectFormat?: string }).cropAspectFormat ?? "PORTRAIT_3_4")
         : "PORTRAIT_3_4",
     isCover: link.isCover ?? false,
+    posterMediaId: media.posterMediaId ?? poster?.id ?? null,
+    poster,
     updatedAt:
       "updatedAt" in media && media.updatedAt
         ? media.updatedAt.toISOString()
@@ -284,7 +354,7 @@ export function imagesFromPostMediaLinks(
 export async function listPostMediaAsImages(postId: string) {
   const links = await prisma.postMedia.findMany({
     where: { postId },
-    include: { media: true },
+    include: postMediaInclude,
     orderBy: { sortOrder: "asc" },
   });
   return links.map((l) => mediaAsPostImage(l.media, { ...l, postId }));
@@ -562,7 +632,7 @@ export async function attachMediaToPost(
         isCover: false,
       },
       update: {},
-      include: { media: true },
+      include: postMediaInclude,
     });
     if (!existing.some((e) => e.mediaId === mediaId)) {
       order += 1;
@@ -638,14 +708,24 @@ export async function deleteMediaById(id: string, opts?: { force?: boolean }) {
   if (!media) return { ok: false as const, status: 404 as const };
 
   const links = extractMediaLinkInfo(media);
+  const posterOfCount = await prisma.media.count({
+    where: { posterMediaId: id },
+  });
 
-  if (hasBlockingMediaLinks(links) && !opts?.force) {
+  if ((hasBlockingMediaLinks(links) || posterOfCount > 0) && !opts?.force) {
     return {
       ok: false as const,
       status: 409 as const,
       links,
+      posterOfCount,
       /** @deprecated use links.coverLinks.length — kept for compat */
       linkedPostCount: links.coverLinks.length,
+      ...(posterOfCount > 0
+        ? {
+            error:
+              "Media is used as a poster/thumbnail for other media — pass force=1 to delete anyway",
+          }
+        : {}),
     };
   }
 

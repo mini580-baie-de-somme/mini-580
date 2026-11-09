@@ -245,6 +245,10 @@ model Media {
   cropH         Float       @default(1)
   /// URL slug for public gallery routes (optional until set; unique when present)
   slug          String?     @unique
+  /// Optional IMAGE poster/thumbnail for VIDEO or DOCUMENT (reuse library photo variants).
+  posterMediaId String?
+  poster        Media?      @relation("MediaPoster", fields: [posterMediaId], references: [id], onDelete: SetNull)
+  postedOn      Media[]     @relation("MediaPoster")
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   posts         PostMedia[]
@@ -253,6 +257,7 @@ model Media {
 
   @@index([kind])
   @@index([createdAt])
+  @@index([posterMediaId])
 }
 
 /// Reusable media bundle for inline article blocks (médiathèque — not post-scoped).

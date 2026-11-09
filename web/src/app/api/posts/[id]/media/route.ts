@@ -12,6 +12,7 @@ import {
   createMediaFromUpload,
   createMediaFromUrls,
   listPostMediaAsImages,
+  postMediaInclude,
 } from "@/lib/media-library";
 import { MediaKind } from "@/generated/prisma/client";
 import { optionalNullableDateTime } from "@/lib/date-schema";
@@ -29,7 +30,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
   const links = await prisma.postMedia.findMany({
     where: { postId },
-    include: { media: true },
+    include: postMediaInclude,
     orderBy: { sortOrder: "asc" },
   });
 
@@ -129,7 +130,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       });
       const linked = await prisma.postMedia.findMany({
         where: { postId, mediaId: { in: data.mediaIds } },
-        include: { media: true },
+        include: postMediaInclude,
         orderBy: { sortOrder: "asc" },
       });
       return NextResponse.json(

@@ -9,6 +9,10 @@ import { MediaKindThumb } from "./MediaKindThumb";
 import { useLocale } from "./LocaleProvider";
 import type { MediaKindClient } from "@/lib/media-file-client";
 import { dispatchMediaGroupUpdated } from "@/lib/media-group-display";
+import {
+  resolveMediaThumbSrc,
+  type MediaPosterSummary,
+} from "@/lib/media-poster";
 
 type MediaGroupLayout = "GRID" | "ROW" | "SINGLE";
 
@@ -22,6 +26,8 @@ type GroupMemberMedia = {
   urlGrande: string | null;
   titleFr: string;
   titleEn: string;
+  posterMediaId?: string | null;
+  poster?: MediaPosterSummary | null;
 };
 
 type GroupMember = {
@@ -59,6 +65,8 @@ type PickerItem = {
   urlGrande: string | null;
   titleFr: string;
   titleEn: string;
+  posterMediaId?: string | null;
+  poster?: MediaPosterSummary | null;
 };
 
 type FormState = {
@@ -75,10 +83,7 @@ type Props = {
 };
 
 function previewSrc(m: GroupMemberMedia | PickerItem): string | null {
-  if (m.kind === "IMAGE" && m.mimeType?.startsWith("image/")) {
-    return m.urlPicto || m.urlMoyenne || m.urlOrigin;
-  }
-  return m.urlPicto || m.urlMoyenne || null;
+  return resolveMediaThumbSrc(m);
 }
 
 function formFromDetail(detail: MediaGroupDetail): FormState {

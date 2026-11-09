@@ -8,6 +8,7 @@ import {
   deleteMediaById,
   loadMediaVisibilityContext,
   mediaInclude,
+  resolvePosterMediaIdPatch,
   serializeMediaWithLinks,
 } from "@/lib/media-library";
 import { runLayoutRebake } from "@/lib/layout-rebake-schedule";
@@ -48,6 +49,8 @@ const patchSchema = z.object({
   cropY: z.number().min(0).max(1).optional(),
   cropW: z.number().min(0).max(1).optional(),
   cropH: z.number().min(0).max(1).optional(),
+  /** IMAGE poster for VIDEO|DOCUMENT; null clears. */
+  posterMediaId: z.string().nullable().optional(),
   force: z.boolean().optional(),
 });
 
@@ -126,6 +129,22 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const data = patchSchema.parse(body);
     const transformChanged = LAYOUT_KEYS.some((k) => data[k] !== undefined);
 
+    let nextPosterMediaId: string | null | undefined = undefined;
+    if (data.posterMediaId !== undefined) {
+      const posterResult = await resolvePosterMediaIdPatch({
+        sourceId: id,
+        sourceKind: existing.kind,
+        posterMediaId: data.posterMediaId,
+      });
+      if (!posterResult.ok) {
+        return NextResponse.json(
+          { error: posterResult.error, traceId },
+          { status: posterResult.status }
+        );
+      }
+      nextPosterMediaId = posterResult.posterMediaId;
+    }
+
     const layoutPatch = Object.fromEntries(
       NEW_LAYOUT_KEYS.filter((k) => data[k] !== undefined).map((k) => [k, data[k]])
     ) as Partial<Record<(typeof NEW_LAYOUT_KEYS)[number], unknown>>;
@@ -150,6 +169,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             : data.takenAt
               ? new Date(data.takenAt)
               : null,
+        ...(nextPosterMediaId !== undefined && {
+          posterMediaId: nextPosterMediaId,
+        }),
         offsetX: data.offsetX,
         offsetY: data.offsetY,
         scaleX: data.scaleX,
@@ -236,9 +258,13 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   if (!result.ok && result.status === 409) {
     return NextResponse.json(
       {
-        error: "Media is linked — pass force=1 to delete anyway",
+        error:
+          "error" in result && typeof result.error === "string"
+            ? result.error
+            : "Media is linked — pass force=1 to delete anyway",
         links: result.links,
         linkedPostCount: result.linkedPostCount,
+        posterOfCount: "posterOfCount" in result ? result.posterOfCount : 0,
       },
       { status: 409 }
     );

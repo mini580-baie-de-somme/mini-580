@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getEditorOrService } from "@/lib/service-auth";
+import { postMediaInclude } from "@/lib/media-library";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -36,7 +37,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     const links = await prisma.postMedia.findMany({
       where: { postId },
-      include: { media: true },
+      include: postMediaInclude,
       orderBy: { sortOrder: "asc" },
     });
     return NextResponse.json(

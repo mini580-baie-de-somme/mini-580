@@ -633,6 +633,35 @@ const messages = {
     fr: "Depuis la médiathèque",
     en: "From media library",
   },
+  "media.poster": { fr: "Vignette", en: "Thumbnail" },
+  "media.posterHint": {
+    fr: "Photo de la médiathèque affichée à la place du pictogramme (vidéo / PDF).",
+    en: "Library photo shown instead of the default pictogram (video / PDF).",
+  },
+  "media.poster.choose": {
+    fr: "Choisir une photo",
+    en: "Choose a photo",
+  },
+  "media.poster.clear": {
+    fr: "Retirer la vignette",
+    en: "Remove thumbnail",
+  },
+  "media.poster.search": {
+    fr: "Rechercher une photo…",
+    en: "Search photos…",
+  },
+  "media.poster.empty": {
+    fr: "Aucune photo disponible dans la médiathèque.",
+    en: "No photos available in the library.",
+  },
+  "media.poster.current": {
+    fr: "Vignette actuelle",
+    en: "Current thumbnail",
+  },
+  "media.poster.loadError": {
+    fr: "Impossible de charger les photos",
+    en: "Could not load photos",
+  },
   "media.attach": { fr: "Associer", en: "Attach" },
   "media.colIntegrity": { fr: "Stockage", en: "Storage" },
   "media.integrity.ok": { fr: "Local OK", en: "Local OK" },

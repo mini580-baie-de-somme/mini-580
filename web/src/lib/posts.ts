@@ -9,6 +9,7 @@ import {
   type MilestoneWindow,
 } from "@/lib/milestone-windows";
 import { milestoneOrderBy } from "@/lib/milestones";
+import { mediaPosterInclude } from "@/lib/media-library";
 import { parseHull, slugify } from "@/lib/utils";
 
 export { slugify, parseHull, hullToShort } from "@/lib/utils";
@@ -20,7 +21,7 @@ export const postInclude = {
   themes: { include: { theme: true } },
   mediaLinks: {
     orderBy: { sortOrder: "asc" as const },
-    include: { media: true },
+    include: { media: { include: mediaPosterInclude } },
   },
 } satisfies Prisma.PostInclude;
 
@@ -63,6 +64,8 @@ export function withLegacyImages<T extends PostWithRelations>(post: T) {
     cropW: link.media.cropW,
     cropH: link.media.cropH,
     cropAspectFormat: link.media.cropAspectFormat,
+    posterMediaId: link.media.posterMediaId ?? null,
+    poster: link.media.poster ?? null,
   }));
   const { mediaLinks: _ml, ...rest } = post;
   return { ...rest, images, mediaLinks: post.mediaLinks };

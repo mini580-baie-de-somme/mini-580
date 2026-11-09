@@ -6,11 +6,19 @@ import { useVirtualUrl } from "@/hooks/useVirtualUrl";
 import {
   MEDIA_EDIT_PARAM_KEYS,
   MEDIA_GROUP_PARAM_KEYS,
+  MEDIA_POSTER_PARAM_KEYS,
   parseMediaEditState,
   parseMediaGroupEditState,
+  parseMediaPosterPickerState,
   serializeMediaEditState,
   serializeMediaGroupEditState,
+  serializeMediaPosterPickerState,
 } from "@/lib/virtual-url";
+import {
+  mediaSupportsPoster,
+  resolveMediaThumbSrc,
+  type MediaPosterSummary,
+} from "@/lib/media-poster";
 import { useLocale } from "./LocaleProvider";
 import { EditorListCount } from "./EditorListCount";
 import { EditorListSearch } from "./EditorListSearch";
@@ -121,6 +129,8 @@ type MediaItem = {
   cropY?: number;
   cropW?: number;
   cropH?: number;
+  posterMediaId?: string | null;
+  poster?: MediaPosterSummary | null;
   posts?: {
     isCover: boolean;
     post: {
@@ -138,6 +148,17 @@ type MediaItem = {
   integrity?: MediaIntegrity;
   /** Server-computed: public | draft | orphan */
   visibility?: MediaLibraryVisibility;
+};
+
+type PosterPickerItem = {
+  id: string;
+  kind: MediaKind;
+  mimeType: string;
+  titleFr: string;
+  titleEn: string;
+  urlOrigin: string;
+  urlPicto: string | null;
+  urlMoyenne: string | null;
 };
 
 type VisibilityFilter = MediaLibraryVisibilityFilter;
@@ -232,6 +253,7 @@ export function MediaLibraryManager() {
     useVirtualUrl();
   const editingId = parseMediaEditState(searchParams);
   const editingGroupId = parseMediaGroupEditState(searchParams);
+  const posterPickerOpen = parseMediaPosterPickerState(searchParams);
   const filterParamsKey = searchParams.toString();
   const { q, kind, visibility, groupFilterId } = useMemo(
     () => mediaLibraryFiltersFromParams(new URLSearchParams(filterParamsKey)),
@@ -247,6 +269,11 @@ export function MediaLibraryManager() {
   const [originEditable, setOriginEditable] = useState(false);
   const [editingIntegrity, setEditingIntegrity] = useState<MediaIntegrity | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<MediaItem | null>(null);
+  const [posterPickerItems, setPosterPickerItems] = useState<PosterPickerItem[]>(
+    []
+  );
+  const [posterPickerQ, setPosterPickerQ] = useState("");
+  const [posterPickerLoading, setPosterPickerLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fileQueueMessages = useMemo(
@@ -331,7 +358,11 @@ export function MediaLibraryManager() {
 
   function openMediaEdit(id: string) {
     pushVirtual(
-      { ...serializeMediaEditState(id), ...serializeMediaGroupEditState(null) },
+      {
+        ...serializeMediaEditState(id),
+        ...serializeMediaGroupEditState(null),
+        ...serializeMediaPosterPickerState(false),
+      },
       MEDIA_GROUP_PARAM_KEYS
     );
     markOpenedViaPush();
@@ -339,10 +370,24 @@ export function MediaLibraryManager() {
 
   function openGroupEdit(id: string) {
     pushVirtual(
-      { ...serializeMediaGroupEditState(id), ...serializeMediaEditState(null) },
+      {
+        ...serializeMediaGroupEditState(id),
+        ...serializeMediaEditState(null),
+        ...serializeMediaPosterPickerState(false),
+      },
       MEDIA_EDIT_PARAM_KEYS
     );
     markOpenedViaPush();
+  }
+
+  function openPosterPicker() {
+    setPosterPickerQ("");
+    pushVirtual(serializeMediaPosterPickerState(true));
+    markOpenedViaPush();
+  }
+
+  function closePosterPicker() {
+    closeVirtual(MEDIA_POSTER_PARAM_KEYS);
   }
 
   async function startNewGroup() {
@@ -439,6 +484,65 @@ export function MediaLibraryManager() {
 
   function cancelEdit() {
     closeVirtual(MEDIA_EDIT_PARAM_KEYS);
+  }
+
+  useEffect(() => {
+    if (!posterPickerOpen || !editingId || editingId === "new") return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void (async () => {
+        setPosterPickerLoading(true);
+        try {
+          const params = new URLSearchParams();
+          params.set("kind", "IMAGE");
+          params.set("limit", "50");
+          params.set("offset", "0");
+          if (posterPickerQ.trim()) params.set("q", posterPickerQ.trim());
+          const res = await fetch(`/api/media-library?${params.toString()}`);
+          if (!res.ok) throw new Error("poster picker failed");
+          const data = (await res.json()) as { items: PosterPickerItem[] };
+          if (!cancelled) setPosterPickerItems(data.items ?? []);
+        } catch {
+          if (!cancelled) {
+            setPosterPickerItems([]);
+            setLocalError(t("media.poster.loadError"));
+          }
+        } finally {
+          if (!cancelled) setPosterPickerLoading(false);
+        }
+      })();
+    }, 200);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [posterPickerOpen, editingId, posterPickerQ, t]);
+
+  async function patchPoster(posterMediaId: string | null) {
+    if (!editingId || editingId === "new") return;
+    setBusy(true);
+    setLocalError(null);
+    try {
+      const res = await fetch(`/api/media-library/${editingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ posterMediaId }),
+      });
+      const data = await readApiJson(res);
+      if (!res.ok) {
+        throw new Error(
+          typeof data.error === "string" ? data.error : t("media.saveError")
+        );
+      }
+      const updated = data as MediaItem;
+      setEditingMedia(updated);
+      void reload();
+      if (posterMediaId !== null) closePosterPicker();
+    } catch (e) {
+      setLocalError(e instanceof Error ? e.message : t("media.saveError"));
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function save() {
@@ -637,10 +741,7 @@ export function MediaLibraryManager() {
   }
 
   function thumbSrc(m: MediaItem): string | null {
-    if (m.kind === "IMAGE" && m.mimeType?.startsWith("image/")) {
-      return m.urlPicto || m.urlMoyenne || m.urlOrigin;
-    }
-    return m.urlPicto || m.urlMoyenne || null;
+    return resolveMediaThumbSrc(m);
   }
 
   function thumb(m: MediaItem, size: "sm" | "md" = "sm") {
@@ -1026,6 +1127,53 @@ export function MediaLibraryManager() {
                     </span>
                   </label>
 
+                  {editingId !== "new" &&
+                    mediaSupportsPoster(
+                      previewKind ?? editingMedia?.kind ?? null
+                    ) && (
+                      <div className="border-t border-[#eef3f7] pt-3">
+                        <p className="text-[11px] font-medium text-[#495867]">
+                          {t("media.poster")}
+                        </p>
+                        <p className="mt-0.5 text-[10px] text-[#495867]">
+                          {t("media.posterHint")}
+                        </p>
+                        <div className="mt-2 flex items-center gap-3">
+                          <MediaKindThumb
+                            kind={previewKind ?? editingMedia?.kind}
+                            mimeType={editingMedia?.mimeType}
+                            src={
+                              editingMedia
+                                ? resolveMediaThumbSrc(editingMedia)
+                                : null
+                            }
+                            size="md"
+                            className="ring-1 ring-[#d4dde6]"
+                          />
+                          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={openPosterPicker}
+                              className="min-h-[40px] rounded border border-[#d4dde6] px-3 py-1.5 text-sm text-[#495867] hover:bg-[#eef3f7] disabled:opacity-50"
+                            >
+                              {t("media.poster.choose")}
+                            </button>
+                            {editingMedia?.posterMediaId ? (
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => void patchPoster(null)}
+                                className="min-h-[40px] rounded border border-transparent px-3 py-1.5 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
+                              >
+                                {t("media.poster.clear")}
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                   <div className="border-t border-[#eef3f7] pt-3">
                     <p className="text-[11px] font-medium text-[#495867]">
                       {t("mediaGroup.inGroups")}
@@ -1050,6 +1198,75 @@ export function MediaLibraryManager() {
                 </div>
               </div>
             </EditorSheetPanel>
+          </div>
+        </FullscreenEditorModal>
+      )}
+
+      {posterPickerOpen && editingId && editingId !== "new" && (
+        <FullscreenEditorModal
+          title={t("media.poster.choose")}
+          onClose={closePosterPicker}
+          busy={busy || posterPickerLoading}
+          footerRight={
+            <button
+              type="button"
+              onClick={closePosterPicker}
+              className="rounded-md border border-[#d4dde6] px-3 py-2 text-sm"
+            >
+              {t("media.cancel")}
+            </button>
+          }
+        >
+          <div className="h-full overflow-y-auto p-4">
+            <input
+              type="search"
+              value={posterPickerQ}
+              onChange={(e) => setPosterPickerQ(e.target.value)}
+              placeholder={t("media.poster.search")}
+              className="mb-3 w-full rounded border border-[#d4dde6] px-3 py-2 text-sm"
+            />
+            {posterPickerLoading ? (
+              <p className="text-sm text-[#495867]">…</p>
+            ) : posterPickerItems.length === 0 ? (
+              <p className="text-sm text-[#495867]">{t("media.poster.empty")}</p>
+            ) : (
+              <ul className="mx-auto grid max-w-3xl gap-2 sm:grid-cols-2">
+                {posterPickerItems.map((item) => {
+                  const isCurrent = editingMedia?.posterMediaId === item.id;
+                  const label =
+                    (locale === "fr" ? item.titleFr : item.titleEn) ||
+                    item.id.slice(0, 8);
+                  return (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        disabled={busy || isCurrent}
+                        onClick={() => void patchPoster(item.id)}
+                        className="flex w-full items-center gap-3 rounded border border-[#d4dde6] px-3 py-2 text-left hover:bg-[#f8fafc] disabled:cursor-default disabled:opacity-50"
+                      >
+                        <MediaKindThumb
+                          kind={item.kind}
+                          mimeType={item.mimeType}
+                          src={
+                            item.urlPicto || item.urlMoyenne || item.urlOrigin
+                          }
+                        />
+                        <span className="min-w-0 text-sm">
+                          <span className="block truncate font-medium">
+                            {label}
+                          </span>
+                          {isCurrent && (
+                            <span className="text-xs text-[#495867]">
+                              {t("media.poster.current")}
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
         </FullscreenEditorModal>
       )}

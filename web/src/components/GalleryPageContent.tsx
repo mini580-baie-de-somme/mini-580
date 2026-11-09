@@ -359,6 +359,9 @@ export function GalleryPageContent({
               photo.urlPetite ||
               photo.urlPicto ||
               photo.urlOrigin;
+            const showPosterThumb =
+              (displayKind === "VIDEO" || displayKind === "DOCUMENT") &&
+              Boolean(photo.thumbUrl);
             return (
               <button
                 key={photo.id}
@@ -374,6 +377,16 @@ export function GalleryPageContent({
                       alt={title}
                       className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                     />
+                  ) : showPosterThumb ? (
+                    <div className="relative h-full w-full">
+                      <MediaKindThumb
+                        kind={displayKind}
+                        mimeType={photo.mimeType}
+                        src={photo.thumbUrl}
+                        size="md"
+                        className="h-full w-full rounded-none transition duration-300 group-hover:scale-105"
+                      />
+                    </div>
                   ) : (
                     <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-[#495867]">
                       <MediaKindThumb

@@ -24,6 +24,19 @@ export type ArticleManifestMedia = {
   cropY?: number;
   cropW?: number;
   cropH?: number;
+  posterMediaId?: string | null;
+  poster?: {
+    id: string;
+    kind?: string | null;
+    mimeType?: string | null;
+    urlOrigin: string;
+    urlPicto: string | null;
+    urlPetite: string | null;
+    urlMoyenne: string | null;
+    urlGrande: string | null;
+    titleFr?: string;
+    titleEn?: string;
+  } | null;
 };
 
 export type PublicMediaGroup = {
