@@ -1,6 +1,6 @@
 # TODO — Class Mini 5.80 Baie de Somme
 
-> Dernière mise à jour : 2026-11-09 · prod **v1.2.137** · test **v1.2.143** (`main`) — vignette poster VIDEO/DOCUMENT en cours de ship TEST
+> Dernière mise à jour : 2026-11-09 · prod **v1.2.137** · test **v1.2.144** (`main` @ `78cd1a3`) — vignette poster VIDEO/DOCUMENT sur TEST
 
 ## 🚧 En cours — Vignette poster VIDEO/DOCUMENT (nov 2026)
 
@@ -13,7 +13,8 @@ Spec : `docs/12-photo-editor-medias.md` § Vignette poster · décision Hammed v
 - [x] Tiles galerie / groupes / cartes mobile
 - [x] i18n FR/EN + tool `media.update` posterMediaId
 - [x] Tests unit + API
-- [ ] Ship TEST → validation Hammed → PROD
+- [x] Ship TEST ✓ **v1.2.144**
+- [ ] Validation Hammed → deploy PROD
 
 ## ✅ Terminé — Phase 1e liens externes inline (août 2026)
 
